@@ -1,0 +1,147 @@
+<div class="profil-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/isgi-sfax-logo-removebg-preview.png" alt="ISGI" class="sidebar-isgi-logo">
+      <span class="sidebar-title">Logi<span class="highlight">Link</span></span>
+    </div>
+
+    <div class="avatar-section">
+      <div class="avatar">
+        <img src="assets/image.png" alt="avatar" class="avatar-img" />
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-item" (click)="goToDashboard()">
+        <span class="nav-icon">🟧</span> Tableau de board
+      </a>
+      <a class="nav-item active">
+        <span class="nav-icon">👤</span> Mon profil
+      </a>
+      <a class="nav-item">
+        <span class="nav-icon">✏️</span> Matching entreprises
+      </a>
+      <a class="nav-item">
+        <span class="nav-icon">📋</span> Formations
+      </a>
+      <a class="nav-item" (click)="goToCvAts()">
+        <span class="nav-icon">📄</span> Mon cv ats
+      </a>
+      <a class="nav-item">
+        <span class="nav-icon">⚙️</span> compétence
+      </a>
+    </nav>
+
+    <button class="logout-btn" (click)="logout()">Déconnexion</button>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <div class="profil-page">
+      <div class="profil-content">
+
+        <!-- Left panel -->
+        <div class="profil-left">
+          <div class="profil-avatar">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#1a1a2e" width="56" height="56">
+              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+            </svg>
+          </div>
+          <h2 class="profil-name">Ahmed Ben Ali</h2>
+          <span class="profil-badge">Technicien Spécialisé</span>
+          <span class="profil-specialty">Logistique &amp; Transport</span>
+          <div class="profil-info-list">
+            <div class="profil-info-item">
+              <svg class="profil-info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/></svg>
+              <span>ahmed.benali@isgi.tn</span>
+            </div>
+            <div class="profil-info-item">
+              <svg class="profil-info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 3.1 5.2 2 2 0 0 1 5.1 3h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L9 11a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7A2 2 0 0 1 23 18z"/></svg>
+              <span>+216 98 765 432</span>
+            </div>
+            <div class="profil-info-item">
+              <svg class="profil-info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+              <span>Sfax, Tunisie</span>
+            </div>
+            <div class="profil-info-item">
+              <svg class="profil-info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3.3 2 8.7 2 12 0v-5"/></svg>
+              <span>ISGI Sfax</span>
+            </div>
+            <div class="profil-info-item">
+              <svg class="profil-info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Promotion 2024–2026</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right panel -->
+        <div class="profil-right">
+          <h2 class="academic-title">Informations Académiques</h2>
+          <div class="academic-grid">
+            <div class="academic-item">
+              <span class="academic-label">FILIÈRE</span>
+              <span class="academic-value">Logistique &amp; Transport</span>
+            </div>
+            <div class="academic-item">
+              <span class="academic-label">NIVEAU</span>
+              <span class="academic-value">2ème année</span>
+            </div>
+            <div class="academic-item">
+              <span class="academic-label">NUMÉRO ÉTUDIANT</span>
+              <span class="academic-value">ISGI-2024-0147</span>
+            </div>
+            <div class="academic-item">
+              <span class="academic-label">MOYENNE GÉNÉRALE</span>
+              <span class="academic-value">14.8 / 20</span>
+            </div>
+            <div class="academic-item">
+              <span class="academic-label">STAGE ACTUEL</span>
+              <span class="academic-value">En recherche</span>
+            </div>
+            <div class="academic-item">
+              <span class="academic-label">SCORE CV ATS</span>
+              <span class="academic-value">72 / 100</span>
+            </div>
+          </div>
+
+          <!-- Progression du profil -->
+          <div class="profil-progression">
+            <h3 class="progression-title">Progression du profil</h3>
+            <div class="progress-track">
+              <div class="progress-fill-navy" style="width: 72%"></div>
+              <div class="progress-fill-orange" style="width: 28%"></div>
+            </div>
+            <p class="progress-hint">72% complété — Ajoutez vos expériences et certifications pour améliorer votre score</p>
+          </div>
+
+          <!-- Documents -->
+          <div class="profil-documents">
+            <h3 class="documents-title">Documents</h3>
+            <div class="documents-grid">
+              <button class="doc-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fca63a" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                CV
+              </button>
+              <button class="doc-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fca63a" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                Lettre de motivation
+              </button>
+              <button class="doc-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fca63a" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                Relevé de notes
+              </button>
+              <button class="doc-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fca63a" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                Attestation de stage
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+</div>
