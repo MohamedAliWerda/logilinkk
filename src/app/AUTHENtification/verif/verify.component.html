@@ -13,7 +13,7 @@
       <div class="viz-bar" style="height:44px"></div>
     </div>
 
-    <!-- Mini pie / donut -->
+    <!-- Mini donut -->
     <div class="deco viz-donut">
       <svg viewBox="0 0 36 36" width="70" height="70">
         <circle cx="18" cy="18" r="13" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="5"/>
@@ -24,7 +24,7 @@
       </svg>
     </div>
 
-    <!-- Mini stat card top-right -->
+    <!-- Mini stat card top-left -->
     <div class="deco viz-stat-card viz-card-1">
       <div class="viz-card-line viz-card-line-long"></div>
       <div class="viz-card-line viz-card-line-short"></div>
@@ -45,26 +45,42 @@
       <img src="assets/Gemini_Generated_Image_xtz8sqxtz8sqxtz8-removebg-preview.png" alt="LOGILINK ISGIS & DJAGORA" class="main-logo" />
     </div>
   </div>
+
   <div class="login-right">
     <div class="login-box">
       <div class="login-header">
         <img src="assets/isgi-sfax-logo-removebg-preview.png" alt="ISGI" class="logo-left">
-        <img src="assets/Gemini.png" alt="LogiLink" class="logo-center">
         <img src="assets/djagora-removebg-preview.png" alt="Jagora" class="logo-right">
       </div>
-      <h2>Connexion</h2>
-      <p class="subtitle">Connectez-vous avec votre identifiant étudiant ou email administrate19</p>
-      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-        <label>Identifiant</label>
-        <input formControlName="identifiant" placeholder="EX : ISGI2025-001" />
-        <label>Mot de passe</label>
-        <div class="password-field">
-          <input [type]="hidePassword ? 'password' : 'text'" formControlName="password" placeholder="••••••••" />
-          <button type="button" (click)="hidePassword = !hidePassword" class="toggle-password">&#x1F441;</button>
-        </div>
-        <a class="forgot" href="#">mot de passe oublié ?</a>
-        <button class="login-btn" type="submit">Se Connecter</button>
-      </form>
+
+      <h2>Vérification</h2>
+      <p class="subtitle">
+        Un code de vérification à 6 chiffres a été envoyé à votre email.
+      </p>
+
+      <div class="digits-row" (paste)="onPaste($event)">
+        <input
+          *ngFor="let d of digits; let i = index"
+          class="digit-input"
+          type="text"
+          inputmode="numeric"
+          maxlength="1"
+          [value]="d"
+          (input)="onInput($event, i)"
+          (keydown)="onKeydown($event, i)"
+        />
+      </div>
+
+      <p class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</p>
+
+      <button class="login-btn" (click)="verify()">Vérifier</button>
+
+      <p class="resend-text">
+        Vous n'avez pas reçu le code ?
+        <button class="resend-btn" [disabled]="resendCooldown > 0" (click)="resend()">
+          {{ resendCooldown > 0 ? 'Renvoyer dans ' + resendCooldown + 's' : 'Renvoyer' }}
+        </button>
+      </p>
     </div>
   </div>
 </div>

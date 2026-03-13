@@ -1,0 +1,197 @@
+﻿<div class="admin-layout">
+  <app-admin-sidebar [collapsed]="sidebarCollapsed" />
+
+ <!-- ═══════════════════════ MAIN AREA ═══════════════════════ -->
+  <main class="main-area">
+
+    <app-top-navbar
+      [userName]="adminName"
+      role="admin"
+      (logoutClick)="logout()"
+      (menuToggle)="toggleSidebar()"
+    ></app-top-navbar>
+
+    <!-- Page title -->
+    <div class="page-title-wrap">
+      <h1 class="page-title">TABLEAU DE BORD ADMIN</h1>
+    </div>
+
+    <!-- Section label -->
+    <p class="section-label">Vue d'ensemble</p>
+
+    <!-- ── Stat cards ── -->
+    <div class="stats-grid">
+      <div class="stat-card" *ngFor="let s of stats">
+        <div class="stat-value">{{ s.value }}</div>
+        <div class="stat-label">{{ s.label }}</div>
+      </div>
+    </div>
+
+    <!-- ── Charts row ── -->
+    <div class="charts-row">
+
+      <!-- Donut chart -->
+      <div class="chart-card">
+        <h3 class="chart-title">Répartition par<br />spécialité</h3>
+        <div class="donut-container">
+          <svg viewBox="0 0 200 200" class="donut-svg" xmlns="http://www.w3.org/2000/svg">
+            <!-- base circle ensures ring is always complete -->
+            <circle cx="100" cy="100" r="70" fill="none" stroke="#eee" stroke-width="36" />
+            <circle
+              *ngFor="let seg of donutSegments"
+              cx="100" cy="100" r="70"
+              fill="none"
+              [attr.stroke]="seg.color"
+              stroke-width="36"
+              [attr.stroke-dasharray]="seg.dashArray"
+              [attr.stroke-dashoffset]="seg.dashOffset"
+              transform="rotate(-90, 100, 100)"
+            />
+            <!-- Center white circle for donut hole -->
+            <circle cx="100" cy="100" r="51" fill="white" />
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item" *ngFor="let l of donutLegend">
+              <span class="legend-dot" [style.background]="l.color"></span>
+              <span>{{ l.label }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bar chart -->
+      <div class="chart-card">
+        <h3 class="chart-title">Evolution des inscriptions</h3>
+        <svg viewBox="0 0 550 300" class="bar-svg" xmlns="http://www.w3.org/2000/svg">
+
+          <!-- Horizontal gridlines + Y-axis labels -->
+          <ng-container *ngFor="let g of yGridLines">
+            <line x1="50" [attr.y1]="g.y" x2="530" [attr.y2]="g.y"
+              stroke="#e8e8e8" stroke-width="1" />
+            <text x="44" [attr.y]="g.y + 4" text-anchor="end"
+              font-size="11" fill="#aaa" font-family="Segoe UI, Arial, sans-serif">{{ g.value }}</text>
+          </ng-container>
+
+          <!-- Bars + X-axis labels -->
+          <ng-container *ngFor="let b of barData">
+            <rect
+              [attr.x]="b.x"
+              [attr.y]="b.y"
+              [attr.width]="barW"
+              [attr.height]="b.height"
+              rx="4"
+              fill="#1e2d5a"
+            />
+            <text
+              [attr.x]="b.x + barW / 2"
+              y="285"
+              text-anchor="middle"
+              font-size="10.5"
+              fill="#aaa"
+              font-family="Segoe UI, Arial, sans-serif"
+            >{{ b.month }}</text>
+          </ng-container>
+
+          <!-- Bottom axis line -->
+          <line x1="50" y1="265" x2="530" y2="265" stroke="#ddd" stroke-width="1" />
+        </svg>
+      </div>
+
+    </div>
+
+    <!-- ── General profile recommendations ── -->
+    <div class="formations-section">
+      <div class="panel-header">
+        <h2>Recommandations générales</h2>
+        <a class="panel-link" href="#">Voir tout →</a>
+      </div>
+      <div class="formations-grid">
+        <div class="formation-card" *ngFor="let r of profileRecommendations">
+          <div class="formation-top">
+            <span class="formation-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              </svg>
+            </span>
+            <span class="formation-badge" [ngClass]="{'badge-haute': r.badge==='Haute', 'badge-moyenne': r.badge==='Moyenne'}">{{ r.badge }}</span>
+          </div>
+          <h3 class="formation-title">{{ r.title }}</h3>
+          <p class="formation-meta">{{ r.meta }}</p>
+          <button class="formation-btn">{{ r.btn }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Recent students table ── -->
+    <div class="table-card">
+      <div class="panel-header">
+        <h3 class="table-title">Derniers étudiants inscrits</h3>
+        <button class="table-panel-link" type="button" (click)="openStudentsPopup()">Voir tout →</button>
+      </div>
+      <table class="students-table">
+        <thead>
+          <tr>
+            <th>Étudiant</th>
+            <th>ID</th>
+            <th>Spécialisation</th>
+            <th>Score CV</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of recentStudents">
+            <td class="col-name">{{ s.name }}</td>
+            <td class="col-id">{{ s.id }}</td>
+            <td>
+              <span class="badge"
+                [style.background]="getBadgeStyle(s.speciality).bg"
+                [style.color]="getBadgeStyle(s.speciality).color">
+                {{ s.speciality }}
+              </span>
+            </td>
+            <td class="col-score" [style.color]="scoreColor(s.score)">{{ s.score }}/100</td>
+            <td class="col-actions"><a class="voir-profil">Voir profil</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="students-modal-overlay" *ngIf="showStudentsPopup" (click)="closeStudentsPopup()">
+      <div class="students-modal" (click)="$event.stopPropagation()">
+        <div class="students-modal-header">
+          <h3>Liste complète des étudiants</h3>
+          <button class="students-modal-close" type="button" (click)="closeStudentsPopup()">Fermer</button>
+        </div>
+
+        <div class="students-modal-body">
+          <table class="students-table modal-table">
+            <thead>
+              <tr>
+                <th>Étudiant</th>
+                <th>ID</th>
+                <th>Spécialisation</th>
+                <th>Score CV</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let s of allStudents">
+                <td class="col-name">{{ s.name }}</td>
+                <td class="col-id">{{ s.id }}</td>
+                <td>
+                  <span class="badge"
+                    [style.background]="getBadgeStyle(s.speciality).bg"
+                    [style.color]="getBadgeStyle(s.speciality).color">
+                    {{ s.speciality }}
+                  </span>
+                </td>
+                <td class="col-score" [style.color]="scoreColor(s.score)">{{ s.score }}/100</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>

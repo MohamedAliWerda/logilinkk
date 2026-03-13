@@ -1,44 +1,13 @@
-<div class="profil-layout">
-
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <img src="assets/isgi-sfax-logo-removebg-preview.png" alt="ISGI" class="sidebar-isgi-logo">
-      <span class="sidebar-title">Logi<span class="highlight">Link</span></span>
-    </div>
-
-    <div class="avatar-section">
-      <div class="avatar">
-        <img src="assets/image.png" alt="avatar" class="avatar-img" />
-      </div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <a class="nav-item" (click)="goToDashboard()">
-        <span class="nav-icon">🟧</span> Tableau de board
-      </a>
-      <a class="nav-item active">
-        <span class="nav-icon">👤</span> Mon profil
-      </a>
-      <a class="nav-item">
-        <span class="nav-icon">✏️</span> Matching entreprises
-      </a>
-      <a class="nav-item">
-        <span class="nav-icon">📋</span> Formations
-      </a>
-      <a class="nav-item" (click)="goToCvAts()">
-        <span class="nav-icon">📄</span> Mon cv ats
-      </a>
-      <a class="nav-item">
-        <span class="nav-icon">⚙️</span> compétence
-      </a>
-    </nav>
-
-    <button class="logout-btn" (click)="logout()">Déconnexion</button>
-  </aside>
+﻿<div class="profil-layout">
+  <app-student-sidebar />
 
   <!-- MAIN CONTENT -->
   <main class="main-content">
+    <div class="page-title-wrap">
+      <h1 class="page-title">PROFIL ÉTUDIANT</h1>
+    </div>
+    <p class="page-subtitle">Consultez vos informations academiques et votre progression de profil</p>
+
     <div class="profil-page">
       <div class="profil-content">
 
@@ -116,28 +85,6 @@
             <p class="progress-hint">72% complété — Ajoutez vos expériences et certifications pour améliorer votre score</p>
           </div>
 
-          <!-- Documents -->
-          <div class="profil-documents">
-            <h3 class="documents-title">Documents</h3>
-            <div class="documents-grid">
-              <button class="doc-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fca63a" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-                CV
-              </button>
-              <button class="doc-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fca63a" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-                Lettre de motivation
-              </button>
-              <button class="doc-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fca63a" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-                Relevé de notes
-              </button>
-              <button class="doc-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fca63a" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-                Attestation de stage
-              </button>
-            </div>
-          </div>
         </div>
 
       </div>

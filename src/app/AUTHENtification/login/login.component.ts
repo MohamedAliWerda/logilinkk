@@ -21,7 +21,7 @@ export class LoginComponent {
   }
 
   onSubmit() {
-    this.router.navigate(['/verify'], {
+    this.router.navigate(['/auth/verify'], {
       state: { email: this.loginForm.value.identifiant }
     });
   }

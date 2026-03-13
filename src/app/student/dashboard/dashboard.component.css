@@ -89,7 +89,12 @@
   font-weight: 700;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
-.nav-icon { font-size: 1rem; }
+.nav-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: inherit;
+}
 
 /* LOGOUT */
 .logout-btn {
@@ -111,7 +116,7 @@
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding: 2rem 2rem 2rem 2rem;
+  padding: 2rem 2.2rem;
   background: #f7f7f7;
   display: flex;
   flex-direction: column;
@@ -121,15 +126,16 @@
 /* GREETING */
 .greeting-bar {
   display: inline-block;
-  background: #fff;
-  border: 2px solid #fca63a;
-  border-radius: 2rem;
-  padding: 0.6rem 2rem;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: #1a1a2e;
-  letter-spacing: 0.5px;
-  align-self: flex-start;
+  background: #e6d0ae;
+  border-radius: 2.5rem;
+  padding: 0.6rem 3.2rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #5a3e1c;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: center;
+  align-self: center;
 }
 
 /* STAT CARDS */
@@ -331,6 +337,203 @@
 .formation-btn:hover {
   border-color: #fca63a;
   background: #fff8f0;
+}
+
+/* MATCHING ENTREPRISES VIEW */
+.matching-section {
+  background: #f3f5f9;
+  border-radius: 1rem;
+  padding: 1.2rem 1rem;
+}
+
+.matching-head {
+  display: grid;
+  grid-template-columns: 1fr 290px;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.matching-head > div:first-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.matching-head h2 {
+  display: inline-block;
+  background: #e6d0ae;
+  border-radius: 2.5rem;
+  padding: 0.6rem 3.2rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #5a3e1c;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: center;
+  margin: 0 auto 0.55rem;
+}
+
+.matching-head p {
+  font-size: 0.97rem;
+  color: #999;
+  font-weight: 500;
+  max-width: none;
+  text-align: left;
+  align-self: flex-start;
+  white-space: nowrap;
+}
+
+.matching-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff;
+  border: 1.5px solid #e4e8ef;
+  border-radius: 0.8rem;
+  padding: 0.5rem 0.7rem;
+  color: #95a0b3;
+}
+
+.matching-search-wrap input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 0.95rem;
+  color: #455066;
+  font-family: inherit;
+}
+
+.matching-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.matching-card {
+  background: #fff;
+  border: 1.5px solid #e7ebf2;
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(10, 22, 50, 0.05);
+}
+
+.matching-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.company-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.company-square-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 0.75rem;
+  background: #eef2f8;
+  color: #2d4774;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.company-head h3 {
+  font-size: 1.05rem;
+  color: #1c2438;
+  margin-bottom: 0.2rem;
+}
+
+.company-location {
+  font-size: 0.9rem;
+  color: #6e7a8f;
+}
+
+.score-box {
+  text-align: right;
+}
+
+.score-value {
+  display: block;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #f2a100;
+  line-height: 1;
+}
+
+.score-label {
+  font-size: 0.9rem;
+  color: #7f8aa0;
+}
+
+.company-desc {
+  margin-top: 0.8rem;
+  font-size: 0.9rem;
+  color: #556079;
+  line-height: 1.35;
+  min-height: 48px;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.7rem 0;
+}
+
+.tag-chip {
+  background: #fff3e0;
+  color: #f08f24;
+  border-radius: 999px;
+  padding: 0.18rem 0.58rem;
+  font-size: 0.79rem;
+  font-weight: 600;
+}
+
+.matching-divider {
+  height: 1px;
+  background: #e5e9f0;
+  margin: 0.45rem 0 0.65rem;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #6f7b90;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.stage-chip {
+  border: 1px solid #d8deea;
+  border-radius: 999px;
+  padding: 0.12rem 0.55rem;
+  color: #2c3b56;
+  font-weight: 600;
+}
+
+.detail-btn {
+  width: 100%;
+  border: 1.5px solid #dbe1ec;
+  border-radius: 0.7rem;
+  background: #f8fafc;
+  color: #22304a;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.5rem 0;
+  cursor: pointer;
+}
+
+.detail-btn:hover {
+  border-color: #f0b050;
+  background: #fffaf1;
 }
 
 /* ── MON PROFIL ──────────────────────────── */

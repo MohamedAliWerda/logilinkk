@@ -1,0 +1,116 @@
+﻿<div class="admin-layout">
+  <app-admin-sidebar [collapsed]="sidebarCollapsed" />
+
+  <main class="main-area">
+    <app-top-navbar
+      [userName]="adminName"
+      role="admin"
+      (logoutClick)="logout()"
+      (menuToggle)="toggleSidebar()"
+    ></app-top-navbar>
+
+    <div class="page-content" [class.blurred]="showAddForm">
+      <div class="page-header">
+        <div class="page-title-wrap">
+          <h1 class="page-title">Formations</h1>
+        </div>
+        <p class="page-subtitle">Programmes et modules dispenses a l'ISGI</p>
+        <button class="add-btn" (click)="openAddForm()">Ajouter</button>
+      </div>
+
+      <div class="formations-grid">
+        <div class="formation-card" *ngFor="let f of formations">
+          <div class="card-head">
+            <span class="code-badge">{{ f.code }}</span>
+            <span class="status-badge" [class.planifie]="f.statut === 'Planifie'">{{ f.statut }}</span>
+          </div>
+
+          <h3 class="formation-title">{{ f.title }}</h3>
+          <p class="formation-desc">{{ f.description }}</p>
+
+          <div class="meta-row">
+            <span class="meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              {{ f.duration }}
+            </span>
+            <span class="meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              {{ f.students }} etudiants
+            </span>
+            <span class="meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              {{ f.semester }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" *ngIf="showAddForm" (click)="cancelAdd()">
+      <div class="add-form-card add-form-modal" (click)="$event.stopPropagation()">
+        <h2 class="form-title">Nouvelle formation</h2>
+
+        <div class="form-grid">
+          <label class="field">
+            <span>Code</span>
+            <input type="text" [(ngModel)]="newFormation.code" placeholder="Ex: LOG-450" />
+          </label>
+
+          <label class="field">
+            <span>Titre</span>
+            <input type="text" [(ngModel)]="newFormation.title" placeholder="Nom de la formation" />
+          </label>
+
+          <label class="field field-full">
+            <span>Description</span>
+            <textarea rows="3" [(ngModel)]="newFormation.description" placeholder="Description du module"></textarea>
+          </label>
+
+          <label class="field">
+            <span>Duree</span>
+            <input type="text" [(ngModel)]="newFormation.duration" placeholder="Ex: 80h" />
+          </label>
+
+          <label class="field">
+            <span>Etudiants</span>
+            <input type="number" min="0" [(ngModel)]="newFormation.students" />
+          </label>
+
+          <label class="field">
+            <span>Semestre</span>
+            <input type="text" [(ngModel)]="newFormation.semester" placeholder="Ex: S5" />
+          </label>
+
+          <label class="field">
+            <span>Statut</span>
+            <select [(ngModel)]="newFormation.statut">
+              <option value="En cours">En cours</option>
+              <option value="Planifie">Planifie</option>
+            </select>
+          </label>
+        </div>
+
+        <p class="form-error" *ngIf="formError">{{ formError }}</p>
+
+        <div class="form-actions">
+          <button class="btn-cancel" (click)="cancelAdd()">Annuler</button>
+          <button class="btn-save" (click)="addFormation()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

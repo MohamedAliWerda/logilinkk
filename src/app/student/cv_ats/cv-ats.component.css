@@ -80,7 +80,12 @@
   font-weight: 700;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
-.nav-icon { font-size: 1rem; }
+.nav-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: inherit;
+}
 
 .logout-btn {
   background: #1a1a2e;
@@ -101,7 +106,7 @@
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding: 2rem;
+  padding: 2rem 2.2rem;
   background: #f7f7f7;
   display: flex;
   flex-direction: column;
@@ -110,13 +115,17 @@
 
 /* TOP BAR */
 .cv-topbar {
-  background: #ffecd4;
-  border-radius: 2rem;
-  padding: 0.75rem 1.8rem;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #1a1a2e;
-  width: fit-content;
+  display: inline-block;
+  background: #e6d0ae;
+  border-radius: 2.5rem;
+  padding: 0.6rem 3.2rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #5a3e1c;
+  letter-spacing: 1.5px;
+  text-align: center;
+  text-transform: uppercase;
+  align-self: center;
 }
 
 /* TABS */

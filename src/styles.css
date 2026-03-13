@@ -1,3 +1,179 @@
-/* You can add global styles to this file, and also import other style files */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body, html { height: 100%; background: #f0f0f0; }
+/* Global coherence layer: keeps your existing palette/icons while unifying rhythm and surfaces */
+:root {
+	--radius-pill: 2.5rem;
+	--radius-card: 1rem;
+	--radius-soft: 0.8rem;
+	--space-1: 0.35rem;
+	--space-2: 0.6rem;
+	--space-3: 0.9rem;
+	--space-4: 1.2rem;
+	--space-5: 1.6rem;
+	--shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.05);
+	--shadow-lift: 0 6px 18px rgba(0, 0, 0, 0.08);
+	--navy: #1a1a2e;
+	--orange: #e07800;
+	--beige: #e6d0ae;
+	--bg-app: #f7f7f7;
+	--surface: #ffffff;
+	--border-soft: #e8ebf0;
+}
+
+*, *::before, *::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+html,
+body {
+	height: 100%;
+	background: #f0f0f0;
+}
+
+body {
+	font-family: 'Segoe UI', Arial, sans-serif;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* Shared scroll polish */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: #c9cfda transparent;
+}
+
+/* Shared layout surfaces */
+.main-content,
+.main-area {
+	background: var(--bg-app);
+}
+
+/* Shared title pill used across admin/student pages */
+.page-title-wrap {
+	display: flex;
+	justify-content: center;
+}
+
+.page-title,
+.greeting-bar,
+.cv-topbar,
+.matching-head h2,
+.formations-main h1,
+.page-header h1 {
+	background: var(--beige);
+	border-radius: var(--radius-pill);
+	padding: 0.6rem 3.2rem;
+	font-size: 1.15rem;
+	font-weight: 700;
+	color: #5a3e1c;
+	letter-spacing: 1.5px;
+	text-transform: uppercase;
+	text-align: center;
+}
+
+.page-subtitle {
+	font-size: 0.97rem;
+	color: #999;
+	font-weight: 500;
+	margin-top: 0.35rem;
+}
+
+/* Shared card language */
+.stat-card,
+.panel,
+.chart-card,
+.table-card,
+.settings-card,
+.matching-card,
+.formation-card,
+.single-chart-card,
+.profil-left,
+.profil-right,
+.add-form-card,
+.missing-panel,
+.kpi-card {
+	border-radius: var(--radius-card);
+	border: 1.5px solid var(--border-soft);
+	box-shadow: var(--shadow-soft);
+}
+
+/* Inputs/buttons coherence */
+input,
+textarea,
+select,
+button {
+	font-family: inherit;
+}
+
+input,
+textarea,
+select,
+.search-input,
+.matching-search-wrap,
+.doc-btn,
+.detail-btn,
+.formation-btn,
+.open-btn {
+	border-radius: var(--radius-soft);
+}
+
+button,
+.add-btn,
+.logout-btn,
+.btn-save,
+.btn-cancel,
+.detail-btn,
+.formation-btn,
+.open-btn,
+.doc-btn {
+	transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+button:hover,
+.add-btn:hover,
+.btn-save:hover,
+.detail-btn:hover,
+.formation-btn:hover,
+.open-btn:hover,
+.doc-btn:hover {
+	transform: translateY(-1px);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+.nav-item:focus-visible,
+.tab-btn:focus-visible {
+	outline: 2px solid #fca63a;
+	outline-offset: 2px;
+}
+
+/* Sidebar/nav coherence across all pages */
+.sidebar {
+	box-shadow: 2px 0 16px rgba(0, 0, 0, 0.07);
+}
+
+.sidebar-nav {
+	gap: 0.2rem;
+}
+
+.nav-item {
+	border-radius: 2rem;
+	line-height: 1.25;
+}
+
+.nav-item.active {
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Slightly smoother card headings and labels */
+.chart-title,
+.panel-header h2,
+.academic-title,
+.profil-name,
+.section-title,
+.progression-title,
+.documents-title {
+	letter-spacing: 0.2px;
+}

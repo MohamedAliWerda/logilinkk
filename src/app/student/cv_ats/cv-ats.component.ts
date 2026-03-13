@@ -1,16 +1,20 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
+import { StudentSidebarComponent } from '../student-sidebar/student-sidebar.component';
+import { TopNavbarComponent } from '../../shared/top-navbar/top-navbar.component';
 
 @Component({
   selector: 'app-cv-ats',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, StudentSidebarComponent, TopNavbarComponent],
   templateUrl: './cv-ats.component.html',
   styleUrls: ['./cv-ats.component.css']
 })
 export class CvAtsComponent {
+  studentName = 'Nour';
+  sidebarCollapsed = false;
   activeTab = 'infos';
   atsScore = 0;
 
@@ -97,5 +101,12 @@ export class CvAtsComponent {
   navigateTo(menu: string) {
     this.setMenu(menu);
     if (menu === 'dashboard') this.router.navigate(['/dashboard']);
+    if (menu === 'matching') this.router.navigate(['/matching']);
+    if (menu === 'formations') this.router.navigate(['/student-formations']);
+    if (menu === 'competence') this.router.navigate(['/student-competences']);
+  }
+
+  toggleSidebar() {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
   }
 }

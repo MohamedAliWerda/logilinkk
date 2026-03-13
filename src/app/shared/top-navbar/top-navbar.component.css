@@ -1,0 +1,114 @@
+:host {
+  display: block;
+  /* Pull navbar over parent paddings so it touches top and sidebar edge */
+  margin: -2rem -2.2rem 1.35rem;
+}
+
+.top-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  min-height: 74px;
+  padding: 0.6rem 1.5rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e8ebef;
+  box-shadow: 0 4px 16px rgba(17, 24, 39, 0.04);
+}
+
+.navbar-left,
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.menu-btn {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 0.6rem;
+  color: #4b5563;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.menu-btn:hover {
+  background: #f5f7fa;
+  color: #334155;
+}
+
+.brand-logo {
+  height: 20px;
+  width: auto;
+  object-fit: contain;
+}
+
+.user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: #ffffff;
+  border: 1.5px solid #ef8e2e;
+  border-radius: 999px;
+  padding: 0.72rem 1.25rem;
+  color: #111827;
+}
+
+.user-icon {
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+}
+
+.user-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.logout-icon-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 0.8rem;
+  border: 1.5px solid #c3c8cf;
+  background: #f8fafc;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.logout-icon-btn:hover {
+  border-color: #ef8e2e;
+  color: #ef8e2e;
+  background: #fff9f3;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+  :host {
+    margin: -2rem -2.2rem 1rem;
+  }
+
+  .top-navbar {
+    flex-wrap: wrap;
+    padding: 0.7rem 0.9rem;
+  }
+
+  .navbar-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .user-name {
+    font-size: 0.98rem;
+  }
+}

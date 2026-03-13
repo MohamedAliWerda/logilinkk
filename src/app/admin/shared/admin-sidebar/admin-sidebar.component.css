@@ -1,0 +1,150 @@
+:host {
+  display: contents;
+}
+
+.sidebar {
+  width: 225px;
+  min-width: 225px;
+  background: linear-gradient(180deg, #fff8f1 0%, #fff0db 12%, #ffe6b8 45%, #ffc46a 85%, #ffb24a 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1.2rem 1.2rem;
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.07);
+  z-index: 10;
+  transition: width 0.24s ease, min-width 0.24s ease, padding 0.24s ease;
+}
+
+.sidebar.collapsed {
+  width: 68px;
+  min-width: 68px;
+  padding: 1.2rem 0.55rem;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.8rem;
+}
+.logo-isgi {
+  height: 26px;
+}
+.brand-name {
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: #1a1a2e;
+  letter-spacing: 0.2px;
+}
+.brand-link {
+  color: #e07800;
+  font-weight: 700;
+}
+
+.avatar-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.8rem;
+}
+.avatar-box {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.avatar-box svg {
+  display: block;
+  width: 82px;
+  height: 82px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.62rem 1rem;
+  border-radius: 2rem;
+  font-size: 0.93rem;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+}
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.5);
+  color: #e07800;
+}
+.nav-item.active {
+  background: #fff;
+  color: #e07800;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.nav-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.nav-label {
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  margin-bottom: 1.1rem;
+}
+
+.sidebar.collapsed .brand-name,
+.sidebar.collapsed .avatar-wrap,
+.sidebar.collapsed .logout-btn {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-nav {
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sidebar.collapsed .nav-item {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 14px;
+  justify-content: center;
+}
+
+.sidebar.collapsed .nav-item .nav-label {
+  display: none;
+}
+
+.sidebar.collapsed .logo-isgi {
+  height: 22px;
+}
+
+.logout-btn {
+  margin-top: 1rem;
+  width: 100%;
+  background: #1a1a2e;
+  color: #fff;
+  border: none;
+  border-radius: 2rem;
+  padding: 0.78rem 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.logout-btn:hover {
+  background: #2c2c52;
+}

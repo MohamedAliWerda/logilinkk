@@ -1,47 +1,19 @@
-<div class="dashboard-layout">
-
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <img src="assets/isgi-sfax-logo-removebg-preview.png" alt="ISGI" class="sidebar-isgi-logo">
-      <span class="sidebar-title">Logi<span class="highlight">Link</span></span>
-    </div>
-
-    <div class="avatar-section">
-      <div class="avatar">
-        <img src="assets/image.png" alt="avatar" class="avatar-img" />
-      </div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <a class="nav-item" [class.active]="activeMenu === 'profil'" (click)="navigateTo('profil')">
-        <span class="nav-icon">👤</span> Mon profil
-      </a>
-      <a class="nav-item" [class.active]="activeMenu === 'dashboard'" (click)="navigateTo('dashboard')">
-        <span class="nav-icon">🟧</span> Tableau de board
-      </a>
-      <a class="nav-item" [class.active]="activeMenu === 'matching'" (click)="setMenu('matching')">
-        <span class="nav-icon">✏️</span> Matching entreprises
-      </a>
-      <a class="nav-item" [class.active]="activeMenu === 'formations'" (click)="setMenu('formations')">
-        <span class="nav-icon">📋</span> Formations
-      </a>
-      <a class="nav-item" [class.active]="activeMenu === 'cv'" (click)="setMenu('cv')">
-        <span class="nav-icon">📄</span> Mon cv ats
-      </a>
-      <a class="nav-item" [class.active]="activeMenu === 'competence'" (click)="setMenu('competence')">
-        <span class="nav-icon">⚙️</span> compétence
-      </a>
-    </nav>
-
-    <button class="logout-btn" (click)="logout()">Déconnexion</button>
-  </aside>
+﻿<div class="dashboard-layout">
+  <app-student-sidebar [collapsed]="sidebarCollapsed" />
 
   <!-- MAIN CONTENT -->
   <main class="main-content">
 
+    <app-top-navbar
+      [userName]="studentName"
+      role="student"
+      (logoutClick)="logout()"
+      (menuToggle)="toggleSidebar()"
+    ></app-top-navbar>
+
     <!-- Top bar -->
-    <div class="cv-topbar">cv ats</div>
+    <div class="cv-topbar">Création de CV ATS</div>
+    <p class="page-subtitle">Creez et optimisez votre CV pour ameliorer votre score ATS</p>
 
     <!-- Tab navigation -->
     <div class="tabs-row">
