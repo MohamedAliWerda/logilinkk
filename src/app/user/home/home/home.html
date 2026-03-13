@@ -1,1 +1,34 @@
-<p>home works!</p>
+<div class="dashboard-wrapper">
+  <app-navbar></app-navbar>
+
+  <div class="main-layout" [class.shifted]="isOpen | async">
+    <app-sidebar></app-sidebar>
+
+    <main
+      class="content-area"
+      [class.pushed]="isOpen | async"
+      role="main"
+      aria-label="Main content"
+    >
+      <div
+        class="backdrop"
+        *ngIf="isOpen | async"
+        (click) ="sidebarService.toggle()"
+        aria-hidden="true"
+      ></div>
+
+      <app-cv-ats
+        *ngIf="(activeItem | async) === 'cv-ats'">
+      </app-cv-ats>
+
+      <app-matching
+        *ngIf="(activeItem | async) === 'matching'">
+      </app-matching>
+
+      <app-recommendation
+        *ngIf="(activeItem | async) === 'recommendation'">
+      </app-recommendation>
+
+    </main>
+  </div>
+</div>

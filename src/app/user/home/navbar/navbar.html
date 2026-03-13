@@ -1,1 +1,43 @@
-<p>navbar works!</p>
+<nav class="top-navbar" aria-label="Top navigation">
+  <div class="navbar-left">
+    <button
+      type="button"
+      class="icon-btn menu-btn"
+      aria-label="Toggle sidebar"
+      (click)="toggleSidebar()"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <path d="M4 6h16"></path>
+        <path d="M4 12h16"></path>
+        <path d="M4 18h16"></path>
+      </svg>
+    </button>
+
+    <a class="brand" aria-label="Home">
+      <img src="/logo.png" alt="LogiLink" class="brand-logo" />
+    </a>
+  </div>
+
+  <div class="navbar-right">
+    <button type="button" class="user-chip" (click)="goToProfile()" aria-label="Open profile">
+      <span class="avatar" aria-hidden="true">
+        <img *ngIf="user.avatarUrl; else fallbackAvatar" [src]="user.avatarUrl" [alt]="user.name" />
+        <ng-template #fallbackAvatar>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4"></circle>
+            <path d="M4 20a8 8 0 0 1 16 0"></path>
+          </svg>
+        </ng-template>
+      </span>
+      <span class="username">{{ user.name }}</span>
+    </button>
+
+    <button type="button" class="icon-btn logout-btn" (click)="logout()" aria-label="Logout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 17l5-5-5-5"></path>
+        <path d="M21 12H9"></path>
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+      </svg>
+    </button>
+  </div>
+</nav>
