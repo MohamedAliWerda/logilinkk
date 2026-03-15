@@ -1,194 +1,183 @@
-/* ============================================================
-   TOP NAVBAR — matches reference design
-   ============================================================ */
+:host {
+  display: block;
+}
 
 .top-navbar {
   position: fixed;
   top: 0;
-  left: 0;
-  width: 100%;
+  left: 260px;
+  width: calc(100% - 260px);
   height: 70px;
   background: #ffffff;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid #e8ebef;
   z-index: 1100;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
   box-sizing: border-box;
+  gap: 0.9rem;
+  transition: left 0.24s ease, width 0.24s ease;
 }
 
-/* ── LEFT SECTION ─────────────────────────────────────────── */
+:host-context(.sidebar-collapsed) .top-navbar {
+  left: 65px;
+  width: calc(100% - 65px);
+}
 
-.navbar-left {
+.navbar-left,
+.navbar-right {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 1.1rem;
 }
 
-/* Hamburger button */
-.icon-btn {
-  width: 40px;
-  height: 40px;
+.menu-btn {
+  width: 42px;
+  height: 42px;
   border: none;
-  outline: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #374151;
+  border-radius: 0.6rem;
+  color: #4b5563;
+  background: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
   flex-shrink: 0;
-  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.icon-btn svg {
-  width: 22px;
-  height: 22px;
-  display: block;
+.menu-btn:hover {
+  background: #f5f7fa;
+  color: #334155;
 }
 
-.icon-btn:hover {
-  background: #f3f4f6;
-  color: #111827;
-}
-
-.icon-btn:active {
-  transform: scale(0.95);
-}
-
-/* Brand / logo */
 .brand {
   display: inline-flex;
   align-items: center;
-  margin-left: 20px;
   text-decoration: none;
 }
 
 .brand-logo {
-  height: 75px;
+  height: 80px;
   width: auto;
   object-fit: contain;
-  display: block;
 }
 
-/* ── RIGHT SECTION ────────────────────────────────────────── */
-
-.navbar-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* User pill container — orange border, rounded pill */
-.user-chip {
+.user-pill {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-
-  border: 1.5px solid #f28c28;
-  border-radius: 30px;
-  padding: 8px 18px;
+  gap: 0.65rem;
   background: #ffffff;
-
+  border: 1.5px solid #ef8e2e;
+  border-radius: 999px;
+  padding: 0.6rem 1.25rem;
+  color: #111827;
   cursor: pointer;
-  transition: background-color 180ms ease, box-shadow 180ms ease;
-
-  /* Reset button defaults */
-  outline: none;
   font-family: inherit;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
 }
 
-.user-chip:hover {
+.user-pill:hover {
   background: #fff7f0;
-  box-shadow: 0 2px 8px rgba(242, 140, 40, 0.15);
+  box-shadow: 0 2px 8px rgba(239, 142, 46, 0.15);
 }
 
-.user-chip:active {
-  transform: scale(0.98);
+.user-icon {
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
 }
 
-/* Avatar circle inside chip */
-.avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: transparent;
+.user-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.logout-icon-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 0.8rem;
+  border: 1.5px solid #c3c8cf;
+  background: #f8fafc;
   color: #374151;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
+.logout-icon-btn:hover {
+  border-color: #ef8e2e;
+  color: #ef8e2e;
+  background: #fff9f3;
+  transform: translateY(-1px);
 }
 
-.avatar svg {
-  width: 22px;
-  height: 22px;
-  color: #374151;
-}
+/* ── Tablet (601px - 1024px) ──────────────────────────────── */
 
-/* Username text */
-.username {
-  font-size: 15px;
-  font-weight: 700;
-  color: #111827;
-  line-height: 1;
-  white-space: nowrap;
-  letter-spacing: 0.01em;
-}
-
-/* Logout icon button */
-.logout-btn {
-  color: #374151;
-  border: 1.5px solid #d1d5db;
-  border-radius: 10px;
-  width: 42px;
-  height: 42px;
-}
-
-.logout-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
-.logout-btn:hover {
-  background: #fef2f2;
-  color: #b91c1c;
-  border-color: #fca5a5;
-}
-
-/* ── RESPONSIVE ───────────────────────────────────────────── */
-
-@media (max-width: 768px) {
+@media (max-width: 1024px) and (min-width: 601px) {
   .top-navbar {
-    padding: 0 14px;
+    left: 260px;
+    width: calc(100% - 260px);
+    height: 64px;
+    padding: 0 16px;
   }
 
-  .brand {
-    margin-left: 12px;
+  :host-context(.sidebar-collapsed) .top-navbar {
+    left: 65px;
+    width: calc(100% - 65px);
   }
 
   .brand-logo {
-    height: 34px;
+    height: 60px;
   }
 
-  .username {
+  .user-name {
+    font-size: 0.95rem;
+  }
+
+  .logout-icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ── Mobile (< 600px) ─────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .top-navbar {
+    left: 0;
+    width: 100%;
+    height: 56px;
+    padding: 0 12px;
+    z-index: 1200;
+  }
+
+  :host-context(.sidebar-collapsed) .top-navbar {
+    left: 0;
+    width: 100%;
+  }
+
+  .brand-logo {
+    height: 44px;
+  }
+
+  .user-name {
     display: none;
   }
 
-  .user-chip {
-    padding: 8px 10px;
+  .user-pill {
+    padding: 0.5rem 0.7rem;
     gap: 0;
+  }
+
+  .logout-icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 0.6rem;
   }
 }

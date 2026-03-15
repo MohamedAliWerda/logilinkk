@@ -1,123 +1,72 @@
-/* ============================================================
-   SIDEBAR — Overlay mode (does NOT push layout)
-   Visual design preserved exactly from reference image.
-   ============================================================ */
-
 :host {
-  /* Overlay: positioned absolutely, does not participate in flow */
-  position: fixed;
-  top: 70px;              /* sits directly below the 70px navbar */
-  left: 0;
-  height: calc(100vh - 70px);
-  z-index: 1000;          /* below navbar (1100) but above page content */
-  display: block;
-  pointer-events: none;   /* when hidden, clicks pass through */
+  display: contents;
 }
 
-/* ── SIDEBAR PANEL ─────────────────────────────────────────── */
-
 .sidebar {
-  width: 260px;
-  height: 100%;
-background: linear-gradient(180deg, 
-        #FDC38B 5%,   
-        #FEB570 29%,  
-        #FEA856 48%,  
-        #FF8D21 87%,  
-        #FF8D21 93%
-    );
+  width: 220px;
+  min-width: 220px;
+  background: linear-gradient(
+    180deg,
+    #fff8f1 0%,
+    #fff0db 12%,
+    #ffe6b8 45%,
+    #ffc46a 85%,
+    #ffb24a 100%
+  );
   display: flex;
   flex-direction: column;
+  padding: 1.5rem 1.4rem 1.2rem 1.4rem;
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.07);
-  pointer-events: auto;   /* restore clicks when panel is rendered */
+  transition: width 0.24s ease, min-width 0.24s ease,
+              padding 0.24s ease, transform 0.24s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 900;
   overflow: hidden;
 }
 
-/* Inner wrapper holds all content and handles padding */
-.sidebar-inner {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  padding: 1.5rem 1.4rem 1.2rem 1.4rem;
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  height: 100%;
+.sidebar.collapsed {
+  width: 50px;
+  min-width: 50px;
+  padding: 1.2rem 0.55rem;
 }
 
-.sidebar-inner::-webkit-scrollbar {
-  display: none;
-}
-
-/* ── HEADER ────────────────────────────────────────────────── */
+/* ── Header ───────────────────────────────────────────────── */
 
 .sidebar-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
-  flex-shrink: 0;
 }
 
 .sidebar-isgi-logo {
   height: 28px;
+  flex-shrink: 0;
 }
 
 .sidebar-brand-logo {
   height: 28px;
   width: auto;
   object-fit: contain;
-  margin-left: 120px; /* gap */
 }
 
-.sidebar-title {
-  font-size: 1.4rem;
-  font-weight: 500;
-  color: #1a1a2e;
-  white-space: nowrap;
-}
-
-.highlight {
-  color: #e07800;
-  font-weight: 700;
-}
-
-/* ── AVATAR ────────────────────────────────────────────────── */
-
-.avatar-section {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 1.5rem;
-  flex-shrink: 0;
-}
-
-.avatar {
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.2rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
-  overflow: hidden;
-}
-
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-}
-
-/* ── NAVIGATION ────────────────────────────────────────────── */
+/* ── Nav ──────────────────────────────────────────────────── */
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
   flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-item {
@@ -132,7 +81,6 @@ background: linear-gradient(180deg,
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   text-decoration: none;
-  white-space: nowrap;
 }
 
 .nav-item:hover {
@@ -154,38 +102,123 @@ background: linear-gradient(180deg,
   color: inherit;
 }
 
-/* ── BOTTOM SECTION ────────────────────────────────────────── */
+.nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-.sidebar-bottom {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+/* ── Profil button ────────────────────────────────────────── */
+
+.profil-btn {
+  margin-top: auto;
   flex-shrink: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 1rem;
+  margin-bottom: 2rem;
 }
 
-.profile-item {
-  border-top: 1px solid rgba(224, 120, 0, 0.18);
-  padding-top: 0.75rem;
+/* ── Collapsed overrides ──────────────────────────────────── */
+
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  margin-bottom: 1rem;
 }
 
-/* ── LOGOUT ────────────────────────────────────────────────── */
-
-.logout-btn {
-  background: #1a1a2e;
-  color: #fff;
-  border: none;
-  border-radius: 2rem;
-  padding: 0.75rem 0;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  letter-spacing: 0.5px;
-  transition: background 0.2s;
-  margin-top: 0.5rem;
-  width: 100%;
+.sidebar.collapsed .sidebar-brand-logo {
+  display: none;
 }
 
-.logout-btn:hover {
-  background: #2e2e50;
+.sidebar.collapsed .sidebar-nav {
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sidebar.collapsed .nav-item {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 14px;
+  justify-content: center;
+}
+
+.sidebar.collapsed .nav-item .nav-label {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-isgi-logo {
+  height: 22px;
+}
+
+.sidebar.collapsed .profil-btn {
+  margin-top: auto;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 0.6rem;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 14px;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+/* ── Tablet (600px - 900px) ───────────────────────────────── */
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 180px;
+    min-width: 180px;
+    padding: 1.2rem 1rem;
+  }
+
+  .sidebar.collapsed {
+    width: 50px;
+    min-width: 50px;
+    padding: 1rem 0.4rem;
+  }
+
+  .nav-item {
+    font-size: 0.92rem;
+    padding: 0.65rem 0.9rem;
+  }
+
+  .sidebar-brand-logo {
+    height: 22px;
+  }
+}
+
+/* ── Mobile (< 600px) ─────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .sidebar {
+    width: 240px;
+    min-width: 240px;
+    top: 56px;               /* تحت الـ navbar */
+    height: calc(100vh - 56px);
+    transform: translateX(-100%);  /* مخفي by default */
+    z-index: 1100;
+    padding: 1rem 1.2rem;
+  }
+
+  /* عند الفتح يظهر فوق المحتوى */
+  .sidebar:not(.collapsed) {
+    transform: translateX(0);
+  }
+
+  /* في الموبايل collapsed = مخفي تماماً */
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+    width: 240px;
+    min-width: 240px;
+  }
+
+  .nav-item {
+    font-size: 1rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .profil-btn {
+    margin-bottom: 1rem;
+  }
 }

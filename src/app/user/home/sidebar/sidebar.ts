@@ -1,17 +1,16 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import {
   trigger,
-  state,
-  style,
-  animate,
   transition,
   query,
-  stagger
+  style,
+  stagger,
+  animate,
 } from '@angular/animations';
-import { Subscription } from 'rxjs';
 import { SidebarService } from './sidebar.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-sidebar',
@@ -20,51 +19,77 @@ import { SidebarService } from './sidebar.service';
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css',
   animations: [
-    // Container animation (overlay, no layout push)
-    trigger('slideInOut', [
-      state(
-        'open',
-        style({
-          transform: 'translateX(0)',
-          opacity: 1,
-          visibility: 'visible',
-          pointerEvents: 'auto'
-        })
-      ),
-      state(
-        'closed',
-        style({
-          transform: 'translateX(-20px)',
-          opacity: 0,
-          visibility: 'hidden',
-          pointerEvents: 'none'
-        })
-      ),
-      transition('closed => open', [
-        style({ visibility: 'visible' }),
-        animate('300ms ease-out')
-      ]),
-      transition('open => closed', [animate('220ms ease-in')])
-    ]),
-
-    // Menu items stagger on open
     trigger('listAnimation', [
-      transition('closed => open', [
+      transition('* => *', [
         query(
           '.nav-item',
           [
-            style({ opacity: 0, transform: 'translateX(-8px)' }),
-            stagger(40, [animate('200ms ease-out', style({ opacity: 1, transform: 'translateX(0)' }))])
+            style({ opacity: 0, transform: 'translateX(-15px)' }),
+            stagger(50, [
+              animate(
+                '250ms ease',
+                style({ opacity: 1, transform: 'translateX(0)' })
+              ),
+            ]),
           ],
           { optional: true }
-        )
-      ])
-    ])
-  ]
+        ),
+      ]),
+    ]),
+  ],
 })
 export class Sidebar implements OnInit, OnDestroy {
   isOpen = true;
-  private sub?: Subscription;
+  private sub!: Subscription;
+
+  menuItems = [
+    {
+      key: 'dashboard',
+      label: 'Tableau de bord',
+      route: '/home/dashboard',
+      exact: true,
+      icon: `<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="3" y="3" width="8" height="8" rx="1.5"/>
+        <rect x="13" y="3" width="8" height="8" rx="1.5"/>
+        <rect x="3" y="13" width="8" height="8" rx="1.5"/>
+        <rect x="13" y="13" width="8" height="8" rx="1.5"/>
+      </svg>`,
+    },
+    {
+      key: 'cv-ats',
+      label: 'CV ATS',
+      route: '/home/cv-ats',
+      exact: false,
+      icon: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14,2 14,8 20,8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>`,
+    },
+    {
+      key: 'matching',
+      label: 'Matching / Gap',
+      route: '/home/matching',
+      exact: false,
+      icon: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+      </svg>`,
+    },
+    {
+      key: 'recommendation',
+      label: 'Recommandations',
+      route: '/home/recommendation',
+      exact: false,
+      icon: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>`,
+    },
+  ];
 
   constructor(
     private readonly sidebarService: SidebarService,
@@ -72,9 +97,7 @@ export class Sidebar implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Open by default on layout load
     this.sidebarService.open();
-
     this.sub = this.sidebarService.isOpen$.subscribe((open) => {
       this.isOpen = open;
     });
@@ -84,7 +107,13 @@ export class Sidebar implements OnInit, OnDestroy {
     this.sub?.unsubscribe();
   }
 
-  logout(): void {
-    this.router.navigate(['/login']);
+  navigateTo(route: string): void {
+    this.router.navigate([route]);
+    this.sidebarService.close();
+  }
+
+  goToProfile(): void {
+    this.router.navigate(['/home/profil']);
+    this.sidebarService.close();
   }
 }

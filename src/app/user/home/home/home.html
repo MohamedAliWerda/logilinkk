@@ -1,34 +1,10 @@
-<div class="dashboard-wrapper">
+<div class="dashboard-wrapper" [class.sidebar-collapsed]="!(isOpen | async)">
+
   <app-navbar></app-navbar>
+  <app-sidebar></app-sidebar>
 
-  <div class="main-layout" [class.shifted]="isOpen | async">
-    <app-sidebar></app-sidebar>
+  <main class="content-area" role="main" aria-label="Main content">
+    <router-outlet></router-outlet>
+  </main>
 
-    <main
-      class="content-area"
-      [class.pushed]="isOpen | async"
-      role="main"
-      aria-label="Main content"
-    >
-      <div
-        class="backdrop"
-        *ngIf="isOpen | async"
-        (click) ="sidebarService.toggle()"
-        aria-hidden="true"
-      ></div>
-
-      <app-cv-ats
-        *ngIf="(activeItem | async) === 'cv-ats'">
-      </app-cv-ats>
-
-      <app-matching
-        *ngIf="(activeItem | async) === 'matching'">
-      </app-matching>
-
-      <app-recommendation
-        *ngIf="(activeItem | async) === 'recommendation'">
-      </app-recommendation>
-
-    </main>
-  </div>
 </div>

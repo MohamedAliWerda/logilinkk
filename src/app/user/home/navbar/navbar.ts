@@ -8,12 +8,16 @@ import { SidebarService } from '../sidebar/sidebar.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './navbar.html',
-  styleUrl: './navbar.css'
+  styleUrl: './navbar.css',
 })
 export class Navbar implements OnInit {
+  /**
+   * Extend this object (or inject an AuthService) if you need
+   * to load the real user from a backend/token.
+   */
   user: { name: string; avatarUrl: string | null } = {
     name: 'Nour',
-    avatarUrl: null
+    avatarUrl: null,
   };
 
   constructor(
@@ -22,9 +26,10 @@ export class Navbar implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.ensureSidebarOpenByDefault();
+    this.sidebarService.open();
   }
 
+  /** Toggles the sidebar open/closed via the shared service. */
   toggleSidebar(): void {
     this.sidebarService.toggle();
   }
@@ -34,24 +39,8 @@ export class Navbar implements OnInit {
   }
 
   logout(): void {
+    localStorage.removeItem('token');
+    sessionStorage.clear();
     this.router.navigate(['/login']);
-  }
-
-  private ensureSidebarOpenByDefault(): void {
-    const service = this.sidebarService as any;
-
-    if (typeof service.open === 'function') {
-      service.open();
-      return;
-    }
-
-    if (typeof service.setOpen === 'function') {
-      service.setOpen(true);
-      return;
-    }
-
-    if (typeof service.show === 'function') {
-      service.show();
-    }
   }
 }
