@@ -1,1 +1,162 @@
-<p>profil works!</p>
+<section class="profil-page">
+	<div class="page-title-wrap">
+		<h1 class="page-title">PROFIL ETUDIANT</h1>
+	</div>
+
+	<p class="page-subtitle">
+		Consultez vos informations academiques et gerez les parametres de votre compte.
+	</p>
+
+	<div class="profil-shell">
+		<aside class="profil-summary-card">
+			<div class="profil-avatar-shell">
+				<div class="profil-avatar">
+					@if (profileImageUrl()) {
+						<img class="profil-avatar-image" [src]="profileImageUrl()!" alt="Photo de profil" />
+					} @else {
+						<svg viewBox="0 0 24 24" fill="currentColor" width="58" height="58" aria-hidden="true">
+							<path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+						</svg>
+					}
+				</div>
+
+				<label class="avatar-upload-btn" for="profile-image-input">
+					Changer la photo
+				</label>
+				<input
+					id="profile-image-input"
+					class="visually-hidden"
+					type="file"
+					accept="image/*"
+					(change)="onProfileImageSelected($event)"
+				/>
+
+				@if (profileImageError()) {
+					<p class="avatar-upload-error">{{ profileImageError() }}</p>
+				}
+			</div>
+
+			<h2 class="profil-name">{{ userName }}</h2>
+			<span class="profil-badge">Technicien specialise</span>
+			<span class="profil-specialty">Logistique et Transport</span>
+
+			<div class="profil-info-list">
+				<div class="profil-info-item">
+					<span class="profil-info-label">Email</span>
+					<span class="profil-info-value">ahmed.benali@isgi.tn</span>
+				</div>
+				<div class="profil-info-item">
+					<span class="profil-info-label">Telephone</span>
+					<span class="profil-info-value">+216 98 765 432</span>
+				</div>
+				<div class="profil-info-item">
+					<span class="profil-info-label">Ville</span>
+					<span class="profil-info-value">Sfax, Tunisie</span>
+				</div>
+				<div class="profil-info-item">
+					<span class="profil-info-label">Etablissement</span>
+					<span class="profil-info-value">ISGI Sfax</span>
+				</div>
+			</div>
+		</aside>
+
+		<div class="profil-content-card">
+			<div class="section-switcher" role="tablist" aria-label="Sections du profil">
+				<button
+					type="button"
+					class="section-chip"
+					[class.active]="activeSection() === 'info'"
+					(click)="showInfoSection()"
+				>
+					Gerer le profil
+				</button>
+				<button
+					type="button"
+					class="section-chip"
+					[class.active]="activeSection() === 'password'"
+					(click)="showPasswordSection()"
+				>
+					Changer le mot de passe
+				</button>
+			</div>
+
+			@if (activeSection() === 'info') {
+				<div class="content-section">
+					<div class="section-heading">
+						<h2>Informations academiques</h2>
+						<p>Retrouvez votre parcours academique actuel.</p>
+					</div>
+
+					<div class="academic-grid">
+						<div class="academic-item">
+							<span class="academic-label">Filiere</span>
+							<span class="academic-value">Logistique et Transport</span>
+						</div>
+						<div class="academic-item">
+							<span class="academic-label">Niveau</span>
+							<span class="academic-value">2eme annee</span>
+						</div>
+						<div class="academic-item">
+							<span class="academic-label">Numero etudiant</span>
+							<span class="academic-value">ISGI-2024-0147</span>
+						</div>
+						<div class="academic-item">
+							<span class="academic-label">Moyenne generale</span>
+							<span class="academic-value">14.8 / 20</span>
+						</div>
+						<div class="academic-item">
+							<span class="academic-label">Stage actuel</span>
+							<span class="academic-value">En recherche</span>
+						</div>
+						<div class="academic-item">
+							<span class="academic-label">Score CV ATS</span>
+							<span class="academic-value">72 / 100</span>
+						</div>
+					</div>
+
+				</div>
+			} @else {
+				<div class="content-section password-section">
+					<div class="section-heading">
+						<h2>Changer le mot de passe</h2>
+						<p>Mettez a jour votre mot de passe en toute securite.</p>
+					</div>
+
+					<form class="password-form" [formGroup]="passwordForm" (ngSubmit)="savePassword()">
+						<label class="form-field">
+							<span>Mot de passe actuel</span>
+							<input type="password" formControlName="currentPassword" placeholder="Entrez votre mot de passe actuel" />
+						</label>
+
+						<label class="form-field">
+							<span>Nouveau mot de passe</span>
+							<input type="password" formControlName="newPassword" placeholder="Entrez un nouveau mot de passe" />
+						</label>
+
+						<label class="form-field">
+							<span>Confirmer le nouveau mot de passe</span>
+							<input type="password" formControlName="confirmPassword" placeholder="Confirmez le nouveau mot de passe" />
+						</label>
+
+						@if (passwordForm.invalid && passwordForm.touched) {
+							<p class="form-message error">Tous les champs sont obligatoires et doivent contenir au moins 8 caracteres.</p>
+						}
+
+						@if (passwordError()) {
+							<p class="form-message error">{{ passwordError() }}</p>
+						}
+
+						@if (passwordSaved()) {
+							<p class="form-message success">Votre mot de passe a ete mis a jour avec succes.</p>
+						}
+
+						<div class="form-actions">
+							<button type="button" class="secondary-btn" (click)="showInfoSection()">Retour au profil</button>
+							<button type="submit" class="primary-btn">Enregistrer</button>
+						</div>
+					</form>
+				</div>
+			}
+		</div>
+	</div>
+</section>

@@ -51,20 +51,41 @@
 
   </nav>
 
-  <a
-    class="nav-item profil-btn"
-    [routerLink]="'/home/profil'"
-    routerLinkActive="active"
-    (click)="goToProfile()"
-  >
-    <span class="nav-icon">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-        <circle cx="12" cy="7" r="4"/>
-      </svg>
-    </span>
-    <span class="nav-label">Profil</span>
-  </a>
+  <div #profileMenuWrapper class="profile-menu-wrapper" (click)="$event.stopPropagation()">
+    <button
+      type="button"
+      class="nav-item profil-btn"
+      [class.active]="isProfileRouteActive() || profileMenuOpen"
+      [attr.aria-expanded]="profileMenuOpen"
+      aria-haspopup="menu"
+      (click)="toggleProfileMenu($event)"
+    >
+      <span class="nav-icon">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </span>
+      <span class="nav-label">Profil</span>
+    </button>
+
+    @if (profileMenuOpen) {
+      <div
+        class="profile-popup"
+        role="menu"
+        aria-label="Options du profil"
+        [style.left.px]="profilePopupLeft"
+        [style.top.px]="profilePopupTop"
+      >
+        <button type="button" class="profile-popup-item" role="menuitem" (click)="goToProfile()">
+          Gérer le profil
+        </button>
+        <button type="button" class="profile-popup-item" role="menuitem" (click)="goToChangePassword()">
+          Changer le mot de passe
+        </button>
+      </div>
+    }
+  </div>
 
 </aside>
