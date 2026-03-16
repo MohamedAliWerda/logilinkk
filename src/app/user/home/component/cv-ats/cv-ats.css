@@ -196,6 +196,13 @@
     background: #fff;
 }
 
+.form-control:disabled {
+    border-color: #d8dee7;
+    background: #eef2f7;
+    color: #475569;
+    cursor: not-allowed;
+}
+
 textarea.form-control {
     min-height: 92px;
     resize: vertical;

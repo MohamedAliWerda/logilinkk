@@ -37,26 +37,15 @@
 			</div>
 
 			<h2 class="profil-name">{{ userName }}</h2>
-			<span class="profil-badge">Technicien specialise</span>
-			<span class="profil-specialty">Logistique et Transport</span>
+			<span class="profil-badge">{{ profileStatus }}</span>
 
 			<div class="profil-info-list">
-				<div class="profil-info-item">
-					<span class="profil-info-label">Email</span>
-					<span class="profil-info-value">ahmed.benali@isgi.tn</span>
-				</div>
-				<div class="profil-info-item">
-					<span class="profil-info-label">Telephone</span>
-					<span class="profil-info-value">+216 98 765 432</span>
-				</div>
-				<div class="profil-info-item">
-					<span class="profil-info-label">Ville</span>
-					<span class="profil-info-value">Sfax, Tunisie</span>
-				</div>
-				<div class="profil-info-item">
-					<span class="profil-info-label">Etablissement</span>
-					<span class="profil-info-value">ISGI Sfax</span>
-				</div>
+				@for (item of profileSummaryItems; track item.label) {
+					<div class="profil-info-item">
+						<span class="profil-info-label">{{ item.label }}</span>
+						<span class="profil-info-value">{{ item.value }}</span>
+					</div>
+				}
 			</div>
 		</aside>
 
@@ -83,35 +72,24 @@
 			@if (activeSection() === 'info') {
 				<div class="content-section">
 					<div class="section-heading">
-						<h2>Informations academiques</h2>
-						<p>Retrouvez votre parcours academique actuel.</p>
+						<h2>{{ infoSectionTitle }}</h2>
+						<p>{{ infoSectionSubtitle }}</p>
 					</div>
 
-					<div class="academic-grid">
-						<div class="academic-item">
-							<span class="academic-label">Filiere</span>
-							<span class="academic-value">Logistique et Transport</span>
-						</div>
-						<div class="academic-item">
-							<span class="academic-label">Niveau</span>
-							<span class="academic-value">2eme annee</span>
-						</div>
-						<div class="academic-item">
-							<span class="academic-label">Numero etudiant</span>
-							<span class="academic-value">ISGI-2024-0147</span>
-						</div>
-						<div class="academic-item">
-							<span class="academic-label">Moyenne generale</span>
-							<span class="academic-value">14.8 / 20</span>
-						</div>
-						<div class="academic-item">
-							<span class="academic-label">Stage actuel</span>
-							<span class="academic-value">En recherche</span>
-						</div>
-						<div class="academic-item">
-							<span class="academic-label">Score CV ATS</span>
-							<span class="academic-value">72 / 100</span>
-						</div>
+					<div class="info-groups">
+						@for (group of profileInfoGroups; track group.title) {
+							<section class="info-group">
+								<h3 class="info-group-title">{{ group.title }}</h3>
+								<div class="academic-grid">
+									@for (item of group.items; track item.label) {
+										<div class="academic-item">
+											<span class="academic-label">{{ item.label }}</span>
+											<span class="academic-value">{{ item.value }}</span>
+										</div>
+									}
+								</div>
+							</section>
+						}
 					</div>
 
 				</div>

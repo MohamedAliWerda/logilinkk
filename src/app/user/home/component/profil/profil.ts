@@ -6,6 +6,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
+import { STUDENT_PROFILE_DATA } from '../../student-profile.data';
 
 @Component({
   selector: 'app-profil',
@@ -25,7 +26,13 @@ export class Profil {
   protected readonly passwordError = signal<string | null>(null);
   protected readonly profileImageUrl = signal<string | null>(null);
   protected readonly profileImageError = signal<string | null>(null);
-  protected readonly userName = 'Ahmed Ben Ali';
+  protected readonly profileData = STUDENT_PROFILE_DATA;
+  protected readonly userName = this.profileData.displayName;
+  protected readonly profileStatus = this.profileData.status;
+  protected readonly profileSummaryItems = this.profileData.summaryItems;
+  protected readonly infoSectionTitle = this.profileData.infoSectionTitle;
+  protected readonly infoSectionSubtitle = this.profileData.infoSectionSubtitle;
+  protected readonly profileInfoGroups = this.profileData.infoGroups;
 
   protected readonly passwordForm = this.formBuilder.nonNullable.group({
     currentPassword: ['', [Validators.required, Validators.minLength(8)]],

@@ -218,6 +218,25 @@
 	gap: 1.4rem;
 }
 
+.info-groups {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+.info-group {
+	display: flex;
+	flex-direction: column;
+	gap: 0.9rem;
+}
+
+.info-group-title {
+	margin: 0;
+	color: #3d3327;
+	font-size: 1rem;
+	font-weight: 800;
+}
+
 .section-heading h2,
 .section-heading p,
 .progress-card h3 {
