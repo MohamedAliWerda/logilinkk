@@ -34,8 +34,6 @@
   padding: 1.2rem 0.55rem;
 }
 
-/* ── Header ───────────────────────────────────────────────── */
-
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -53,8 +51,6 @@
   width: auto;
   object-fit: contain;
 }
-
-/* ── Nav ──────────────────────────────────────────────────── */
 
 .sidebar-nav {
   display: flex;
@@ -114,10 +110,6 @@
   text-overflow: ellipsis;
 }
 
-
-
-/* ── Collapsed overrides ──────────────────────────────────── */
-
 .sidebar.collapsed .sidebar-header {
   justify-content: center;
   margin-bottom: 1rem;
@@ -148,8 +140,6 @@
   height: 22px;
 }
 
-/* ── Tablet (600px - 900px) ───────────────────────────────── */
-
 @media (max-width: 900px) {
   .sidebar {
     width: 180px;
@@ -173,25 +163,21 @@
   }
 }
 
-/* ── Mobile (< 600px) ─────────────────────────────────────── */
-
 @media (max-width: 600px) {
   .sidebar {
     width: 240px;
     min-width: 240px;
-    top: 56px;               /* تحت الـ navbar */
+    top: 56px;
     height: calc(100vh - 56px);
-    transform: translateX(-100%);  /* مخفي by default */
+    transform: translateX(-100%);
     z-index: 1100;
     padding: 1rem 1.2rem;
   }
 
-  /* عند الفتح يظهر فوق المحتوى */
   .sidebar:not(.collapsed) {
     transform: translateX(0);
   }
 
-  /* في الموبايل collapsed = مخفي تماماً */
   .sidebar.collapsed {
     transform: translateX(-100%);
     width: 240px;
@@ -202,5 +188,4 @@
     font-size: 1rem;
     padding: 0.8rem 1rem;
   }
-
 }

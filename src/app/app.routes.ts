@@ -7,6 +7,11 @@ import { Matching } from './user/home/component/matching/matching';
 import { CvAts } from './user/home/component/cv-ats/cv-ats';
 import { Profil } from './user/home/component/profil/profil';
 import { Recommendation } from './user/home/component/recommendation/recommendation';
+import { HomeAdmin } from './admin/home_admin/home_admin/home_admin';
+import { DashboardAdmin } from './admin/home_admin/comonent_admin/dashboard_admin/dashboard_admin';
+import { FormationsAdmin } from './admin/home_admin/comonent_admin/formations_admin/formations_admin';
+import { SettingsAdmin } from './admin/home_admin/comonent_admin/settings_admin/settings_admin';
+import { ProfileAdmin } from './admin/home_admin/comonent_admin/profile_admin/profile_admin';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -23,5 +28,16 @@ export const routes: Routes = [
       { path: 'profil', component: Profil },
       { path: 'recommendation', component: Recommendation },
     ]
+  },
+  {
+    path: 'admin',
+    component: HomeAdmin,
+    children: [
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: 'dashboard', component: DashboardAdmin },
+      { path: 'formations', component: FormationsAdmin },
+      { path: 'settings', component: SettingsAdmin },
+      { path: 'profil', component: ProfileAdmin },
+    ],
   },
 ];

@@ -1,12 +1,10 @@
 <aside class="sidebar" [class.collapsed]="!isOpen">
-
   <div class="sidebar-header">
     <img src="/isgi-sfax-logo-.png" alt="ISGI" class="sidebar-isgi-logo" />
     <img src="/djagora-removebg-preview.png" alt="LogiLink" class="sidebar-brand-logo" />
   </div>
 
   <nav class="sidebar-nav" [@listAnimation]="menuItems.length">
-
     <a
       *ngFor="let item of menuItems"
       class="nav-item"
@@ -17,7 +15,6 @@
     >
       <span class="nav-icon">
         <ng-container [ngSwitch]="item.key">
-
           <svg *ngSwitchCase="'dashboard'" width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
             <rect x="3" y="3" width="8" height="8" rx="1.5"/>
             <rect x="13" y="3" width="8" height="8" rx="1.5"/>
@@ -25,23 +22,17 @@
             <rect x="13" y="13" width="8" height="8" rx="1.5"/>
           </svg>
 
-          <svg *ngSwitchCase="'cv-ats'" width="17" height="17" viewBox="0 0 24 24" fill="none"
+          <svg *ngSwitchCase="'users'" width="17" height="17" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14,2 14,8 20,8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
+            <path d="M22 10v6"></path>
+            <path d="M6 12.5V16a6 6 0 0 0 12 0v-3.5"></path>
+            <path d="M2 10l10-5 10 5-10 5-10-5z"></path>
           </svg>
 
-          <svg *ngSwitchCase="'matching'" width="17" height="17" viewBox="0 0 24 24" fill="none"
+          <svg *ngSwitchCase="'settings'" width="17" height="17" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9"/>
-            <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
-          </svg>
-
-          <svg *ngSwitchCase="'recommendation'" width="17" height="17" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
 
           <svg *ngSwitchCase="'profil'" width="17" height="17" viewBox="0 0 24 24" fill="none"
@@ -49,12 +40,9 @@
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
             <circle cx="12" cy="7" r="4"/>
           </svg>
-
         </ng-container>
       </span>
       <span class="nav-label">{{ item.label }}</span>
     </a>
-
   </nav>
-
 </aside>

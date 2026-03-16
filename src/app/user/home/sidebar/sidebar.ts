@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import {
@@ -18,10 +18,7 @@ import { Subscription } from 'rxjs';
   imports: [CommonModule, RouterLink, RouterLinkActive],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css',
-  host: {
-    '(document:click)': 'onDocumentClick($event)',
-    '(document:keydown.escape)': 'closeProfileMenu()',
-  },
+
   animations: [
     trigger('listAnimation', [
       transition('* => *', [
@@ -43,13 +40,7 @@ import { Subscription } from 'rxjs';
   ],
 })
 export class Sidebar implements OnInit, OnDestroy {
-  @ViewChild('profileMenuWrapper')
-  private profileMenuWrapper?: ElementRef<HTMLElement>;
-
   isOpen = true;
-  profileMenuOpen = false;
-  profilePopupTop = 0;
-  profilePopupLeft = 0;
   private sub!: Subscription;
 
   menuItems = [
@@ -99,6 +90,17 @@ export class Sidebar implements OnInit, OnDestroy {
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
       </svg>`,
     },
+    {
+      key: 'profil',
+      label: 'Profil',
+      route: '/home/profil',
+      exact: false,
+      icon: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>`,
+    },
   ];
 
   constructor(
@@ -118,85 +120,6 @@ export class Sidebar implements OnInit, OnDestroy {
   }
 
   navigateTo(route: string): void {
-    this.closeProfileMenu();
     this.router.navigate([route]);
-    this.sidebarService.close();
-  }
-
-  toggleProfileMenu(event: MouseEvent): void {
-    event.stopPropagation();
-    this.profileMenuOpen = !this.profileMenuOpen;
-
-    if (this.profileMenuOpen) {
-      this.positionProfilePopup();
-    }
-  }
-
-  closeProfileMenu(): void {
-    this.profileMenuOpen = false;
-  }
-
-  onDocumentClick(event: MouseEvent): void {
-    const wrapper = this.profileMenuWrapper?.nativeElement;
-    const target = event.target as Node | null;
-
-    if (!wrapper || !target) {
-      this.closeProfileMenu();
-      return;
-    }
-
-    if (wrapper.contains(target)) {
-      return;
-    }
-
-    this.closeProfileMenu();
-  }
-
-  private positionProfilePopup(): void {
-    const wrapper = this.profileMenuWrapper?.nativeElement;
-    if (!wrapper) {
-      return;
-    }
-
-    const rect = wrapper.getBoundingClientRect();
-    const popupWidth = 230;
-    const popupHeight = 112;
-    const gap = 8;
-    const verticalOffset = 10;
-
-    const left = this.isOpen ? rect.left : rect.right + gap;
-    let top = this.isOpen
-      ? rect.top - popupHeight - gap + verticalOffset
-      : rect.bottom - popupHeight + verticalOffset;
-
-    if (top < gap) {
-      top = rect.bottom + gap;
-    }
-
-    if (top + popupHeight > window.innerHeight - gap) {
-      top = Math.max(gap, window.innerHeight - popupHeight - gap);
-    }
-
-    const maxLeft = window.innerWidth - popupWidth - gap;
-    this.profilePopupLeft = Math.min(Math.max(gap, left), Math.max(gap, maxLeft));
-    this.profilePopupTop = top;
-  }
-
-  isProfileRouteActive(): boolean {
-    return this.router.url.startsWith('/home/profil');
-  }
-
-  goToProfile(): void {
-    this.closeProfileMenu();
-    this.router.navigate(['/home/profil']);
-    this.sidebarService.close();
-  }
-
-  goToChangePassword(): void {
-    this.closeProfileMenu();
-    this.router.navigate(['/home/profil'], {
-      queryParams: { section: 'password' },
-    });
-    this.sidebarService.close();
   }
 }
