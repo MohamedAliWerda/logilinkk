@@ -1,6 +1,9 @@
 import { Routes } from '@angular/router';
 import { Login } from './auth/login/login';
 import { Verify } from './auth/verify/verify';
+import { ForgetPasswordComponent } from './auth/forgot-pass/forget-password.component';
+import { VerifyCodeComponent } from './auth/forgot-pass/verify-code.component';
+import { ResetPasswordComponent } from './auth/forgot-pass/reset-password.component';
 import { HomeComponent } from './user/home/home/home';
 import { Dashboard } from './user/home/component/dashboard/dashboard';
 import { Matching } from './user/home/component/matching/matching';
@@ -12,10 +15,14 @@ import { DashboardAdmin } from './admin/home_admin/comonent_admin/dashboard_admi
 import { FormationsAdmin } from './admin/home_admin/comonent_admin/formations_admin/formations_admin';
 import { SettingsAdmin } from './admin/home_admin/comonent_admin/settings_admin/settings_admin';
 
+
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: 'login', component: Login },
   { path: 'verify', component: Verify },
+  { path: 'forgot-password', component: ForgetPasswordComponent },
+  { path: 'verify-code', component: VerifyCodeComponent },
+  { path: 'reset-password', component: ResetPasswordComponent },
   {
     path: 'home',
     component: HomeComponent,
