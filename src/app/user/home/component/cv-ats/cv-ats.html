@@ -1,794 +1,810 @@
-
-
 <div class="cv-page">
 
-  <ng-container *ngIf="!showPreview; else previewMode">
+            <ng-container *ngIf="!showPreview; else previewMode">
 
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">Créer mon CV ATS</h1>
-        <p class="page-sub">Structure guidée ISGIS orientée ATS, simple à compléter et à télécharger.</p>
-      </div>
-      <div class="step-counter">Étape {{ step }} / {{ totalSteps }}</div>
-    </div>
+                <!-- PAGE HEADER -->
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Créer mon CV ATS</h1>
+                        <p class="page-sub">Structure guidée ISGIS orientée ATS, simple à compléter et à télécharger.</p>
+                    </div>
+                    <div class="step-counter">Étape {{ step }} / {{ totalSteps }}</div>
+                </div>
 
-    <div class="stepper">
-      @for (s of steps; track s.label; let i = $index) {
-        <button type="button" class="stepper-item"
-          [class.active]="step === i + 1"
-          [class.done]="step > i + 1"
-          (click)="goTo(i + 1)">
-          <span class="stepper-dot">
-            @if (step > i + 1) {
-              <i class="fa-solid fa-check"></i>
-            } @else {
-              <i class="fa-solid" [class]="'fa-solid ' + s.icon"></i>
+                <!-- STEPPER -->
+                <div class="stepper">
+                    @for (s of steps; track s.label; let i = $index) {
+                    <button type="button" class="stepper-item" [class.active]="step === i + 1" [class.done]="step > i + 1" (click)="goTo(i + 1)">
+              <span class="stepper-dot">
+                @if (step > i + 1) {
+                  <i class="fa-solid fa-check"></i>
+                } @else {
+                  <i class="fa-solid" [class]="'fa-solid ' + s.icon"></i>
+                }
+              </span>
+              <span class="stepper-label">{{ s.label }}</span>
+            </button> @if (i
+                    < steps.length - 1) { <div class="stepper-line" [class.done]="step > i + 1">
+                </div>
+                } }
+        </div>
+
+        <!-- FORM CARD -->
+        <div class="form-card">
+
+            <!-- ─── STEP 1 : Informations personnelles ─── -->
+            @if (step === 1) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-user"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 1 — En-tête & informations personnelles</h2>
+                    <p class="block-sub">Champs essentiels ATS + contexte transport/logistique (permis inclus).</p>
+                </div>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Prénom <span class="req">*</span></label>
+                    <input class="form-control" [(ngModel)]="info.prenom" placeholder="Mohamed" />
+                </div>
+                <div class="form-group">
+                    <label>Nom <span class="req">*</span></label>
+                    <input class="form-control" [(ngModel)]="info.nom" placeholder="Ben Ali" />
+                </div>
+                <div class="form-group">
+                    <label>Email institutionnel <span class="req">*</span></label>
+                    <input class="form-control" type="email" [(ngModel)]="info.email" placeholder="prenom.nom@isgis.usf.tn" />
+                </div>
+                <div class="form-group">
+                    <label>Téléphone <span class="req">*</span></label>
+                    <input class="form-control" [(ngModel)]="info.telephone" placeholder="+216 XX XXX XXX" />
+                </div>
+                <div class="form-group">
+                    <label>Ville</label>
+                    <input class="form-control" [(ngModel)]="info.ville" placeholder="Sfax" />
+                </div>
+                <div class="form-group">
+                    <label>Code postal</label>
+                    <input class="form-control" [(ngModel)]="info.codePostal" placeholder="3000" />
+                </div>
+                <div class="form-group">
+                    <label>LinkedIn URL</label>
+                    <input class="form-control" [(ngModel)]="info.linkedin" placeholder="https://linkedin.com/in/..." />
+                </div>
+                <div class="form-group">
+                    <label>Date de naissance</label>
+                    <input class="form-control" type="date" [(ngModel)]="info.dateNaissance" />
+                </div>
+                <div class="form-group">
+                    <label>Permis de conduire <span class="req">*</span></label>
+                    <select class="form-control" [(ngModel)]="info.permis">
+                  @for (p of permisOptions; track p) {
+                    <option [value]="p">{{ p }}</option>
+                  }
+                </select>
+                </div>
+                <div class="form-group">
+                    <label>Photo (optionnel)</label>
+                    <input class="form-control" type="file" accept="image/*" (change)="onPhotoSelected($event)" /> @if (info.photoName) {
+                    <span class="helper">Fichier sélectionné : {{ info.photoName }}</span> }
+                </div>
+            </div>
             }
-          </span>
-          <span class="stepper-label">{{ s.label }}</span>
-        </button>
-        @if (i < steps.length - 1) {
-          <div class="stepper-line" [class.done]="step > i + 1"></div>
-        }
-      }
-    </div>
 
-    <div class="form-card">
-
-      @if (step === 1) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-user"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 1 — En-tête & informations personnelles</h2>
-            <p class="block-sub">Champs essentiels ATS + contexte transport/logistique.</p>
-          </div>
-        </div>
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label>Prénom <span class="req">*</span></label>
-            <input class="form-control" [(ngModel)]="info.prenom" placeholder="Mohamed" />
-          </div>
-          <div class="form-group">
-            <label>Nom <span class="req">*</span></label>
-            <input class="form-control" [(ngModel)]="info.nom" placeholder="Ben Ali" />
-          </div>
-          <div class="form-group">
-            <label>Email <span class="req">*</span></label>
-            <input class="form-control" type="email" [(ngModel)]="info.email" placeholder="prenom.nom@isgis.usf.tn" />
-          </div>
-          <div class="form-group">
-            <label>Téléphone <span class="req">*</span></label>
-            <input class="form-control" [(ngModel)]="info.telephone" placeholder="+216 XX XXX XXX" />
-          </div>
-          <div class="form-group">
-            <label>Ville</label>
-            <input class="form-control" [(ngModel)]="info.ville" placeholder="Sfax" />
-          </div>
-          <div class="form-group">
-            <label>Code postal</label>
-            <input class="form-control" [(ngModel)]="info.codePostal" placeholder="3000" />
-          </div>
-          <div class="form-group">
-            <label>LinkedIn URL</label>
-            <input class="form-control" [(ngModel)]="info.linkedin" placeholder="https://linkedin.com/in/..." />
-          </div>
-          <div class="form-group">
-            <label>Date de naissance</label>
-            <input class="form-control" type="date" [(ngModel)]="info.dateNaissance" />
-          </div>
-          <div class="form-group">
-            <label>Permis de conduire <span class="req">*</span></label>
-            <select class="form-control" [(ngModel)]="info.permis">
-              @for (p of permisOptions; track p) {
-                <option [value]="p">{{ p }}</option>
-              }
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Photo (optionnel)</label>
-            <input class="form-control" type="file" accept="image/*" (change)="onPhotoSelected($event)" />
-            @if (info.photoName) { <span class="helper">{{ info.photoName }}</span> }
-          </div>
-        </div>
-      }
-
-      @if (step === 2) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-bullseye"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 2 — Titre professionnel & objectif</h2>
-            <p class="block-sub">Zone stratégique de matching ATS.</p>
-          </div>
-        </div>
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label>Titre du poste visé <span class="req">*</span></label>
-            <input class="form-control" maxlength="120" [(ngModel)]="professionalTitle" placeholder="Assistant Supply Chain" />
-          </div>
-          <div class="form-group">
-            <label>Sous-titre / spécialisation</label>
-            <input class="form-control" [(ngModel)]="specialization" placeholder="Spécialisation Logistique Internationale" />
-          </div>
-        </div>
-        <div class="form-group full">
-          <label>Résumé professionnel (3-5 lignes) <span class="req">*</span></label>
-          <textarea class="form-control textarea-lg" maxlength="500" [(ngModel)]="objectif" placeholder="Étudiant(e) en [DIPLÔME] à l'ISGIS..."></textarea>
-          <span class="char-count">{{ objectif.length }} / 500</span>
-        </div>
-      }
-
-      @if (step === 3) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-graduation-cap"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 3 — Formation académique</h2>
-            <p class="block-sub">Diplôme, modules clés et informations PFE.</p>
-          </div>
-        </div>
-        @for (f of formations; track $index; let i = $index) {
-          <div class="entry-block">
-            <div class="entry-num">{{ i + 1 }}</div>
-            <div class="entry-fields">
-              <div class="form-grid-2">
-                <div class="form-group">
-                  <label>Diplôme exact <span class="req">*</span></label>
-                  <input class="form-control" [(ngModel)]="f.diplome" placeholder="Licence en Transport & Logistique" />
+            <!-- ─── STEP 2 : Titre & Objectif ─── -->
+            @if (step === 2) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-bullseye"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 2 — Titre professionnel & objectif</h2>
+                    <p class="block-sub">Zone stratégique de matching ATS.</p>
                 </div>
-                <div class="form-group">
-                  <label>Établissement <span class="req">*</span></label>
-                  <input class="form-control" [(ngModel)]="f.institution" />
-                </div>
-                <div class="form-group">
-                  <label>Début <span class="req">*</span></label>
-                  <input class="form-control" type="month" [(ngModel)]="f.dateDebut" />
-                </div>
-                <div class="form-group">
-                  <label>Fin prévue <span class="req">*</span></label>
-                  <input class="form-control" type="month" [(ngModel)]="f.dateFin" />
-                </div>
-                <div class="form-group">
-                  <label>Moyenne / Mention</label>
-                  <input class="form-control" [(ngModel)]="f.moyenne" placeholder="14.50 / Très bien" />
-                </div>
-                <div class="form-group">
-                  <label>Modules clés</label>
-                  <input class="form-control" [(ngModel)]="f.modules" placeholder="Incoterms, Douane, WMS..." />
-                </div>
-                <div class="form-group">
-                  <label>PFE — Titre</label>
-                  <input class="form-control" [(ngModel)]="f.pfeTitre" />
-                </div>
-                <div class="form-group">
-                  <label>PFE — Entreprise</label>
-                  <input class="form-control" [(ngModel)]="f.pfeEntreprise" />
-                </div>
-                <div class="form-group full">
-                  <label>PFE — Technologies</label>
-                  <input class="form-control" [(ngModel)]="f.pfeTechnologies" placeholder="Power BI, Python, SQL" />
-                </div>
-              </div>
-              @if (formations.length > 1) {
-                <button type="button" class="btn-remove" (click)="removeFormation(i)">
-                  <i class="fa-solid fa-trash-can"></i> Supprimer
-                </button>
-              }
             </div>
-          </div>
-        }
-        <button type="button" class="btn-add-entry" (click)="addFormation()">
-          <i class="fa-solid fa-plus"></i> Ajouter une formation
-        </button>
-      }
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Titre du poste visé <span class="req">*</span></label>
+                    <input class="form-control" maxlength="120" [(ngModel)]="professionalTitle" placeholder="Assistant Supply Chain" />
+                </div>
+                <div class="form-group">
+                    <label>Sous-titre / spécialisation</label>
+                    <input class="form-control" [(ngModel)]="specialization" placeholder="Spécialisation Logistique Internationale" />
+                </div>
+            </div>
+            <div class="form-group full">
+                <label>Résumé professionnel (3-5 lignes) <span class="req">*</span></label>
+                <textarea class="form-control textarea-lg" maxlength="500" [(ngModel)]="objectif" placeholder="Étudiant(e) en [DIPLÔME] à l'ISGIS, spécialisé(e) en [DOMAINE]..."></textarea>
+                <span class="char-count">{{ objectif.length }} / 500</span>
+            </div>
+            }
 
-      @if (step === 4) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-briefcase"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 4 — Stages</h2>
-            <p class="block-sub">Méthode STAR/CAR et mots-clés techniques.</p>
-          </div>
-        </div>
-        @for (e of experiences; track $index; let i = $index) {
-          <div class="entry-block">
-            <div class="entry-num">{{ i + 1 }}</div>
-            <div class="entry-fields">
-              <div class="form-grid-2">
-                <div class="form-group">
-                  <label>Intitulé poste / stage <span class="req">*</span></label>
-                  <input class="form-control" [(ngModel)]="e.poste" placeholder="Stagiaire Supply Chain" />
+            <!-- ─── STEP 3 : Formation ─── -->
+            @if (step === 3) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 3 — Formation académique</h2>
+                    <p class="block-sub">Diplôme, modules clés et informations PFE.</p>
                 </div>
-                <div class="form-group">
-                  <label>Entreprise <span class="req">*</span></label>
-                  <input class="form-control" [(ngModel)]="e.entreprise" />
+            </div>
+            @for (f of formations; track $index; let i = $index) {
+            <div class="entry-block">
+                <div class="entry-num">{{ i + 1 }}</div>
+                <div class="entry-fields">
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Diplôme exact <span class="req">*</span></label>
+                            <input class="form-control" [(ngModel)]="f.diplome" placeholder="Licence en Transport & Logistique" />
+                        </div>
+                        <div class="form-group">
+                            <label>Établissement <span class="req">*</span></label>
+                            <input class="form-control" [(ngModel)]="f.institution" placeholder="ISGIS - Université de Sfax" />
+                        </div>
+                        <div class="form-group">
+                            <label>Début <span class="req">*</span></label>
+                            <input class="form-control" type="month" [(ngModel)]="f.dateDebut" />
+                        </div>
+                        <div class="form-group">
+                            <label>Fin prévue <span class="req">*</span></label>
+                            <input class="form-control" type="month" [(ngModel)]="f.dateFin" />
+                        </div>
+                        <div class="form-group">
+                            <label>Moyenne / Mention</label>
+                            <input class="form-control" [(ngModel)]="f.moyenne" placeholder="14.50 / Très bien" />
+                        </div>
+                        <div class="form-group">
+                            <label>Modules clés</label>
+                            <input class="form-control" [(ngModel)]="f.modules" placeholder="Incoterms, Douane, WMS, Lean..." />
+                        </div>
+                        <div class="form-group">
+                            <label>PFE — Titre</label>
+                            <input class="form-control" [(ngModel)]="f.pfeTitre" placeholder="Optimisation de la chaîne d'approvisionnement" />
+                        </div>
+                        <div class="form-group">
+                            <label>PFE — Entreprise</label>
+                            <input class="form-control" [(ngModel)]="f.pfeEntreprise" placeholder="Entreprise d'accueil" />
+                        </div>
+                        <div class="form-group full">
+                            <label>PFE — Technologies</label>
+                            <input class="form-control" [(ngModel)]="f.pfeTechnologies" placeholder="Power BI, Python, SQL" />
+                        </div>
+                    </div>
+                    @if (formations.length > 1) {
+                    <button type="button" class="btn-remove" (click)="removeFormation(i)">
+                      <i class="fa-solid fa-trash-can"></i> Supprimer
+                    </button> }
                 </div>
-                <div class="form-group">
-                  <label>Secteur d'activité</label>
-                  <select class="form-control" [(ngModel)]="e.secteur">
-                    <option value="">Sélectionnez...</option>
-                    @for (s of secteurOptions; track s) { <option [value]="s">{{ s }}</option> }
+            </div>
+            }
+            <button type="button" class="btn-add-entry" (click)="addFormation()">
+              <i class="fa-solid fa-plus"></i> Ajouter une formation
+            </button> }
+
+            <!-- ─── STEP 4 : Stages ─── -->
+            @if (step === 4) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-briefcase"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 4 — Stages</h2>
+                    <p class="block-sub">Méthode STAR/CAR et mots-clés techniques.</p>
+                </div>
+            </div>
+            @for (e of experiences; track $index; let i = $index) {
+            <div class="entry-block">
+                <div class="entry-num">{{ i + 1 }}</div>
+                <div class="entry-fields">
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Intitulé poste / stage <span class="req">*</span></label>
+                            <input class="form-control" [(ngModel)]="e.poste" placeholder="Stagiaire Supply Chain" />
+                        </div>
+                        <div class="form-group">
+                            <label>Entreprise <span class="req">*</span></label>
+                            <input class="form-control" [(ngModel)]="e.entreprise" placeholder="Entreprise logistique" />
+                        </div>
+                        <div class="form-group">
+                            <label>Secteur d'activité</label>
+                            <select class="form-control" [(ngModel)]="e.secteur">
+                        <option value="">Sélectionnez...</option>
+                        @for (s of secteurOptions; track s) {
+                          <option [value]="s">{{ s }}</option>
+                        }
+                      </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Lieu (ville/pays)</label>
+                            <input class="form-control" [(ngModel)]="e.lieu" placeholder="Sfax, Tunisie" />
+                        </div>
+                        <div class="form-group">
+                            <label>Début <span class="req">*</span></label>
+                            <input class="form-control" type="month" [(ngModel)]="e.dateDebut" />
+                        </div>
+                        <div class="form-group">
+                            <label>Fin <span class="req">*</span></label>
+                            <input class="form-control" type="month" [(ngModel)]="e.dateFin" />
+                        </div>
+                        <div class="form-group full">
+                            <label>Missions / réalisations (3-6 points) <span class="req">*</span></label>
+                            <textarea class="form-control" [(ngModel)]="e.description" placeholder="Action: Optimisé... Contexte: ... Résultat chiffré: ..."></textarea>
+                        </div>
+                        <div class="form-group full">
+                            <label>Mots-clés techniques utilisés <span class="req">*</span></label>
+                            <input class="form-control" [(ngModel)]="e.motsCles" placeholder="WMS, TMS, Incoterms 2020, SAP, Excel avancé" />
+                        </div>
+                    </div>
+                    @if (experiences.length > 1) {
+                    <button type="button" class="btn-remove" (click)="removeExperience(i)">
+                      <i class="fa-solid fa-trash-can"></i> Supprimer
+                    </button> }
+                </div>
+            </div>
+            }
+            <button type="button" class="btn-add-entry" (click)="addExperience()">
+              <i class="fa-solid fa-plus"></i> Ajouter une expérience
+            </button> }
+
+            <!-- ─── STEP 5 : Hard Skills ─── -->
+            @if (step === 5) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-code"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 5 — Compétences techniques (hard skills)</h2>
+                    <p class="block-sub">Référentiel métier, outils, technologies, méthodes et normes.</p>
+                </div>
+            </div>
+            <div class="skills-grid">
+                @for (h of hardSkills; track $index; let i = $index) {
+                <div class="skill-row">
+                    <select class="form-control select-md" [(ngModel)]="h.type">
+                    <option value="Metier T&L">Métier T&L</option>
+                    <option value="Outil / Logiciel">Outil / Logiciel</option>
+                    <option value="Langage / Tech">Langage / Tech</option>
+                    <option value="Methodologie">Méthodologie</option>
+                    <option value="Norme / Reglement">Norme / Règlement</option>
                   </select>
+                    <input class="form-control" [(ngModel)]="h.nom" placeholder="Ex : WMS, SAP TM, SQL, Lean, Incoterms" />
+                    <select class="form-control select-sm" [(ngModel)]="h.niveau">
+                    @for (n of niveaux; track n) {
+                      <option [value]="n">{{ n }}</option>
+                    }
+                  </select>
+                    <div class="skill-level-bar">
+                        <div class="skill-fill" [style.width]="skillWidth(h.niveau)" [style.background]="skillColor(h.niveau)"></div>
+                    </div>
+                    @if (hardSkills.length > 1) {
+                    <button type="button" class="btn-del-sm" (click)="removeHardSkill(i)">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button> } @else {
+                    <div></div>
+                    }
                 </div>
-                <div class="form-group">
-                  <label>Lieu</label>
-                  <input class="form-control" [(ngModel)]="e.lieu" placeholder="Sfax, Tunisie" />
-                </div>
-                <div class="form-group">
-                  <label>Début <span class="req">*</span></label>
-                  <input class="form-control" type="month" [(ngModel)]="e.dateDebut" />
-                </div>
-                <div class="form-group">
-                  <label>Fin <span class="req">*</span></label>
-                  <input class="form-control" type="month" [(ngModel)]="e.dateFin" />
-                </div>
-                <div class="form-group full">
-                  <label>Missions / réalisations <span class="req">*</span></label>
-                  <textarea class="form-control" [(ngModel)]="e.description"></textarea>
-                </div>
-                <div class="form-group full">
-                  <label>Mots-clés techniques <span class="req">*</span></label>
-                  <input class="form-control" [(ngModel)]="e.motsCles" placeholder="WMS, TMS, SAP, Excel" />
-                </div>
-              </div>
-              @if (experiences.length > 1) {
-                <button type="button" class="btn-remove" (click)="removeExperience(i)">
-                  <i class="fa-solid fa-trash-can"></i> Supprimer
-                </button>
-              }
+                }
             </div>
-          </div>
-        }
-        <button type="button" class="btn-add-entry" (click)="addExperience()">
-          <i class="fa-solid fa-plus"></i> Ajouter une expérience
-        </button>
-      }
+            <button type="button" class="btn-add-entry" (click)="addHardSkill()">
+              <i class="fa-solid fa-plus"></i> Ajouter une hard skill
+            </button> }
 
-      @if (step === 5) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-code"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 5 — Compétences techniques</h2>
-            <p class="block-sub">Référentiel métier, outils, technologies.</p>
-          </div>
-        </div>
-        @for (h of hardSkills; track $index; let i = $index) {
-          <div class="skill-row">
-            <select class="form-control select-md" [(ngModel)]="h.type">
-              <option value="Metier T&L">Métier T&L</option>
-              <option value="Outil / Logiciel">Outil / Logiciel</option>
-              <option value="Langage / Tech">Langage / Tech</option>
-              <option value="Methodologie">Méthodologie</option>
-              <option value="Norme / Reglement">Norme / Règlement</option>
-            </select>
-            <input class="form-control" [(ngModel)]="h.nom" placeholder="WMS, SAP, SQL..." />
-            <select class="form-control select-sm" [(ngModel)]="h.niveau">
-              @for (n of niveaux; track n) { <option [value]="n">{{ n }}</option> }
-            </select>
-            <div class="skill-level-bar">
-              <div class="skill-fill" [style.width]="skillWidth(h.niveau)" [style.background]="skillColor(h.niveau)"></div>
+            <!-- ─── STEP 6 : Soft Skills ─── -->
+            @if (step === 6) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-people-group"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 6 — Compétences transversales (soft skills)</h2>
+                    <p class="block-sub">Top soft skills avec mise en situation optionnelle.</p>
+                </div>
             </div>
-            @if (hardSkills.length > 1) {
-              <button type="button" class="btn-del-sm" (click)="removeHardSkill(i)">
-                <i class="fa-solid fa-xmark"></i>
+            @for (s of softSkills; track $index; let i = $index) {
+            <div class="entry-block">
+                <div class="entry-num">{{ i + 1 }}</div>
+                <div class="entry-fields">
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Soft skill</label>
+                            <input class="form-control" [(ngModel)]="s.nom" placeholder="Communication, Adaptabilité, Leadership..." />
+                        </div>
+                        <div class="form-group">
+                            <label>Niveau</label>
+                            <select class="form-control" [(ngModel)]="s.niveau">
+                        @for (n of niveaux; track n) {
+                          <option [value]="n">{{ n }}</option>
+                        }
+                      </select>
+                        </div>
+                        <div class="form-group full">
+                            <label>Mise en situation (optionnel)</label>
+                            <textarea class="form-control" [(ngModel)]="s.contexte" placeholder="Exemple concret (1-2 phrases)"></textarea>
+                        </div>
+                    </div>
+                    @if (softSkills.length > 1) {
+                    <button type="button" class="btn-remove" (click)="removeSoftSkill(i)">
+                      <i class="fa-solid fa-trash-can"></i> Supprimer
+                    </button> }
+                </div>
+            </div>
+            }
+            <button type="button" class="btn-add-entry" (click)="addSoftSkill()">
+              <i class="fa-solid fa-plus"></i> Ajouter une soft skill
+            </button> }
+
+            <!-- ─── STEP 7 : Langues ─── -->
+            @if (step === 7) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-globe"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 7 — Langues</h2>
+                    <p class="block-sub">Niveau CECRL et certifications associées.</p>
+                </div>
+            </div>
+            <div class="skills-grid">
+                @for (l of langues; track $index; let i = $index) {
+                <div class="entry-block">
+                    <div class="entry-num">{{ i + 1 }}</div>
+                    <div class="entry-fields">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label>Langue <span class="req">*</span></label>
+                                <input class="form-control" [(ngModel)]="l.langue" placeholder="Français" />
+                            </div>
+                            <div class="form-group">
+                                <label>Niveau CECRL <span class="req">*</span></label>
+                                <select class="form-control" [(ngModel)]="l.niveau">
+                          @for (n of niveauxLangue; track n) {
+                            <option [value]="n">{{ n }}</option>
+                          }
+                        </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Certification</label>
+                                <input class="form-control" [(ngModel)]="l.certification" placeholder="TOEFL, IELTS, DELF..." />
+                            </div>
+                            <div class="form-group">
+                                <label>Score</label>
+                                <input class="form-control" [(ngModel)]="l.score" placeholder="TOEFL 90" />
+                            </div>
+                        </div>
+                        @if (langues.length > 1) {
+                        <button type="button" class="btn-remove" (click)="removeLangue(i)">
+                        <i class="fa-solid fa-trash-can"></i> Supprimer
+                      </button> }
+                    </div>
+                </div>
+                }
+            </div>
+            <button type="button" class="btn-add-entry" (click)="addLangue()">
+              <i class="fa-solid fa-plus"></i> Ajouter une langue
+            </button> }
+
+            <!-- ─── STEP 8 : Projets ─── -->
+            @if (step === 8) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-diagram-project"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 8 — Projets académiques & personnels</h2>
+                    <p class="block-sub">Proxy d'expérience pour profil junior.</p>
+                </div>
+            </div>
+            @for (p of projets; track $index; let i = $index) {
+            <div class="entry-block">
+                <div class="entry-num">{{ i + 1 }}</div>
+                <div class="entry-fields">
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Titre du projet</label>
+                            <input class="form-control" [(ngModel)]="p.titre" placeholder="Optimisation des tournées" />
+                        </div>
+                        <div class="form-group">
+                            <label>Technologies / outils</label>
+                            <input class="form-control" [(ngModel)]="p.technologies" placeholder="Python, Power BI, Excel, SQL" />
+                        </div>
+                        <div class="form-group full">
+                            <label>Description (2-3 lignes)</label>
+                            <textarea class="form-control" [(ngModel)]="p.description" placeholder="Problème, méthode, résultat mesurable"></textarea>
+                        </div>
+                        <div class="form-group full">
+                            <label>Lien (GitHub, rapport, démo)</label>
+                            <input class="form-control" [(ngModel)]="p.lien" placeholder="https://..." />
+                        </div>
+                    </div>
+                    @if (projets.length > 1) {
+                    <button type="button" class="btn-remove" (click)="removeProjet(i)">
+                      <i class="fa-solid fa-trash-can"></i> Supprimer
+                    </button> }
+                </div>
+            </div>
+            }
+            <button type="button" class="btn-add-entry" (click)="addProjet()">
+              <i class="fa-solid fa-plus"></i> Ajouter un projet
+            </button> }
+
+            <!-- ─── STEP 9 : Certifications ─── -->
+            @if (step === 9) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-award"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 9 — Certifications & formations continues</h2>
+                    <p class="block-sub">Boost ATS fort en transport & logistique.</p>
+                </div>
+            </div>
+            @for (c of certifications; track $index; let i = $index) {
+            <div class="entry-block">
+                <div class="entry-num">{{ i + 1 }}</div>
+                <div class="entry-fields">
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Nom certification</label>
+                            <input class="form-control" [(ngModel)]="c.titre" placeholder="IATA DGR" />
+                        </div>
+                        <div class="form-group">
+                            <label>Organisme émetteur</label>
+                            <input class="form-control" [(ngModel)]="c.organisme" placeholder="IATA, APICS, FIATA..." />
+                        </div>
+                        <div class="form-group">
+                            <label>Date d'obtention</label>
+                            <input class="form-control" type="month" [(ngModel)]="c.date" />
+                        </div>
+                        <div class="form-group">
+                            <label>ID / lien vérification</label>
+                            <input class="form-control" [(ngModel)]="c.verification" placeholder="Credly / Accredible" />
+                        </div>
+                    </div>
+                    @if (certifications.length > 1) {
+                    <button type="button" class="btn-remove" (click)="removeCertification(i)">
+                      <i class="fa-solid fa-trash-can"></i> Supprimer
+                    </button> }
+                </div>
+            </div>
+            }
+            <button type="button" class="btn-add-entry" (click)="addCertification()">
+              <i class="fa-solid fa-plus"></i> Ajouter une certification
+            </button> }
+
+            <!-- ─── STEP 10 : Activités para-universitaires ─── -->
+            @if (step === 10) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-handshake-angle"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 10 — Activités para-universitaires</h2>
+                    <p class="block-sub">Section humaine post-filtrage ATS.</p>
+                </div>
+            </div>
+            @for (e of engagements; track $index; let i = $index) {
+            <div class="entry-block">
+                <div class="entry-num">{{ i + 1 }}</div>
+                <div class="entry-fields">
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Type d'activité</label>
+                            <select class="form-control" [(ngModel)]="e.type">
+                        @for (t of engagementTypes; track t) {
+                          <option [value]="t">{{ t }}</option>
+                        }
+                      </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rôle / responsabilité</label>
+                            <input class="form-control" [(ngModel)]="e.role" placeholder="Président club, capitaine équipe..." />
+                        </div>
+                        <div class="form-group">
+                            <label>Date début</label>
+                            <input class="form-control" type="month" [(ngModel)]="e.dateDebut" />
+                        </div>
+                        <div class="form-group">
+                            <label>Date fin</label>
+                            <input class="form-control" type="month" [(ngModel)]="e.dateFin" />
+                        </div>
+                    </div>
+                    @if (engagements.length > 1) {
+                    <button type="button" class="btn-remove" (click)="removeEngagement(i)">
+                      <i class="fa-solid fa-trash-can"></i> Supprimer
+                    </button> }
+                </div>
+            </div>
+            }
+            <button type="button" class="btn-add-entry" (click)="addEngagement()">
+              <i class="fa-solid fa-plus"></i> Ajouter un engagement
+            </button>
+
+            <div class="interest-wrap">
+                <h3>Centres d'intérêt (max 5)</h3>
+                @for (it of interests; track $index; let i = $index) {
+                <div class="interest-row">
+                    <input class="form-control" [(ngModel)]="it.label" placeholder="Voyages, sport, lecture, veille supply chain" /> @if (interests.length > 1) {
+                    <button type="button" class="btn-del-sm" (click)="removeInterest(i)">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button> }
+                </div>
+                }
+                <button type="button" class="btn-add-entry" (click)="addInterest()" [disabled]="interests.length >= 5">
+                <i class="fa-solid fa-plus"></i> Ajouter un centre d'intérêt
               </button>
-            } @else { <div></div> }
-          </div>
-        }
-        <button type="button" class="btn-add-entry" (click)="addHardSkill()">
-          <i class="fa-solid fa-plus"></i> Ajouter une hard skill
-        </button>
-      }
-
-      @if (step === 6) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-people-group"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 6 — Soft skills</h2>
-            <p class="block-sub">Top soft skills avec mise en situation.</p>
-          </div>
-        </div>
-        @for (s of softSkills; track $index; let i = $index) {
-          <div class="entry-block">
-            <div class="entry-num">{{ i + 1 }}</div>
-            <div class="entry-fields">
-              <div class="form-grid-2">
-                <div class="form-group">
-                  <label>Soft skill</label>
-                  <input class="form-control" [(ngModel)]="s.nom" placeholder="Communication..." />
-                </div>
-                <div class="form-group">
-                  <label>Niveau</label>
-                  <select class="form-control" [(ngModel)]="s.niveau">
-                    @for (n of niveaux; track n) { <option [value]="n">{{ n }}</option> }
-                  </select>
-                </div>
-                <div class="form-group full">
-                  <label>Mise en situation (optionnel)</label>
-                  <textarea class="form-control" [(ngModel)]="s.contexte"></textarea>
-                </div>
-              </div>
-              @if (softSkills.length > 1) {
-                <button type="button" class="btn-remove" (click)="removeSoftSkill(i)">
-                  <i class="fa-solid fa-trash-can"></i> Supprimer
-                </button>
-              }
             </div>
-          </div>
-        }
-        <button type="button" class="btn-add-entry" (click)="addSoftSkill()">
-          <i class="fa-solid fa-plus"></i> Ajouter une soft skill
-        </button>
-      }
+            }
 
-      @if (step === 7) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-globe"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 7 — Langues</h2>
-            <p class="block-sub">Niveau CECRL et certifications.</p>
-          </div>
-        </div>
-        @for (l of langues; track $index; let i = $index) {
-          <div class="entry-block">
-            <div class="entry-num">{{ i + 1 }}</div>
-            <div class="entry-fields">
-              <div class="form-grid-2">
-                <div class="form-group">
-                  <label>Langue <span class="req">*</span></label>
-                  <input class="form-control" [(ngModel)]="l.langue" placeholder="Français" />
+            <!-- ─── STEP 11 : Validation + Génération ─── -->
+            @if (step === 11) {
+            <div class="block-header">
+                <div class="block-icon"><i class="fa-solid fa-circle-check"></i></div>
+                <div>
+                    <h2 class="block-title">Bloc 12 — Validation & métadonnées système</h2>
+                    <p class="block-sub">Métadonnées auto + consentement obligatoire.</p>
                 </div>
-                <div class="form-group">
-                  <label>Niveau CECRL <span class="req">*</span></label>
-                  <select class="form-control" [(ngModel)]="l.niveau">
-                    @for (n of niveauxLangue; track n) { <option [value]="n">{{ n }}</option> }
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Certification</label>
-                  <input class="form-control" [(ngModel)]="l.certification" placeholder="TOEFL, IELTS..." />
-                </div>
-                <div class="form-group">
-                  <label>Score</label>
-                  <input class="form-control" [(ngModel)]="l.score" placeholder="TOEFL 90" />
-                </div>
-              </div>
-              @if (langues.length > 1) {
-                <button type="button" class="btn-remove" (click)="removeLangue(i)">
-                  <i class="fa-solid fa-trash-can"></i> Supprimer
-                </button>
-              }
             </div>
-          </div>
-        }
-        <button type="button" class="btn-add-entry" (click)="addLangue()">
-          <i class="fa-solid fa-plus"></i> Ajouter une langue
-        </button>
-      }
 
-      @if (step === 8) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-diagram-project"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 8 — Projets académiques & personnels</h2>
-          </div>
-        </div>
-        @for (p of projets; track $index; let i = $index) {
-          <div class="entry-block">
-            <div class="entry-num">{{ i + 1 }}</div>
-            <div class="entry-fields">
-              <div class="form-grid-2">
-                <div class="form-group">
-                  <label>Titre</label>
-                  <input class="form-control" [(ngModel)]="p.titre" />
-                </div>
-                <div class="form-group">
-                  <label>Technologies</label>
-                  <input class="form-control" [(ngModel)]="p.technologies" placeholder="Python, Power BI..." />
-                </div>
-                <div class="form-group full">
-                  <label>Description</label>
-                  <textarea class="form-control" [(ngModel)]="p.description"></textarea>
-                </div>
-                <div class="form-group full">
-                  <label>Lien</label>
-                  <input class="form-control" [(ngModel)]="p.lien" placeholder="https://..." />
-                </div>
-              </div>
-              @if (projets.length > 1) {
-                <button type="button" class="btn-remove" (click)="removeProjet(i)">
-                  <i class="fa-solid fa-trash-can"></i> Supprimer
-                </button>
-              }
+            <div class="metadata-grid">
+                <div class="meta-item"><span>ID étudiant</span><strong>{{ studentId }}</strong></div>
+                <div class="meta-item"><span>Création</span><strong>{{ createdAt | date:'short' }}</strong></div>
+                <div class="meta-item"><span>Mise à jour</span><strong>{{ updatedAt | date:'short' }}</strong></div>
+                <div class="meta-item"><span>Score ATS courant</span><strong>{{ atsScore }}%</strong></div>
+                <div class="meta-item"><span>Classement cohorte</span><strong>#{{ cohortRank || '-' }}</strong></div>
             </div>
-          </div>
-        }
-        <button type="button" class="btn-add-entry" (click)="addProjet()">
-          <i class="fa-solid fa-plus"></i> Ajouter un projet
-        </button>
-      }
 
-      @if (step === 9) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-award"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 9 — Certifications</h2>
-          </div>
-        </div>
-        @for (c of certifications; track $index; let i = $index) {
-          <div class="entry-block">
-            <div class="entry-num">{{ i + 1 }}</div>
-            <div class="entry-fields">
-              <div class="form-grid-2">
-                <div class="form-group">
-                  <label>Nom certification</label>
-                  <input class="form-control" [(ngModel)]="c.titre" placeholder="IATA DGR" />
+            <label class="consent-row">
+              <input type="checkbox" [(ngModel)]="consentGiven" />
+              <span>Je consens au traitement de mes données pour la génération du CV ATS (Loi tunisienne + RGPD).</span>
+            </label>
+
+            <div class="summary-box">
+                <i class="fa-solid fa-circle-check summary-icon"></i>
+                <div>
+                    <p class="summary-title">Votre CV est prêt à être généré.</p>
+                    <p class="summary-sub">Vérifiez vos informations, acceptez le consentement, puis cliquez sur Générer.</p>
                 </div>
-                <div class="form-group">
-                  <label>Organisme</label>
-                  <input class="form-control" [(ngModel)]="c.organisme" placeholder="IATA, APICS..." />
-                </div>
-                <div class="form-group">
-                  <label>Date</label>
-                  <input class="form-control" type="month" [(ngModel)]="c.date" />
-                </div>
-                <div class="form-group">
-                  <label>ID / lien vérification</label>
-                  <input class="form-control" [(ngModel)]="c.verification" />
-                </div>
-              </div>
-              @if (certifications.length > 1) {
-                <button type="button" class="btn-remove" (click)="removeCertification(i)">
-                  <i class="fa-solid fa-trash-can"></i> Supprimer
-                </button>
-              }
             </div>
-          </div>
-        }
-        <button type="button" class="btn-add-entry" (click)="addCertification()">
-          <i class="fa-solid fa-plus"></i> Ajouter une certification
-        </button>
-      }
 
-      @if (step === 10) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-handshake-angle"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 10 — Activités para-universitaires</h2>
-          </div>
-        </div>
-        @for (e of engagements; track $index; let i = $index) {
-          <div class="entry-block">
-            <div class="entry-num">{{ i + 1 }}</div>
-            <div class="entry-fields">
-              <div class="form-grid-2">
-                <div class="form-group">
-                  <label>Type</label>
-                  <select class="form-control" [(ngModel)]="e.type">
-                    @for (t of engagementTypes; track t) { <option [value]="t">{{ t }}</option> }
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Rôle</label>
-                  <input class="form-control" [(ngModel)]="e.role" placeholder="Président club..." />
-                </div>
-                <div class="form-group">
-                  <label>Début</label>
-                  <input class="form-control" type="month" [(ngModel)]="e.dateDebut" />
-                </div>
-                <div class="form-group">
-                  <label>Fin</label>
-                  <input class="form-control" type="month" [(ngModel)]="e.dateFin" />
-                </div>
-              </div>
-              @if (engagements.length > 1) {
-                <button type="button" class="btn-remove" (click)="removeEngagement(i)">
-                  <i class="fa-solid fa-trash-can"></i> Supprimer
-                </button>
-              }
+            @if (formError) {
+            <div class="form-error">
+                <i class="fa-solid fa-circle-exclamation"></i> {{ formError }}
             </div>
-          </div>
-        }
-        <button type="button" class="btn-add-entry" (click)="addEngagement()">
-          <i class="fa-solid fa-plus"></i> Ajouter un engagement
-        </button>
+            }
 
-        <div class="interest-wrap">
-          <h3>Centres d'intérêt (max 5)</h3>
-          @for (it of interests; track $index; let i = $index) {
-            <div class="interest-row">
-              <input class="form-control" [(ngModel)]="it.label" placeholder="Voyages, sport..." />
-              @if (interests.length > 1) {
-                <button type="button" class="btn-del-sm" (click)="removeInterest(i)">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              }
+            <div class="generate-row">
+                <button type="button" class="btn-generate" (click)="generate()">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Générer mon CV
+              </button>
             </div>
-          }
-          <button type="button" class="btn-add-entry" (click)="addInterest()" [disabled]="interests.length >= 5">
-            <i class="fa-solid fa-plus"></i> Ajouter un centre d'intérêt
-          </button>
-        </div>
-      }
+            }
 
-      @if (step === 11) {
-        <div class="block-header">
-          <div class="block-icon"><i class="fa-solid fa-circle-check"></i></div>
-          <div>
-            <h2 class="block-title">Bloc 11 — Validation</h2>
-            <p class="block-sub">Métadonnées auto + consentement obligatoire.</p>
-          </div>
-        </div>
-        <div class="metadata-grid">
-          <div class="meta-item"><span>ID étudiant</span><strong>{{ studentId }}</strong></div>
-          <div class="meta-item"><span>Création</span><strong>{{ createdAt | date:'short' }}</strong></div>
-          <div class="meta-item"><span>Mise à jour</span><strong>{{ updatedAt | date:'short' }}</strong></div>
-          <div class="meta-item"><span>Score ATS</span><strong>{{ atsScore }}%</strong></div>
-          <div class="meta-item"><span>Classement cohorte</span><strong>#{{ cohortRank || '-' }}</strong></div>
-        </div>
-        <label class="consent-row">
-          <input type="checkbox" [(ngModel)]="consentGiven" />
-          <span>Je consens au traitement de mes données (Loi tunisienne + RGPD).</span>
-        </label>
-        <div class="summary-box">
-          <i class="fa-solid fa-circle-check summary-icon"></i>
-          <div>
-            <p class="summary-title">Votre CV est prêt à être généré.</p>
-            <p class="summary-sub">Vérifiez vos informations, acceptez le consentement, puis cliquez sur Générer.</p>
-          </div>
-        </div>
-        @if (formError) {
-          <div class="form-error"><i class="fa-solid fa-circle-exclamation"></i> {{ formError }}</div>
-        }
-        <div class="generate-row">
-          <button type="button" class="btn-generate" (click)="generate()">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Générer mon CV
-          </button>
-        </div>
-      }
+            <!-- ─── Error (steps 1–10) ─── -->
+            @if (step !== 11 && formError) {
+            <div class="form-error">
+                <i class="fa-solid fa-circle-exclamation"></i> {{ formError }}
+            </div>
+            }
 
-      @if (step !== 11 && formError) {
-        <div class="form-error"><i class="fa-solid fa-circle-exclamation"></i> {{ formError }}</div>
-      }
-
-      <div class="form-footer">
-        @if (step > 1) {
-          <button type="button" class="btn-prev" (click)="prev()">
-            <i class="fa-solid fa-arrow-left"></i> Étape précédente
-          </button>
-        } @else { <div></div> }
-        @if (step < totalSteps) {
-          <button type="button" class="btn-next" (click)="next()">
-            Continuer <i class="fa-solid fa-arrow-right"></i>
-          </button>
-        }
-      </div>
-
-    </div>
-
-  </ng-container>
-
-  <ng-template #previewMode>
-
-    <div class="preview-topbar">
-      <div class="preview-topbar-left">
-        <button type="button" class="btn-back" (click)="backToForm()">
-          <i class="fa-solid fa-arrow-left"></i> Modifier
-        </button>
-        <span class="preview-tag"><i class="fa-solid fa-eye"></i> Aperçu ATS</span>
-      </div>
-      <button type="button" class="btn-download" (click)="download()">
-        <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
-      </button>
-    </div>
-
-    <div class="cv-paper" id="cv-paper">
-      <div class="ats-header">
-        <h1 class="ats-name">{{ fullName || 'Votre nom complet' }}</h1>
-        @if (professionalTitle) { <p class="ats-title">{{ professionalTitle }}</p> }
-        @if (specialization) { <p class="ats-subtitle">{{ specialization }}</p> }
-        <div class="ats-contacts">
-          @if (info.email) { <span>{{ info.email }}</span> }
-          @if (info.telephone) { <span>{{ info.telephone }}</span> }
-          @if (info.ville) { <span>{{ info.ville }}{{ info.codePostal ? ' ' + info.codePostal : '' }}</span> }
-          @if (info.linkedin) { <span>{{ info.linkedin }}</span> }
-          @if (info.permis && info.permis !== 'Aucun') { <span>Permis {{ info.permis }}</span> }
-        </div>
-      </div>
-
-      @if (objectif) {
-        <div class="ats-section">
-          <div class="ats-section-title">OBJECTIF PROFESSIONNEL</div>
-          <p class="ats-objective">{{ objectif }}</p>
-        </div>
-      }
-
-      @if (experiences[0]?.poste || experiences[0]?.entreprise) {
-        <div class="ats-section">
-          <div class="ats-section-title">STAGES</div>
-          @for (e of experiences; track $index) {
-            @if (e.poste || e.entreprise) {
-              <div class="ats-entry">
-                <div class="ats-entry-row">
-                  <div class="ats-entry-left">
-                    <span class="ats-entry-main">{{ e.poste }}</span>
-                    <span class="ats-entry-org">{{ e.entreprise }}{{ e.secteur ? ' — ' + e.secteur : '' }}</span>
-                    @if (e.lieu) { <span class="ats-entry-detail">{{ e.lieu }}</span> }
-                  </div>
-                  <div class="ats-entry-right">
-                    @if (e.dateDebut || e.dateFin) {
-                      <span class="ats-entry-date">{{ e.dateDebut }}{{ e.dateFin ? ' — ' + e.dateFin : ' — En cours' }}</span>
+            <!-- ─── Navigation Footer ─── -->
+            <div class="form-footer">
+                @if (step > 1) {
+                <button type="button" class="btn-prev" (click)="prev()">
+                <i class="fa-solid fa-arrow-left"></i> Étape précédente
+              </button> } @else {
+                <div></div>
+                } @if (step
+                < totalSteps) { <button type="button" class="btn-next" (click)="next()">
+                    Continuer <i class="fa-solid fa-arrow-right"></i>
+                    </button>
                     }
-                  </div>
-                </div>
-                @if (e.description) { <p class="ats-entry-desc">{{ e.description }}</p> }
-                @if (e.motsCles) { <p class="ats-entry-desc"><strong>Mots-clés :</strong> {{ e.motsCles }}</p> }
-              </div>
-            }
-          }
-        </div>
-      }
+            </div>
 
-      @if (formations[0]?.diplome || formations[0]?.institution) {
-        <div class="ats-section">
-          <div class="ats-section-title">FORMATION ACADÉMIQUE</div>
-          @for (f of formations; track $index) {
-            @if (f.diplome || f.institution) {
-              <div class="ats-entry">
-                <div class="ats-entry-row">
-                  <div class="ats-entry-left">
-                    <span class="ats-entry-main">{{ f.diplome }}</span>
-                    <span class="ats-entry-org">{{ f.institution }}</span>
-                    @if (f.moyenne) { <span class="ats-entry-detail">Mention : {{ f.moyenne }}</span> }
-                  </div>
-                  <div class="ats-entry-right">
-                    @if (f.dateDebut || f.dateFin) {
-                      <span class="ats-entry-date">{{ f.dateDebut }}{{ f.dateFin ? ' — ' + f.dateFin : ' — En cours' }}</span>
+        </div>
+        <!-- /form-card -->
+
+        </ng-container>
+        <!-- /!showPreview -->
+
+        <!-- ════════════════════════════════════════
+           PREVIEW MODE
+      ════════════════════════════════════════ -->
+        <ng-template #previewMode>
+
+            <div class="preview-topbar">
+                <div class="preview-topbar-left">
+                    <button type="button" class="btn-back" (click)="backToForm()">
+              <i class="fa-solid fa-arrow-left"></i> Modifier
+            </button>
+                    <span class="preview-tag">
+              <i class="fa-solid fa-eye"></i> Aperçu ATS
+            </span>
+                </div>
+                <button type="button" class="btn-download" (click)="download()">
+            <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
+          </button>
+            </div>
+
+            <!-- ── CV PAPER (ATS FORMAT) ── -->
+            <div class="cv-paper" id="cv-paper">
+
+                <div class="ats-header">
+                    <h1 class="ats-name">{{ fullName || 'Votre nom complet' }}</h1>
+                    @if (professionalTitle) {
+                    <p class="ats-title">{{ professionalTitle }}</p> } @if (specialization) {
+                    <p class="ats-subtitle">{{ specialization }}</p> }
+                    <div class="ats-contacts">
+                        @if (info.email) { <span><i class="fa-regular fa-envelope"></i> {{ info.email }}</span> } @if (info.telephone) { <span><i class="fa-solid fa-phone"></i> {{ info.telephone }}</span> } @if (info.ville) { <span><i class="fa-solid fa-location-dot"></i> {{ info.ville }}{{ info.codePostal ? ' ' + info.codePostal : '' }}</span>                        } @if (info.linkedin) { <span><i class="fa-brands fa-linkedin"></i> {{ info.linkedin }}</span> } @if (info.permis && info.permis !== 'Aucun') { <span><i class="fa-solid fa-car"></i> Permis {{ info.permis }}</span> }
+                    </div>
+                </div>
+
+                @if (objectif) {
+                <div class="ats-section">
+                    <div class="ats-section-title">OBJECTIF PROFESSIONNEL</div>
+                    <p class="ats-objective">{{ objectif }}</p>
+                </div>
+                } @if (experiences[0]?.poste || experiences[0]?.entreprise) {
+                <div class="ats-section">
+                    <div class="ats-section-title">STAGES</div>
+                    @for (e of experiences; track $index) { @if (e.poste || e.entreprise) {
+                    <div class="ats-entry">
+                        <div class="ats-entry-row">
+                            <div class="ats-entry-left">
+                                <span class="ats-entry-main">{{ e.poste }}</span>
+                                <span class="ats-entry-org">{{ e.entreprise }}{{ e.secteur ? ' — ' + e.secteur : '' }}</span> @if (e.lieu) { <span class="ats-entry-detail">{{ e.lieu }}</span> }
+                            </div>
+                            <div class="ats-entry-right">
+                                @if (e.dateDebut || e.dateFin) {
+                                <span class="ats-entry-date">{{ e.dateDebut }}{{ e.dateFin ? ' — ' + e.dateFin : ' — En cours' }}</span> }
+                            </div>
+                        </div>
+                        @if (e.description) {
+                        <p class="ats-entry-desc">{{ e.description }}</p> } @if (e.motsCles) {
+                        <p class="ats-entry-desc"><strong>Mots-clés :</strong> {{ e.motsCles }}</p> }
+                    </div>
+                    } }
+                </div>
+                } @if (formations[0]?.diplome || formations[0]?.institution) {
+                <div class="ats-section">
+                    <div class="ats-section-title">FORMATION ACADÉMIQUE</div>
+                    @for (f of formations; track $index) { @if (f.diplome || f.institution) {
+                    <div class="ats-entry">
+                        <div class="ats-entry-row">
+                            <div class="ats-entry-left">
+                                <span class="ats-entry-main">{{ f.diplome }}</span>
+                                <span class="ats-entry-org">{{ f.institution }}</span> @if (f.moyenne) { <span class="ats-entry-detail">Mention : {{ f.moyenne }}</span> }
+                            </div>
+                            <div class="ats-entry-right">
+                                @if (f.dateDebut || f.dateFin) {
+                                <span class="ats-entry-date">{{ f.dateDebut }}{{ f.dateFin ? ' — ' + f.dateFin : ' — En cours' }}</span> }
+                            </div>
+                        </div>
+                        @if (f.modules) {
+                        <p class="ats-entry-desc"><strong>Modules clés :</strong> {{ f.modules }}</p> } @if (f.pfeTitre) {
+                        <p class="ats-entry-desc"><strong>PFE :</strong> {{ f.pfeTitre }}{{ f.pfeEntreprise ? ' (' + f.pfeEntreprise + ')' : '' }}</p> } @if (f.pfeTechnologies) {
+                        <p class="ats-entry-desc"><strong>Technologies PFE :</strong> {{ f.pfeTechnologies }}</p> }
+                    </div>
+                    } }
+                </div>
+                } @if (projets[0]?.titre) {
+                <div class="ats-section">
+                    <div class="ats-section-title">PROJETS ACADÉMIQUES & PERSONNELS</div>
+                    @for (p of projets; track $index) { @if (p.titre) {
+                    <div class="ats-entry">
+                        <div class="ats-entry-row">
+                            <div class="ats-entry-left">
+                                <span class="ats-entry-main">{{ p.titre }}</span> @if (p.technologies) { <span class="ats-entry-org">{{ p.technologies }}</span> }
+                            </div>
+                            <div class="ats-entry-right">
+                                @if (p.lien) { <span class="ats-entry-date">{{ p.lien }}</span> }
+                            </div>
+                        </div>
+                        @if (p.description) {
+                        <p class="ats-entry-desc">{{ p.description }}</p> }
+                    </div>
+                    } }
+                </div>
+                } @if (hardSkills[0]?.nom) {
+                <div class="ats-section">
+                    <div class="ats-section-title">COMPÉTENCES TECHNIQUES</div>
+                    <div class="ats-skills-wrap">
+                        @for (h of hardSkills; track $index) { @if (h.nom) {
+                        <div class="ats-skill-item">
+                            <span class="ats-skill-name">{{ h.nom }}</span>
+                            <span class="ats-skill-level">{{ h.type }} · {{ h.niveau }}</span>
+                        </div>
+                        } }
+                    </div>
+                </div>
+                } @if (softSkills[0]?.nom) {
+                <div class="ats-section">
+                    <div class="ats-section-title">SOFT SKILLS</div>
+                    <div class="ats-skills-wrap">
+                        @for (s of softSkills; track $index) { @if (s.nom) {
+                        <div class="ats-skill-item">
+                            <span class="ats-skill-name">{{ s.nom }}</span>
+                            <span class="ats-skill-level">{{ s.niveau }}</span>
+                        </div>
+                        } }
+                    </div>
+                </div>
+                } @if (langues[0]?.langue) {
+                <div class="ats-section">
+                    <div class="ats-section-title">LANGUES</div>
+                    <div class="ats-skills-wrap">
+                        @for (l of langues; track $index) { @if (l.langue) {
+                        <div class="ats-skill-item">
+                            <span class="ats-skill-name">{{ l.langue }}</span>
+                            <span class="ats-skill-level">{{ l.niveau }}{{ l.certification ? ' · ' + l.certification : '' }}{{ l.score ? ' ' + l.score : '' }}</span>
+                        </div>
+                        } }
+                    </div>
+                </div>
+                } @if (certifications[0]?.titre) {
+                <div class="ats-section">
+                    <div class="ats-section-title">CERTIFICATIONS</div>
+                    @for (c of certifications; track $index) { @if (c.titre) {
+                    <div class="ats-entry">
+                        <div class="ats-entry-row">
+                            <div class="ats-entry-left">
+                                <span class="ats-entry-main">{{ c.titre }}</span> @if (c.organisme) { <span class="ats-entry-org">{{ c.organisme }}</span> }
+                            </div>
+                            <div class="ats-entry-right">
+                                @if (c.date) { <span class="ats-entry-date">{{ c.date }}</span> } @if (c.verification) { <span class="ats-entry-detail">{{ c.verification }}</span> }
+                            </div>
+                        </div>
+                    </div>
+                    } }
+                </div>
+                } @if (engagements[0]?.role || interestLabels) {
+                <div class="ats-section">
+                    <div class="ats-section-title">ACTIVITÉS PARA-UNIVERSITAIRES</div>
+                    @for (e of engagements; track $index) { @if (e.role) {
+                    <div class="ats-entry">
+                        <div class="ats-entry-row">
+                            <div class="ats-entry-left">
+                                <span class="ats-entry-main">{{ e.role }}</span>
+                                <span class="ats-entry-org">{{ e.type }}</span>
+                            </div>
+                            <div class="ats-entry-right">
+                                @if (e.dateDebut || e.dateFin) {
+                                <span class="ats-entry-date">{{ e.dateDebut }}{{ e.dateFin ? ' — ' + e.dateFin : '' }}</span> }
+                            </div>
+                        </div>
+                    </div>
+                    } } @if (interestLabels) {
+                    <p class="ats-entry-desc"><strong>Intérêts :</strong> {{ interestLabels }}</p>
                     }
-                  </div>
                 </div>
-                @if (f.modules) { <p class="ats-entry-desc"><strong>Modules clés :</strong> {{ f.modules }}</p> }
-                @if (f.pfeTitre) { <p class="ats-entry-desc"><strong>PFE :</strong> {{ f.pfeTitre }}{{ f.pfeEntreprise ? ' (' + f.pfeEntreprise + ')' : '' }}</p> }
-                @if (f.pfeTechnologies) { <p class="ats-entry-desc"><strong>Technologies PFE :</strong> {{ f.pfeTechnologies }}</p> }
-              </div>
-            }
-          }
-        </div>
-      }
+                }
 
-      @if (hardSkills[0]?.nom) {
-        <div class="ats-section">
-          <div class="ats-section-title">COMPÉTENCES TECHNIQUES</div>
-          <div class="ats-skills-wrap">
-            @for (h of hardSkills; track $index) {
-              @if (h.nom) {
-                <div class="ats-skill-item">
-                  <span class="ats-skill-name">{{ h.nom }}</span>
-                  <span class="ats-skill-level">{{ h.type }} · {{ h.niveau }}</span>
+            </div>
+            <!-- /cv-paper -->
+
+            <!-- ── ATS Results ── -->
+            @if (atsResult) {
+            <div class="ats-results-card">
+                <div class="ats-results-header">
+                    <i class="fa-solid fa-chart-bar"></i>
+                    <h2>Résultats de l'analyse ATS</h2>
                 </div>
-              }
-            }
-          </div>
-        </div>
-      }
-
-      @if (softSkills[0]?.nom) {
-        <div class="ats-section">
-          <div class="ats-section-title">SOFT SKILLS</div>
-          <div class="ats-skills-wrap">
-            @for (s of softSkills; track $index) {
-              @if (s.nom) {
-                <div class="ats-skill-item">
-                  <span class="ats-skill-name">{{ s.nom }}</span>
-                  <span class="ats-skill-level">{{ s.niveau }}</span>
+                <div class="ats-metric-row">
+                    <div class="ats-metric-box">
+                        <div class="ats-score-value" [style.color]="scoreColor(atsResult.matchScore)">{{ atsResult.matchScore }}%</div>
+                        <div class="ats-score-label">Correspondance JD</div>
+                        <div class="ats-score-grade" [style.color]="scoreColor(atsResult.matchScore)">{{ scoreGrade(atsResult.matchScore) }}</div>
+                    </div>
+                    <div class="ats-metric-box featured">
+                        <div class="ats-score-value" [style.color]="scoreColor(atsResult.overallScore)">{{ atsResult.overallScore }}%</div>
+                        <div class="ats-score-label">Score global</div>
+                        <div class="ats-score-grade" [style.color]="scoreColor(atsResult.overallScore)">{{ scoreGrade(atsResult.overallScore) }}</div>
+                    </div>
+                    <div class="ats-metric-box">
+                        <div class="ats-score-value" [style.color]="scoreColor(atsResult.successScore)">{{ atsResult.successScore }}%</div>
+                        <div class="ats-score-label">Taux de succès</div>
+                        <div class="ats-score-grade" [style.color]="scoreColor(atsResult.successScore)">{{ scoreGrade(atsResult.successScore) }}</div>
+                    </div>
                 </div>
-              }
-            }
-          </div>
-        </div>
-      }
-
-      @if (langues[0]?.langue) {
-        <div class="ats-section">
-          <div class="ats-section-title">LANGUES</div>
-          <div class="ats-skills-wrap">
-            @for (l of langues; track $index) {
-              @if (l.langue) {
-                <div class="ats-skill-item">
-                  <span class="ats-skill-name">{{ l.langue }}</span>
-                  <span class="ats-skill-level">{{ l.niveau }}{{ l.certification ? ' · ' + l.certification : '' }}</span>
+                <div class="ats-detail-section">
+                    <div class="ats-detail-title">Mots-clés manquants</div>
+                    <p>{{ atsResult.missingKeywords || 'Aucun mot-clé majeur manquant.' }}</p>
                 </div>
-              }
-            }
-          </div>
-        </div>
-      }
-
-      @if (certifications[0]?.titre) {
-        <div class="ats-section">
-          <div class="ats-section-title">CERTIFICATIONS</div>
-          @for (c of certifications; track $index) {
-            @if (c.titre) {
-              <div class="ats-entry">
-                <div class="ats-entry-row">
-                  <div class="ats-entry-left">
-                    <span class="ats-entry-main">{{ c.titre }}</span>
-                    @if (c.organisme) { <span class="ats-entry-org">{{ c.organisme }}</span> }
-                  </div>
-                  <div class="ats-entry-right">
-                    @if (c.date) { <span class="ats-entry-date">{{ c.date }}</span> }
-                  </div>
+                <div class="ats-detail-section">
+                    <div class="ats-detail-title">Résumé du profil</div>
+                    <p>{{ atsResult.profileSummary }}</p>
                 </div>
-              </div>
-            }
-          }
-        </div>
-      }
-
-      @if (engagements[0]?.role || interestLabels) {
-        <div class="ats-section">
-          <div class="ats-section-title">ACTIVITÉS PARA-UNIVERSITAIRES</div>
-          @for (e of engagements; track $index) {
-            @if (e.role) {
-              <div class="ats-entry">
-                <div class="ats-entry-row">
-                  <div class="ats-entry-left">
-                    <span class="ats-entry-main">{{ e.role }}</span>
-                    <span class="ats-entry-org">{{ e.type }}</span>
-                  </div>
-                  <div class="ats-entry-right">
-                    @if (e.dateDebut || e.dateFin) {
-                      <span class="ats-entry-date">{{ e.dateDebut }}{{ e.dateFin ? ' — ' + e.dateFin : '' }}</span>
-                    }
-                  </div>
+                <div class="ats-detail-section">
+                    <div class="ats-detail-title">Suggestions d'amélioration</div>
+                    <p>{{ atsResult.suggestions }}</p>
                 </div>
-              </div>
+            </div>
             }
-          }
-          @if (interestLabels) {
-            <p class="ats-entry-desc"><strong>Intérêts :</strong> {{ interestLabels }}</p>
-          }
-        </div>
-      }
 
-    </div>
-
-    @if (atsResult) {
-      <div class="ats-results-card">
-        <div class="ats-results-header">
-          <i class="fa-solid fa-chart-bar"></i>
-          <h2>Résultats de l'analyse ATS</h2>
-        </div>
-        <div class="ats-metric-row">
-          <div class="ats-metric-box">
-            <div class="ats-score-value" [style.color]="scoreColor(atsResult.matchScore)">{{ atsResult.matchScore }}%</div>
-            <div class="ats-score-label">Correspondance JD</div>
-            <div class="ats-score-grade" [style.color]="scoreColor(atsResult.matchScore)">{{ scoreGrade(atsResult.matchScore) }}</div>
-          </div>
-          <div class="ats-metric-box featured">
-            <div class="ats-score-value" [style.color]="scoreColor(atsResult.overallScore)">{{ atsResult.overallScore }}%</div>
-            <div class="ats-score-label">Score global</div>
-            <div class="ats-score-grade" [style.color]="scoreColor(atsResult.overallScore)">{{ scoreGrade(atsResult.overallScore) }}</div>
-          </div>
-          <div class="ats-metric-box">
-            <div class="ats-score-value" [style.color]="scoreColor(atsResult.successScore)">{{ atsResult.successScore }}%</div>
-            <div class="ats-score-label">Taux de succès</div>
-            <div class="ats-score-grade" [style.color]="scoreColor(atsResult.successScore)">{{ scoreGrade(atsResult.successScore) }}</div>
-          </div>
-        </div>
-        <div class="ats-detail-section">
-          <div class="ats-detail-title">Mots-clés manquants</div>
-          <p>{{ atsResult.missingKeywords || 'Aucun mot-clé majeur manquant.' }}</p>
-        </div>
-        <div class="ats-detail-section">
-          <div class="ats-detail-title">Résumé du profil</div>
-          <p>{{ atsResult.profileSummary }}</p>
-        </div>
-        <div class="ats-detail-section">
-          <div class="ats-detail-title">Suggestions</div>
-          <p>{{ atsResult.suggestions }}</p>
-        </div>
-      </div>
-    }
-
-  </ng-template>
+        </ng-template>
+        <!-- /previewMode -->
 
 </div>
+<!-- /cv-page -->

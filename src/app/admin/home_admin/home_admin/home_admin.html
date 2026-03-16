@@ -1,0 +1,8 @@
+<div class="dashboard-wrapper" [class.sidebar-collapsed]="!(isOpen | async)">
+  <app-navbar-admin></app-navbar-admin>
+  <app-sidebar-admin></app-sidebar-admin>
+
+  <main class="content-area" role="main" aria-label="Main content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

@@ -1,1 +1,189 @@
-<p>dashboard works!</p>
+<div class="dashboard-content">
+    <!-- ── DASHBOARD VIEW ── -->
+    <ng-container *ngIf="activeMenu === 'dashboard'">
+
+        <!-- Greeting -->
+        <div class="greeting-bar">
+            BONJOUR &lt;{{ studentName }}&gt;
+        </div>
+
+        <!-- Stat cards -->
+        <div class="stats-row">
+            <div class="stat-card" *ngFor="let stat of stats">
+                <div class="stat-info">
+                    <span class="stat-label">{{ stat.label }}</span>
+                    <span class="stat-value">{{ stat.value }}</span>
+                </div>
+                <div class="stat-icon" [innerHTML]="stat.icon"></div>
+            </div>
+        </div>
+
+        <!-- Bottom panels -->
+        <div class="panels-row">
+
+            <!-- Matching Entreprises -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Mise en relation avec les entreprises</h2>
+                    <a class="panel-link" href="#">Voir tout →</a>
+                </div>
+                <div class="company-card" *ngFor="let c of companies">
+                    <div class="company-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18M9 21V9"/>
+            </svg>
+                    </div>
+                    <div class="company-info">
+                        <strong>{{ c.name }}</strong>
+                        <span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px">
+                <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>{{ c.location }} • {{ c.sector }}
+            </span>
+                    </div>
+                    <div class="company-match">
+                        <span class="match-pct">{{ c.match }}%</span>
+                        <span class="match-label">match</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gaps de Compétences -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Gaps de<br>Compétences</h2>
+                    <a class="panel-link" href="#">Détails →</a>
+                </div>
+                <div class="skill-row" *ngFor="let s of skills">
+                    <div class="skill-top">
+                        <span class="skill-name">{{ s.name }}</span>
+                        <span class="skill-pct">{{ s.current }}% / {{ s.required }}%</span>
+                    </div>
+                    <div class="skill-bar-bg">
+                        <div class="skill-bar-fill" [style.width.%]="(s.current / s.required) * 100"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Formations Recommandées -->
+        <div class="formations-section">
+            <div class="panel-header">
+                <h2>Formations Recommandées</h2>
+                <a class="panel-link" href="#">Voir tout →</a>
+            </div>
+            <div class="formations-grid">
+                <div class="formation-card">
+                    <div class="formation-top">
+                        <span class="formation-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              </svg>
+            </span>
+                        <span class="formation-badge badge-haute">Haute</span>
+                    </div>
+                    <h3 class="formation-title">Supply Chain Management Avancé</h3>
+                    <p class="formation-meta">Coursera • 6 semaines</p>
+                    <button class="formation-btn">Voir la formation</button>
+                </div>
+                <div class="formation-card">
+                    <div class="formation-top">
+                        <span class="formation-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              </svg>
+            </span>
+                        <span class="formation-badge badge-haute">Haute</span>
+                    </div>
+                    <h3 class="formation-title">SAP MM (Material Management)</h3>
+                    <p class="formation-meta">SAP Learning • 4 semaines</p>
+                    <button class="formation-btn">Voir la formation</button>
+                </div>
+                <div class="formation-card">
+                    <div class="formation-top">
+                        <span class="formation-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              </svg>
+            </span>
+                        <span class="formation-badge badge-moyenne">Moyenne</span>
+                    </div>
+                    <h3 class="formation-title">Lean Logistics</h3>
+                    <p class="formation-meta">edX • 3 semaines</p>
+                    <button class="formation-btn">Voir la formation</button>
+                </div>
+            </div>
+        </div>
+
+    </ng-container>
+    <!-- ── END DASHBOARD VIEW ── -->
+
+    <!-- ── MATCHING VIEW ── -->
+    <ng-container *ngIf="activeMenu === 'matching'">
+
+        <section class="matching-section">
+            <div class="matching-head">
+                <div>
+                    <h2>Matching Entreprises</h2>
+                    <p>Entreprises&nbsp;correspondant&nbsp;a&nbsp;vos&nbsp;competences&nbsp;et&nbsp;votre&nbsp;profil</p>
+                </div>
+                <div class="matching-search-wrap">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+                    <input type="text" placeholder="Rechercher..." [(ngModel)]="matchingSearch" />
+                </div>
+            </div>
+
+            <div class="matching-grid">
+                <article class="matching-card" *ngFor="let c of filteredMatchingCompanies">
+                    <div class="matching-card-top">
+                        <div class="company-head">
+                            <span class="company-square-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21h18"></path>
+                  <path d="M5 21V7l8-4v18"></path>
+                  <path d="M19 21V11l-6-4"></path>
+                </svg>
+              </span>
+                            <div>
+                                <h3>{{ c.name }}</h3>
+                                <p class="company-location">{{ c.location }}</p>
+                            </div>
+                        </div>
+                        <div class="score-box">
+                            <span class="score-value">★ {{ c.score }}%</span>
+                            <span class="score-label">match</span>
+                        </div>
+                    </div>
+
+                    <p class="company-desc">{{ c.description }}</p>
+
+                    <div class="tag-row">
+                        <span class="tag-chip" *ngFor="let t of c.tags">{{ t }}</span>
+                    </div>
+
+                    <div class="matching-divider"></div>
+
+                    <div class="meta-row">
+                        <span>{{ c.sector }}</span>
+                        <span>{{ c.employees }}</span>
+                        <span class="stage-chip">{{ c.stage }}</span>
+                    </div>
+
+                    <button class="detail-btn">Voir le détail</button>
+                </article>
+            </div>
+        </section>
+
+    </ng-container>
+    <!-- ── END MATCHING VIEW ── -->
+
+</div>

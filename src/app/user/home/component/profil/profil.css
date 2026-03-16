@@ -2,6 +2,12 @@
 	display: block;
 }
 
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
 .profil-page {
 	display: flex;
 	flex-direction: column;
@@ -28,8 +34,9 @@
 .page-subtitle {
 	margin: 0;
 	text-align: center;
-	color: #6a6761;
+	color: #999;
 	font-size: 0.97rem;
+	font-weight: 500;
 }
 
 .profil-shell {

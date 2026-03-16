@@ -1,1 +1,30 @@
-<p>recommendation works!</p>
+<div class="dashboard-content">
+  <section class="formations-main">
+    <h1>Formations manquantes &amp; recommandées</h1>
+    <p class="page-subtitle">Formations recommandées selon votre profil et les compétences à renforcer</p>
+
+    <div class="missing-grid">
+      @for (formation of recommendedFormations; track formation.title) {
+        <article class="missing-card">
+          <span class="priority-badge" [class]="'priority-badge ' + formation.tone">{{ formation.priority }}</span>
+
+          <h2>{{ formation.title }}</h2>
+
+          <p class="meta">{{ formation.source }} • {{ formation.duration }}</p>
+          <p class="desc">{{ formation.description }}</p>
+
+          <button class="open-btn" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M14 3h7v7" />
+              <path d="M10 14L21 3" />
+              <path d="M21 14v7h-7" />
+              <path d="M3 10V3h7" />
+            </svg>
+            Voir la formation
+          </button>
+        </article>
+      }
+    </div>
+  </section>
+</div>
