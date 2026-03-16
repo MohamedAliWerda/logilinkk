@@ -62,10 +62,10 @@ export class SidebarAdmin implements OnInit, OnDestroy {
       exact: false,
     },
     {
-      key: 'profil',
-      label: 'Profil',
-      route: '/admin/profil',
-      exact: false,
+      key: 'deconnexion',
+      label: 'Deconnexion',
+      route: '/login',
+      exact: true,
     },
   ];
 

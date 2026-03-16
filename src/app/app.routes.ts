@@ -11,7 +11,6 @@ import { HomeAdmin } from './admin/home_admin/home_admin/home_admin';
 import { DashboardAdmin } from './admin/home_admin/comonent_admin/dashboard_admin/dashboard_admin';
 import { FormationsAdmin } from './admin/home_admin/comonent_admin/formations_admin/formations_admin';
 import { SettingsAdmin } from './admin/home_admin/comonent_admin/settings_admin/settings_admin';
-import { ProfileAdmin } from './admin/home_admin/comonent_admin/profile_admin/profile_admin';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -37,7 +36,6 @@ export const routes: Routes = [
       { path: 'dashboard', component: DashboardAdmin },
       { path: 'formations', component: FormationsAdmin },
       { path: 'settings', component: SettingsAdmin },
-      { path: 'profil', component: ProfileAdmin },
     ],
   },
 ];
