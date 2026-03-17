@@ -1,7 +1,9 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+
+type FormationCategory = 'internal' | 'external';
 
 interface Formation {
   code: string;
@@ -11,6 +13,7 @@ interface Formation {
   students: number;
   semester: string;
   statut: 'En cours' | 'Planifie';
+  category: FormationCategory;
 }
 
 @Component({
@@ -18,12 +21,18 @@ interface Formation {
   imports: [CommonModule, FormsModule],
   templateUrl: './formations_admin.html',
   styleUrl: './formations_admin.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormationsAdmin {
   adminName = 'Nour';
   sidebarCollapsed = false;
   showAddForm = false;
   formError = '';
+  readonly previewLimit = 9;
+  showAllInternal = false;
+  showAllExternal = false;
+  readonly internalTitle = 'Formation interne et certifications dispenses a l\'ISGIS';
+  readonly externalTitle = 'Formation externe et certifications specialisees';
 
   newFormation: Formation = this.emptyFormation();
 
@@ -36,6 +45,7 @@ export class FormationsAdmin {
       students: 42,
       semester: 'S3',
       statut: 'En cours',
+      category: 'internal',
     },
     {
       code: 'TRA-201',
@@ -45,6 +55,7 @@ export class FormationsAdmin {
       students: 35,
       semester: 'S3',
       statut: 'En cours',
+      category: 'internal',
     },
     {
       code: 'LOG-102',
@@ -54,6 +65,7 @@ export class FormationsAdmin {
       students: 42,
       semester: 'S3',
       statut: 'En cours',
+      category: 'internal',
     },
     {
       code: 'COM-301',
@@ -63,6 +75,7 @@ export class FormationsAdmin {
       students: 28,
       semester: 'S4',
       statut: 'En cours',
+      category: 'internal',
     },
     {
       code: 'TRA-202',
@@ -72,6 +85,7 @@ export class FormationsAdmin {
       students: 35,
       semester: 'S4',
       statut: 'Planifie',
+      category: 'internal',
     },
     {
       code: 'LOG-301',
@@ -81,6 +95,7 @@ export class FormationsAdmin {
       students: 40,
       semester: 'S4',
       statut: 'Planifie',
+      category: 'internal',
     },
     {
       code: 'LOG-302',
@@ -90,6 +105,7 @@ export class FormationsAdmin {
       students: 31,
       semester: 'S5',
       statut: 'En cours',
+      category: 'internal',
     },
     {
       code: 'LNG-101',
@@ -99,6 +115,7 @@ export class FormationsAdmin {
       students: 52,
       semester: 'S2',
       statut: 'En cours',
+      category: 'internal',
     },
     {
       code: 'PFE-401',
@@ -108,6 +125,117 @@ export class FormationsAdmin {
       students: 26,
       semester: 'S6',
       statut: 'Planifie',
+      category: 'internal',
+    },
+    {
+      code: 'QSE-220',
+      title: 'Qualite, securite et environnement en transport',
+      description: 'Cadres QHSE, prevention des risques et controle de conformite dans les operations logistiques.',
+      duration: '60h',
+      students: 24,
+      semester: 'S5',
+      statut: 'Planifie',
+      category: 'internal',
+    },
+    {
+      code: 'SAP-EXT',
+      title: 'Certification SAP S/4HANA Supply Chain',
+      description: 'Certification externe axee sur les processus achats, stocks et planification integree sur SAP.',
+      duration: '48h',
+      students: 18,
+      semester: 'Certif',
+      statut: 'Planifie',
+      category: 'external',
+    },
+    {
+      code: 'APICS-CPIM',
+      title: 'APICS CPIM preparation',
+      description: 'Preparation specialisee a la certification CPIM pour la planification et la maitrise des ressources.',
+      duration: '56h',
+      students: 14,
+      semester: 'Certif',
+      statut: 'En cours',
+      category: 'external',
+    },
+    {
+      code: 'IATA-001',
+      title: 'IATA Cargo Introductif',
+      description: 'Bases du fret aerien, documentation cargo et normes operationnelles IATA.',
+      duration: '36h',
+      students: 16,
+      semester: 'Certif',
+      statut: 'En cours',
+      category: 'external',
+    },
+    {
+      code: 'FIATA-101',
+      title: 'FIATA Freight Forwarding',
+      description: 'Programme specialise pour le transit international et la coordination multimodale.',
+      duration: '50h',
+      students: 11,
+      semester: 'Certif',
+      statut: 'Planifie',
+      category: 'external',
+    },
+    {
+      code: 'ISO-28000',
+      title: 'Auditeur interne ISO 28000',
+      description: 'Formation externe sur la securisation de la chaine logistique et l audit des systemes associes.',
+      duration: '32h',
+      students: 13,
+      semester: 'Certif',
+      statut: 'Planifie',
+      category: 'external',
+    },
+    {
+      code: 'TMS-PRO',
+      title: 'TMS Avance pour exploitants',
+      description: 'Perfectionnement sur les outils TMS et le pilotage des tournees en temps reel.',
+      duration: '40h',
+      students: 20,
+      semester: 'Certif',
+      statut: 'En cours',
+      category: 'external',
+    },
+    {
+      code: 'EXCEL-SC',
+      title: 'Excel & Power BI pour Supply Chain',
+      description: 'Analyse de donnees, tableaux de bord et indicateurs pour la performance logistique.',
+      duration: '45h',
+      students: 27,
+      semester: 'Certif',
+      statut: 'En cours',
+      category: 'external',
+    },
+    {
+      code: 'INC-2026',
+      title: 'Incoterms 2020 expertise appliquee',
+      description: 'Application pratique des Incoterms dans les contrats, achats et expeditions internationales.',
+      duration: '24h',
+      students: 22,
+      semester: 'Certif',
+      statut: 'Planifie',
+      category: 'external',
+    },
+    {
+      code: 'WMS-LAB',
+      title: 'Pilotage WMS & entrepot connecte',
+      description: 'Formation specialisee sur la digitalisation de l entrepot et le suivi des flux temps reel.',
+      duration: '38h',
+      students: 19,
+      semester: 'Certif',
+      statut: 'En cours',
+      category: 'external',
+    },
+    {
+      code: 'GREEN-LOG',
+      title: 'Logistique durable & bilan carbone',
+      description: 'Approche externe specialisee sur la performance environnementale et les indicateurs carbone.',
+      duration: '28h',
+      students: 17,
+      semester: 'Certif',
+      statut: 'Planifie',
+      category: 'external',
     },
   ];
 
@@ -122,21 +250,56 @@ export class FormationsAdmin {
       students: 0,
       semester: 'S1',
       statut: 'En cours',
+      category: 'internal',
     };
   }
 
-  openAddForm() {
+  get internalFormations(): Formation[] {
+    return this.formations.filter((formation) => formation.category === 'internal');
+  }
+
+  get externalFormations(): Formation[] {
+    return this.formations.filter((formation) => formation.category === 'external');
+  }
+
+  get visibleInternalFormations(): Formation[] {
+    return this.showAllInternal
+      ? this.internalFormations
+      : this.internalFormations.slice(0, this.previewLimit);
+  }
+
+  get visibleExternalFormations(): Formation[] {
+    return this.showAllExternal
+      ? this.externalFormations
+      : this.externalFormations.slice(0, this.previewLimit);
+  }
+
+  canShowMore(category: FormationCategory): boolean {
+    const list = category === 'internal' ? this.internalFormations : this.externalFormations;
+    return list.length > this.previewLimit;
+  }
+
+  toggleShowAll(category: FormationCategory): void {
+    if (category === 'internal') {
+      this.showAllInternal = !this.showAllInternal;
+      return;
+    }
+
+    this.showAllExternal = !this.showAllExternal;
+  }
+
+  openAddForm(): void {
     this.showAddForm = true;
     this.formError = '';
     this.newFormation = this.emptyFormation();
   }
 
-  cancelAdd() {
+  cancelAdd(): void {
     this.showAddForm = false;
     this.formError = '';
   }
 
-  addFormation() {
+  addFormation(): void {
     const f = this.newFormation;
     if (!f.code.trim() || !f.title.trim() || !f.description.trim() || !f.duration.trim() || !f.semester.trim()) {
       this.formError = 'Veuillez remplir tous les champs obligatoires.';
@@ -156,18 +319,21 @@ export class FormationsAdmin {
         students: Number(f.students),
         semester: f.semester.trim().toUpperCase(),
         statut: f.statut,
+        category: 'internal',
       },
       ...this.formations,
     ];
 
+    this.showAllInternal = false;
+
     this.cancelAdd();
   }
 
-  logout() {
+  logout(): void {
     this.router.navigate(['/']);
   }
 
-  toggleSidebar() {
+  toggleSidebar(): void {
     this.sidebarCollapsed = !this.sidebarCollapsed;
   }
 }

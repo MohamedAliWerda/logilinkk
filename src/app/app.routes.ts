@@ -42,6 +42,13 @@ export const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: DashboardAdmin },
       { path: 'formations', component: FormationsAdmin },
+      {
+        path: 'matrice',
+        loadComponent: () =>
+          import('./admin/home_admin/comonent_admin/matrice_admin').then(
+            (module) => module.MatriceAdmin
+          ),
+      },
       { path: 'settings', component: SettingsAdmin },
     ],
   },

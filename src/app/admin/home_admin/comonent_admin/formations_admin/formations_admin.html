@@ -1,56 +1,131 @@
 <main class="main-area">
-    <div class="page-content" [class.blurred]="showAddForm">
-      <div class="page-header">
-        <div class="page-title-wrap">
-          <h1 class="page-title">Formations</h1>
+  <div class="page-content" [class.blurred]="showAddForm">
+    <div class="page-header">
+      <div class="page-title-wrap">
+        <h1 class="page-title">Formations</h1>
+      </div>
+      <p class="page-subtitle">Programmes, modules et certifications dispenses a l'ISGI</p>
+    </div>
+
+    <section class="formations-section" aria-labelledby="internal-formations-title">
+      <div class="section-header">
+        <div>
+          <h2 id="internal-formations-title" class="section-title">{{ internalTitle }}</h2>
+          <p class="section-subtitle">Catalogue interne des formations et certifications dispensees a l'ISGIS.</p>
         </div>
-        <p class="page-subtitle">Programmes et modules dispenses a l'ISGI</p>
-        <button class="add-btn" (click)="openAddForm()">Ajouter</button>
+        <div class="section-actions">
+          @if (canShowMore('internal')) {
+            <button class="show-more-btn" type="button" (click)="toggleShowAll('internal')">
+              {{ showAllInternal ? 'Afficher moins' : 'Afficher tout' }}
+            </button>
+          }
+          <button class="add-btn" type="button" (click)="openAddForm()">Ajouter</button>
+        </div>
       </div>
 
       <div class="formations-grid">
-        <div class="formation-card" *ngFor="let f of formations">
-          <div class="card-head">
-            <span class="code-badge">{{ f.code }}</span>
-            <span class="status-badge" [class.planifie]="f.statut === 'Planifie'">{{ f.statut }}</span>
-          </div>
+        @for (f of visibleInternalFormations; track f.code) {
+          <div class="formation-card">
+            <div class="card-head">
+              <span class="code-badge">{{ f.code }}</span>
+              <span class="status-badge" [class.planifie]="f.statut === 'Planifie'">{{ f.statut }}</span>
+            </div>
 
-          <h3 class="formation-title">{{ f.title }}</h3>
-          <p class="formation-desc">{{ f.description }}</p>
+            <h3 class="formation-title">{{ f.title }}</h3>
+            <p class="formation-desc">{{ f.description }}</p>
 
-          <div class="meta-row">
-            <span class="meta-item">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-              {{ f.duration }}
-            </span>
-            <span class="meta-item">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-              {{ f.students }} etudiants
-            </span>
-            <span class="meta-item">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              {{ f.semester }}
-            </span>
+            <div class="meta-row">
+              <span class="meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                {{ f.duration }}
+              </span>
+              <span class="meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                {{ f.students }} etudiants
+              </span>
+              <span class="meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                {{ f.semester }}
+              </span>
+            </div>
           </div>
-        </div>
+        }
       </div>
-    </div>
+    </section>
 
-    <div class="modal-overlay" *ngIf="showAddForm" (click)="cancelAdd()">
+    <section class="formations-section" aria-labelledby="external-formations-title">
+      <div class="section-header">
+        <div>
+          <h2 id="external-formations-title" class="section-title">{{ externalTitle }}</h2>
+          <p class="section-subtitle">Certifications externes et parcours specialises proposes en complement.</p>
+        </div>
+        @if (canShowMore('external')) {
+          <button class="show-more-btn" type="button" (click)="toggleShowAll('external')">
+            {{ showAllExternal ? 'Afficher moins' : 'Afficher tout' }}
+          </button>
+        }
+      </div>
+
+      <div class="formations-grid">
+        @for (f of visibleExternalFormations; track f.code) {
+          <div class="formation-card formation-card-external">
+            <div class="card-head">
+              <span class="code-badge">{{ f.code }}</span>
+              <span class="status-badge" [class.planifie]="f.statut === 'Planifie'">{{ f.statut }}</span>
+            </div>
+
+            <h3 class="formation-title">{{ f.title }}</h3>
+            <p class="formation-desc">{{ f.description }}</p>
+
+            <div class="meta-row">
+              <span class="meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                {{ f.duration }}
+              </span>
+              <span class="meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                {{ f.students }} etudiants
+              </span>
+              <span class="meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                {{ f.semester }}
+              </span>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-overlay" *ngIf="showAddForm" (click)="cancelAdd()">
       <div class="add-form-card add-form-modal" (click)="$event.stopPropagation()">
         <h2 class="form-title">Nouvelle formation</h2>
 
@@ -101,5 +176,5 @@
           <button class="btn-save" (click)="addFormation()">Enregistrer</button>
         </div>
       </div>
-    </div>
+  </div>
 </main>

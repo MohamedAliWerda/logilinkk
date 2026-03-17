@@ -56,6 +56,12 @@ export class SidebarAdmin implements OnInit, OnDestroy {
       exact: false,
     },
     {
+      key: 'matrice',
+      label: 'Matrice de couverture',
+      route: '/admin/matrice',
+      exact: false,
+    },
+    {
       key: 'settings',
       label: 'Parametres',
       route: '/admin/settings',
