@@ -1,6 +1,10 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import {
+  buildCvAtsPrefill,
+  STUDENT_PROFILE_DATA,
+} from '../../student-profile.data';
 
 type Level = 'Debutant' | 'Notions' | 'Intermediaire' | 'Avance' | 'Expert';
 
@@ -21,9 +25,22 @@ interface AtsResult {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CvAts {
+  private readonly lockedInfoFields = new Set([
+    'prenom',
+    'nom',
+    'email',
+    'telephone',
+    'ville',
+    'codePostal',
+    'niveau',
+    'sexe',
+    'nationalite',
+  ]);
+
   showPreview = false;
   step = 1;
   formError = '';
+  readonly sharedProfileInfo = buildCvAtsPrefill(STUDENT_PROFILE_DATA);
 
   steps = [
     { label: 'Infos', icon: 'fa-user' },
@@ -40,12 +57,15 @@ export class CvAts {
   ];
 
   info = {
-    prenom: '',
-    nom: '',
-    email: '',
-    telephone: '',
-    ville: '',
-    codePostal: '',
+    prenom: this.sharedProfileInfo.prenom,
+    nom: this.sharedProfileInfo.nom,
+    email: this.sharedProfileInfo.email,
+    telephone: this.sharedProfileInfo.telephone,
+    ville: this.sharedProfileInfo.ville,
+    codePostal: this.sharedProfileInfo.codePostal,
+    niveau: this.sharedProfileInfo.niveau,
+    sexe: this.sharedProfileInfo.sexe,
+    nationalite: this.sharedProfileInfo.nationalite,
     linkedin: '',
     dateNaissance: '',
     permis: '',
@@ -58,7 +78,7 @@ export class CvAts {
 
   formations = [
     {
-      diplome: '',
+      diplome: this.sharedProfileInfo.filiere,
       institution: 'ISGIS - Universite de Sfax',
       dateDebut: '',
       dateFin: '',
@@ -134,6 +154,26 @@ export class CvAts {
     return this.steps.length;
   }
 
+  isInfoFieldLocked(fieldName: keyof CvAts['info']): boolean {
+    return this.lockedInfoFields.has(fieldName);
+  }
+
+  lockedFieldMessage(fieldName: keyof CvAts['info']): string {
+    return this.isInfoFieldLocked(fieldName)
+      ? 'Renseigne automatiquement depuis votre profil.'
+      : '';
+  }
+
+  isFormationDiplomaLocked(index: number): boolean {
+    return index === 0;
+  }
+
+  formationDiplomaHelper(index: number): string {
+    return this.isFormationDiplomaLocked(index)
+      ? 'Renseigne automatiquement depuis votre profil (Filiere).'
+      : '';
+  }
+
   get fullName(): string {
     return `${this.info.prenom} ${this.info.nom}`.trim();
   }
@@ -180,7 +220,7 @@ export class CvAts {
     }
     if (this.step === 3) {
       const first = this.formations[0];
-      return !!(first?.diplome.trim() && first?.institution.trim() && first?.dateDebut && first?.dateFin);
+      return !!(first?.diplome.trim() && first?.institution.trim());
     }
     if (this.step === 4) {
       const first = this.experiences[0];

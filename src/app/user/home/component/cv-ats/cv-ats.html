@@ -43,28 +43,67 @@
             </div>
             <div class="form-grid-2">
                 <div class="form-group">
-                    <label>Prénom <span class="req">*</span></label>
-                    <input class="form-control" [(ngModel)]="info.prenom" placeholder="Mohamed" />
+                    <label>Prénom</label>
+                    <input class="form-control" [(ngModel)]="info.prenom" [disabled]="isInfoFieldLocked('prenom')" placeholder="Mohamed" />
+                    @if (isInfoFieldLocked('prenom')) {
+                    <span class="helper">{{ lockedFieldMessage('prenom') }}</span>
+                    }
                 </div>
                 <div class="form-group">
-                    <label>Nom <span class="req">*</span></label>
-                    <input class="form-control" [(ngModel)]="info.nom" placeholder="Ben Ali" />
+                    <label>Nom</label>
+                    <input class="form-control" [(ngModel)]="info.nom" [disabled]="isInfoFieldLocked('nom')" placeholder="Ben Ali" />
+                    @if (isInfoFieldLocked('nom')) {
+                    <span class="helper">{{ lockedFieldMessage('nom') }}</span>
+                    }
                 </div>
                 <div class="form-group">
-                    <label>Email institutionnel <span class="req">*</span></label>
-                    <input class="form-control" type="email" [(ngModel)]="info.email" placeholder="prenom.nom@isgis.usf.tn" />
+                    <label>Email institutionnel</label>
+                    <input class="form-control" type="email" [(ngModel)]="info.email" [disabled]="isInfoFieldLocked('email')" placeholder="prenom.nom@isgis.usf.tn" />
+                    @if (isInfoFieldLocked('email')) {
+                    <span class="helper">{{ lockedFieldMessage('email') }}</span>
+                    }
                 </div>
                 <div class="form-group">
-                    <label>Téléphone <span class="req">*</span></label>
-                    <input class="form-control" [(ngModel)]="info.telephone" placeholder="+216 XX XXX XXX" />
+                    <label>Téléphone</label>
+                    <input class="form-control" [(ngModel)]="info.telephone" [disabled]="isInfoFieldLocked('telephone')" placeholder="+216 XX XXX XXX" />
+                    @if (isInfoFieldLocked('telephone')) {
+                    <span class="helper">{{ lockedFieldMessage('telephone') }}</span>
+                    }
                 </div>
                 <div class="form-group">
                     <label>Ville</label>
-                    <input class="form-control" [(ngModel)]="info.ville" placeholder="Sfax" />
+                    <input class="form-control" [(ngModel)]="info.ville" [disabled]="isInfoFieldLocked('ville')" placeholder="Sfax" />
+                    @if (isInfoFieldLocked('ville')) {
+                    <span class="helper">{{ lockedFieldMessage('ville') }}</span>
+                    }
                 </div>
                 <div class="form-group">
                     <label>Code postal</label>
-                    <input class="form-control" [(ngModel)]="info.codePostal" placeholder="3000" />
+                    <input class="form-control" [(ngModel)]="info.codePostal" [disabled]="isInfoFieldLocked('codePostal')" placeholder="3000" />
+                    @if (isInfoFieldLocked('codePostal')) {
+                    <span class="helper">{{ lockedFieldMessage('codePostal') }}</span>
+                    }
+                </div>
+                <div class="form-group">
+                    <label>Niveau</label>
+                    <input class="form-control" [(ngModel)]="info.niveau" [disabled]="isInfoFieldLocked('niveau')" placeholder="3" />
+                    @if (isInfoFieldLocked('niveau')) {
+                    <span class="helper">{{ lockedFieldMessage('niveau') }}</span>
+                    }
+                </div>
+                <div class="form-group">
+                    <label>Sexe</label>
+                    <input class="form-control" [(ngModel)]="info.sexe" [disabled]="isInfoFieldLocked('sexe')" placeholder="Masculin" />
+                    @if (isInfoFieldLocked('sexe')) {
+                    <span class="helper">{{ lockedFieldMessage('sexe') }}</span>
+                    }
+                </div>
+                <div class="form-group">
+                    <label>Nationalite</label>
+                    <input class="form-control" [(ngModel)]="info.nationalite" [disabled]="isInfoFieldLocked('nationalite')" placeholder="Tunisienne" />
+                    @if (isInfoFieldLocked('nationalite')) {
+                    <span class="helper">{{ lockedFieldMessage('nationalite') }}</span>
+                    }
                 </div>
                 <div class="form-group">
                     <label>LinkedIn URL</label>
@@ -131,20 +170,15 @@
                 <div class="entry-fields">
                     <div class="form-grid-2">
                         <div class="form-group">
-                            <label>Diplôme exact <span class="req">*</span></label>
-                            <input class="form-control" [(ngModel)]="f.diplome" placeholder="Licence en Transport & Logistique" />
+                            <label>Diplôme exact</label>
+                            <input class="form-control" [(ngModel)]="f.diplome" [disabled]="isFormationDiplomaLocked(i)" placeholder="Licence en Transport & Logistique" />
+                            @if (isFormationDiplomaLocked(i)) {
+                            <span class="helper">{{ formationDiplomaHelper(i) }}</span>
+                            }
                         </div>
                         <div class="form-group">
                             <label>Établissement <span class="req">*</span></label>
                             <input class="form-control" [(ngModel)]="f.institution" placeholder="ISGIS - Université de Sfax" />
-                        </div>
-                        <div class="form-group">
-                            <label>Début <span class="req">*</span></label>
-                            <input class="form-control" type="month" [(ngModel)]="f.dateDebut" />
-                        </div>
-                        <div class="form-group">
-                            <label>Fin prévue <span class="req">*</span></label>
-                            <input class="form-control" type="month" [(ngModel)]="f.dateFin" />
                         </div>
                         <div class="form-group">
                             <label>Moyenne / Mention</label>

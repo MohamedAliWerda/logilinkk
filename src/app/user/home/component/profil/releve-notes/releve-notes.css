@@ -1,0 +1,423 @@
+/* ═══════════════════════════════════════════════════════════════════
+   PROFIL.CSS  –  Relevé de Notes Officiel | A4 Print-Ready
+   ═══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Serif:wght@400;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ════════════════════════════════════════════════════════
+   SCREEN WRAPPER
+════════════════════════════════════════════════════════ */
+@media screen {
+  body {
+    background: #c8c8c8;
+    padding: 0 0 40px;
+  }
+  .a4-page {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   PAGE WRAPPER (holds nav + A4)
+════════════════════════════════════════════════════════ */
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ════════════════════════════════════════════════════════
+   SEMESTER NAVIGATION BUTTONS
+════════════════════════════════════════════════════════ */
+.semester-nav {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding: 18px 0 14px;
+}
+
+.sem-btn {
+  font-family: 'Noto Serif', serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #5c5750;
+  background: #fbf8f2;
+  border: 1px solid #eadfce;
+  border-radius: 999px;
+  padding: 0.72rem 1.2rem;
+  cursor: pointer;
+  letter-spacing: 0;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.sem-btn:hover {
+  background: linear-gradient(180deg, #fff5e6 0%, #ffe3b8 100%);
+  border-color: #f0b25c;
+  color: #cb7000;
+}
+
+.sem-btn.active {
+  background: linear-gradient(180deg, #fff5e6 0%, #ffe3b8 100%);
+  color: #cb7000;
+  border-color: #f0b25c;
+  font-weight: 700;
+}
+
+/* ════════════════════════════════════════════════════════
+   A4 PAGE CONTAINER
+════════════════════════════════════════════════════════ */
+.a4-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 10mm 12mm 14mm;
+  background: #ffffff;
+  font-family: 'Noto Serif', 'Times New Roman', Times, serif;
+  color: #000000;
+  font-size: 10pt;
+  line-height: 1.4;
+  position: relative;
+}
+
+/* ════════════════════════════════════════════════════════
+   HEADER
+════════════════════════════════════════════════════════ */
+.transcript-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6mm;
+}
+
+.header-logo { flex: 0 0 auto; }
+
+.logo-box {
+  font-family: 'Noto Serif', serif;
+  font-weight: 700;
+  font-size: 20pt;
+  color: #000;
+  border: none;
+  padding: 3px 10px;
+  letter-spacing: 1px;
+  display: inline-block;
+  line-height: 1.1;
+}
+
+.logo-box img {
+  display: block;
+  height: 1.1em;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.header-title {
+  flex: 1;
+  text-align: center;
+}
+
+.doc-title {
+  font-family: 'Noto Serif', serif;
+  font-size: 18pt;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.header-spacer { flex: 0 0 60px; }
+
+/* ════════════════════════════════════════════════════════
+   STUDENT INFO CARD
+════════════════════════════════════════════════════════ */
+.student-card {
+  border: 1.5px solid #333;
+  border-radius: 4px;
+  padding: 5mm 6mm;
+  margin-bottom: 5mm;
+}
+
+.student-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 10pt;
+}
+
+.info-row-inline {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10pt;
+  flex-wrap: wrap;
+}
+
+.info-label { font-weight: 400; color: #000; white-space: nowrap; }
+.info-value  { color: #000; }
+.info-value.bold, strong { font-weight: 700; }
+
+.info-value.underline {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.info-value.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10pt;
+}
+
+.ml { margin-left: 8px; }
+
+.info-situation {
+  margin-left: auto;
+  font-size: 10pt;
+}
+
+/* ════════════════════════════════════════════════════════
+   GRADES TABLE
+════════════════════════════════════════════════════════ */
+.grades-section { margin-bottom: 5mm; }
+
+.grades-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+  table-layout: fixed;
+}
+
+.grades-table th,
+.grades-table td {
+  border: 1px solid #444;
+  padding: 5px 6px;
+  vertical-align: middle;
+  overflow: hidden;
+}
+
+/* Column widths — 7 columns */
+.col-code   { width: 38px;  text-align: center; }
+.col-module { width: auto; }            /* fills remaining space */
+.col-num    { width: 52px;  text-align: center; }
+
+/* Header row */
+.grades-table thead th {
+  background: #f0f0f0;
+  font-weight: 700;
+  font-size: 8.5pt;
+  text-align: center;
+  vertical-align: middle;
+  white-space: normal;
+  line-height: 1.3;
+  padding: 5px 6px;
+}
+
+/* Module name column header left-aligned */
+.grades-table thead th.col-module {
+  text-align: left;
+  padding-left: 8px;
+}
+
+/* Module name body cell */
+.col-module {
+  font-size: 8.5pt;
+  padding-left: 8px;
+  text-align: left;
+}
+
+/* Code body cell */
+.mono-cell {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8pt;
+  font-weight: 600;
+}
+
+.center { text-align: center; }
+
+.grades-table tbody tr.row-odd td       { background: #fafafa; }
+.grades-table tbody tr:not(.row-odd) td { background: #ffffff; }
+
+.col-moy {
+  font-weight: 700;
+  background: rgba(0,0,0,0.04);
+}
+
+/* Grade colours */
+.grade-excellent { color: #155724; }
+.grade-good      { color: #1a3a6c; }
+.grade-pass      { color: #6b4400; }
+.grade-fail      { color: #8b0000; font-weight: 700; }
+.grade-none      { color: #999; }
+
+/* ════════════════════════════════════════════════════════
+   BOTTOM SECTION  — summary table (full width, centered)
+════════════════════════════════════════════════════════ */
+.bottom-section {
+  margin-top: 5mm;
+  display: flex;
+  justify-content: center;
+}
+
+.summary-table {
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  width: 100%;
+}
+
+.summary-table td {
+  border: 1.5px solid #333;
+  padding: 5px 12px;
+}
+
+.summary-label {
+  font-weight: 700;
+  font-size: 9.5pt;
+  background: #f5f5f5;
+  white-space: nowrap;
+  width: 50%;
+}
+
+.summary-val {
+  font-size: 10.5pt;
+  font-weight: 600;
+  text-align: center;
+  width: 50%;
+}
+
+/* Highlight row for Moyenne Générale */
+.summary-val-highlight {
+  font-size: 11.5pt;
+  font-weight: 700;
+}
+
+/* Decision colour classes */
+.decision-admis    { color: #155724; }
+.decision-controle { color: #6b4400; }
+.decision-refuse   { color: #8b0000; }
+.decision-pending  { color: #999; }
+
+/* ════════════════════════════════════════════════════════
+   MOBILE ONLY (preserve desktop/tablet layout)
+════════════════════════════════════════════════════════ */
+@media screen and (max-width: 720px) {
+  .page-wrapper {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .semester-nav {
+    width: 100%;
+    padding: 10px 0 12px;
+    gap: 8px;
+  }
+
+  .sem-btn {
+    flex: 1 1 0;
+    padding: 8px 10px;
+    font-size: 9.5pt;
+  }
+
+  .a4-page {
+    width: 100%;
+    min-height: 0;
+    padding: 12px 10px 16px;
+    font-size: 9.5pt;
+    line-height: 1.45;
+  }
+
+  .transcript-header {
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+
+  .logo-box {
+    font-size: 14pt;
+    padding: 2px 7px;
+  }
+
+  .doc-title {
+    font-size: 13pt;
+    letter-spacing: 1px;
+  }
+
+  .header-spacer {
+    flex-basis: 28px;
+  }
+
+  .student-card {
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+
+  .info-row,
+  .info-row-inline {
+    font-size: 9.3pt;
+  }
+
+  .info-row-inline {
+    gap: 5px;
+  }
+
+  .info-situation {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .grades-section {
+    margin-bottom: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .grades-table {
+    min-width: 680px;
+    font-size: 8.2pt;
+  }
+
+  .grades-table th,
+  .grades-table td {
+    padding: 4px 5px;
+  }
+
+  .summary-table {
+    font-size: 9pt;
+  }
+
+  .summary-table td {
+    padding: 5px 8px;
+  }
+
+  .summary-label,
+  .summary-val {
+    font-size: 9pt;
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   PRINT
+════════════════════════════════════════════════════════ */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  body, html { background: white; margin: 0; padding: 0; }
+
+  .semester-nav { display: none; }
+
+  .a4-page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+    padding: 10mm 12mm 14mm;
+    box-shadow: none;
+  }
+
+  .grades-table tbody tr:hover td { background: inherit; }
+
+  @page { size: A4; margin: 0; }
+}

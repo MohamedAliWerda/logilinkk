@@ -1,0 +1,132 @@
+<div class="page-wrapper">
+
+  <!-- ══ SEMESTER NAVIGATION ══════════════════════════════════════════ -->
+  <div class="semester-nav">
+    <button
+      class="sem-btn"
+      [class.active]="currentSemester === 1"
+      (click)="setSemester(1)">
+      Semestre 1
+    </button>
+    <button
+      class="sem-btn"
+      [class.active]="currentSemester === 2"
+      (click)="setSemester(2)">
+      Semestre 2
+    </button>
+  </div>
+
+  <div class="a4-page">
+
+    <!-- ══ HEADER ══════════════════════════════════════════════════════ -->
+    <header class="transcript-header">
+      <div class="header-logo">
+        <div class="logo-box">
+          <img src="/isgi-sfax-logo-.png" alt="ISGI Sfax" />
+        </div>
+      </div>
+      <div class="header-title">
+        <h1 class="doc-title">RELEVE DE NOTES</h1>
+      </div>
+      <div class="header-spacer"></div>
+    </header>
+
+    <!-- ══ STUDENT INFO CARD ════════════════════════════════════════════ -->
+    <section class="student-card">
+      <div class="student-info-grid">
+        <div class="info-row">
+          <span class="info-label">Nom et Prénom :</span>
+          <span class="info-value bold">{{ studentInfo?.nom }}&nbsp;&nbsp;&nbsp;{{ studentInfo?.prenom }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Né le :</span>
+          <span class="info-value">{{ studentInfo?.dateNaissance }} à <strong>{{ studentInfo?.lieuNaissance }}</strong></span>
+        </div>
+        <div class="info-row-inline">
+          <span class="info-label">N° C.I.N :</span>
+          <span class="info-value underline mono">{{ studentInfo?.cin }}</span>
+          <span class="info-label ml">N° d'Inscription :</span>
+          <span class="info-value underline mono bold">{{ studentInfo?.numInscription }}</span>
+          <span class="info-situation">Situation : <strong>{{ studentInfo?.situation }}</strong></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Diplôme :</span>
+          <span class="info-value">{{ studentInfo?.diplome }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Spécialité :</span>
+          <span class="info-value">{{ studentInfo?.specialite }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Niveau d'études :</span>
+          <span class="info-value">{{ studentInfo?.niveau }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ GRADES TABLE ═════════════════════════════════════════════════ -->
+    <section class="grades-section">
+      <table class="grades-table">
+        <thead>
+          <tr class="thead-top">
+            <th class="col-code">Code</th>
+            <th class="col-module">Module</th>
+            <th class="col-num">Coefficient</th>
+            <th class="col-num">Crédits</th>
+            <th class="col-num">CC</th>
+            <th class="col-num">Examen</th>
+            <th class="col-num col-moy">Moyenne /20</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let grade of currentGrades; let odd = odd" [class.row-odd]="odd">
+            <td class="col-code center mono-cell">{{ grade.codeModule }}</td>
+            <td class="col-module">{{ grade.moduleName }}</td>
+            <td class="col-num center">{{ grade.coefficient | number:'1.2-2' }}</td>
+            <td class="col-num center">{{ grade.credit | number:'1.2-2' }}</td>
+            <td class="col-num center">{{ grade.contrContinu !== null ? (grade.contrContinu | number:'1.2-2') : '*****' }}</td>
+            <td class="col-num center">{{ grade.examen !== null ? (grade.examen | number:'1.2-2') : '*****' }}</td>
+            <td class="col-num center col-moy" [ngClass]="getMoyenneClass(grade.moyenneModule)">
+              {{ grade.moyenneModule !== null ? (grade.moyenneModule | number:'1.2-2') : '–' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ══ BOTTOM SECTION ════════════════════════════════════════════════ -->
+    <section class="bottom-section">
+
+      <table class="summary-table">
+        <tr>
+          <td class="summary-label"><strong>Moyenne S1</strong></td>
+          <td class="summary-val">{{ displaySummary.moyenneS1 }}</td>
+        </tr>
+        <tr>
+          <td class="summary-label"><strong>Moyenne S2</strong></td>
+          <td class="summary-val">{{ displaySummary.moyenneS2 }}</td>
+        </tr>
+        <tr>
+          <td class="summary-label"><strong>Moyenne Générale</strong></td>
+          <td class="summary-val summary-val-highlight">{{ displaySummary.moyenneGenerale }}</td>
+        </tr>
+        <tr>
+          <td class="summary-label"><strong>Crédits Validés</strong></td>
+          <td class="summary-val">{{ displaySummary.creditsValides }}</td>
+        </tr>
+        <tr>
+          <td class="summary-label"><strong>Crédits Capitalisés</strong></td>
+          <td class="summary-val">{{ displaySummary.creditsCapitalises }}</td>
+        </tr>
+        <tr>
+          <td class="summary-label"><strong>Décision du Jury</strong></td>
+          <td class="summary-val" [ngClass]="getDecisionClass(displaySummary.decisionJury)">
+            <strong>{{ displaySummary.decisionJury }}</strong>
+          </td>
+        </tr>
+      </table>
+
+    </section>
+
+  </div><!-- /.a4-page -->
+</div><!-- /.page-wrapper -->
