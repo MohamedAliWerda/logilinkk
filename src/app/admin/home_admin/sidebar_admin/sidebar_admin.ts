@@ -50,15 +50,39 @@ export class SidebarAdmin implements OnInit, OnDestroy {
       exact: true,
     },
     {
+      key: 'matrice',
+      label: 'Adéquation formation-emploi',
+      route: '/admin/matrice',
+      exact: false,
+    },
+    {
+      key: 'score',
+      label: 'Score Employabilité',
+      route: '/admin/score',
+      exact: false,
+    },
+    {
+      key: 'metier',
+      label: 'Métier par parcours',
+      route: '/admin/metier',
+      exact: false,
+    },
+    {
+      key: 'gaps',
+      label: 'Gaps',
+      route: '/admin/gaps',
+      exact: false,
+    },
+    {
       key: 'users',
-      label: 'Formations',
+      label: 'Référentiel Compétences',
       route: '/admin/formations',
       exact: false,
     },
     {
-      key: 'matrice',
-      label: 'Matrice de couverture',
-      route: '/admin/matrice',
+      key: 'etud',
+      label: 'Gestion des Étudiant',
+      route: '/admin/etud',
       exact: false,
     },
     {
@@ -78,7 +102,7 @@ export class SidebarAdmin implements OnInit, OnDestroy {
   constructor(
     private readonly sidebarService: SidebarAdminService,
     private readonly router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.sidebarService.open();

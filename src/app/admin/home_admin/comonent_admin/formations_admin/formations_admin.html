@@ -1,180 +1,200 @@
-<main class="main-area">
-  <div class="page-content" [class.blurred]="showAddForm">
-    <div class="page-header">
-      <div class="page-title-wrap">
-        <h1 class="page-title">Formations</h1>
-      </div>
-      <p class="page-subtitle">Programmes, modules et certifications dispenses a l'ISGI</p>
+<section class="referentiel-container">
+  <!-- PREVIOUS TABLE SECTION -->
+  <header class="referentiel-header">
+    <div class="header-main">
+      <h1 class="title">Référentiel Compétences</h1>
+      <p class="subtitle">Répertoire complet des compétences Transport & Logistique</p>
     </div>
+  </header>
 
-    <section class="formations-section" aria-labelledby="internal-formations-title">
-      <div class="section-header">
-        <div>
-          <h2 id="internal-formations-title" class="section-title">{{ internalTitle }}</h2>
-          <p class="section-subtitle">Catalogue interne des formations et certifications dispensees a l'ISGIS.</p>
-        </div>
-        <div class="section-actions">
-          @if (canShowMore('internal')) {
-            <button class="show-more-btn" type="button" (click)="toggleShowAll('internal')">
-              {{ showAllInternal ? 'Afficher moins' : 'Afficher tout' }}
-            </button>
-          }
-          <button class="add-btn" type="button" (click)="openAddForm()">Ajouter</button>
-        </div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-info">
+        <span class="stat-label">Total</span>
+        <span class="stat-value">{{ stats.total }}</span>
       </div>
-
-      <div class="formations-grid">
-        @for (f of visibleInternalFormations; track f.code) {
-          <div class="formation-card">
-            <div class="card-head">
-              <span class="code-badge">{{ f.code }}</span>
-              <span class="status-badge" [class.planifie]="f.statut === 'Planifie'">{{ f.statut }}</span>
-            </div>
-
-            <h3 class="formation-title">{{ f.title }}</h3>
-            <p class="formation-desc">{{ f.description }}</p>
-
-            <div class="meta-row">
-              <span class="meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-                {{ f.duration }}
-              </span>
-              <span class="meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                {{ f.students }} etudiants
-              </span>
-              <span class="meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                {{ f.semester }}
-              </span>
-            </div>
-          </div>
-        }
+    </div>
+    <div class="stat-card">
+      <div class="stat-info">
+        <span class="stat-label">Techniques</span>
+        <span class="stat-value">{{ stats.tech }}</span>
       </div>
-    </section>
-
-    <section class="formations-section" aria-labelledby="external-formations-title">
-      <div class="section-header">
-        <div>
-          <h2 id="external-formations-title" class="section-title">{{ externalTitle }}</h2>
-          <p class="section-subtitle">Certifications externes et parcours specialises proposes en complement.</p>
-        </div>
-        @if (canShowMore('external')) {
-          <button class="show-more-btn" type="button" (click)="toggleShowAll('external')">
-            {{ showAllExternal ? 'Afficher moins' : 'Afficher tout' }}
-          </button>
-        }
+    </div>
+    <div class="stat-card">
+      <div class="stat-info">
+        <span class="stat-label">Organisationnelle</span>
+        <span class="stat-value">{{ stats.org }}</span>
       </div>
-
-      <div class="formations-grid">
-        @for (f of visibleExternalFormations; track f.code) {
-          <div class="formation-card formation-card-external">
-            <div class="card-head">
-              <span class="code-badge">{{ f.code }}</span>
-              <span class="status-badge" [class.planifie]="f.statut === 'Planifie'">{{ f.statut }}</span>
-            </div>
-
-            <h3 class="formation-title">{{ f.title }}</h3>
-            <p class="formation-desc">{{ f.description }}</p>
-
-            <div class="meta-row">
-              <span class="meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-                {{ f.duration }}
-              </span>
-              <span class="meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                {{ f.students }} etudiants
-              </span>
-              <span class="meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                {{ f.semester }}
-              </span>
-            </div>
-          </div>
-        }
+    </div>
+    <div class="stat-card">
+      <div class="stat-info">
+        <span class="stat-label">Physique</span>
+        <span class="stat-value">{{ stats.phys }}</span>
       </div>
-    </section>
+    </div>
+    <div class="stat-card">
+      <div class="stat-info">
+        <span class="stat-label">Comportementale</span>
+        <span class="stat-value">{{ stats.comp }}</span>
+      </div>
+    </div>
   </div>
 
-  <div class="modal-overlay" *ngIf="showAddForm" (click)="cancelAdd()">
-      <div class="add-form-card add-form-modal" (click)="$event.stopPropagation()">
-        <h2 class="form-title">Nouvelle formation</h2>
+  <div class="search-bar-wrap">
+    <div class="search-box">
+      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="text" [(ngModel)]="searchTerm" placeholder="Rechercher une compétence..." />
+    </div>
+  </div>
 
+  <div class="table-panel">
+    <table class="standard-table">
+      <thead>
+        <tr>
+          <th (click)="setSort('code')" class="sortable">
+            Code
+            <svg class="sort-indicator" [class.active]="sortColumn === 'code'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+          </th>
+          <th (click)="setSort('name')" class="sortable">
+            Compétence
+            <svg class="sort-indicator" [class.active]="sortColumn === 'name'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+          </th>
+          <th (click)="setSort('category')" class="sortable">
+            Catégorie
+            <svg class="sort-indicator" [class.active]="sortColumn === 'category'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+          </th>
+          <th>Domaine</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of filteredCompetences; track trackByCode($index, c)) {
+        <tr>
+          <td class="code-col">{{ c.code }}</td>
+          <td class="name-col">{{ c.name }}</td>
+          <td>
+            <span class="cat-pill" [attr.data-cat]="c.category">
+              {{ c.category }}
+            </span>
+          </td>
+          <td class="domain-col">{{ c.domain }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <header class="referentiel-header partner-header">
+    <div class="header-main">
+      <h1 class="title">ISGIS X Partenaire</h1>
+      <p class="subtitle">Programmes et compétences développés avec nos partenaires stratégiques</p>
+    </div>
+  </header>
+
+  <div class="partner-section-actions">
+    <button class="add-btn" type="button" (click)="openPartnerForm()">Ajouter</button>
+  </div>
+
+  <div class="partner-grid">
+    @for (p of partnerSkills; track trackByCode($index, p)) {
+    <div class="partner-card">
+      <div class="card-top">
+        <span class="p-code">{{ p.code }}</span>
+        <span class="p-category">{{ p.category }}</span>
+      </div>
+
+      <div class="card-body">
+        <h3 class="p-name">{{ p.name }}</h3>
+        <p class="p-desc">{{ p.description }}</p>
+      </div>
+
+      <div class="card-footer">
+        <div class="p-meta">
+          <span class="p-domain">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+              </path>
+            </svg>
+            {{ p.domain }}
+          </span>
+          <span class="p-date">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            Début: {{ p.startDate | date:'dd/MM/yyyy' }}
+          </span>
+        </div>
+        <div class="p-partner">
+          <span class="partner-label">Partenaire</span>
+          <span class="partner-name">{{ p.partner }}</span>
+        </div>
+      </div>
+    </div>
+    }
+  </div>
+
+  <!-- Modal for Adding Partner Skill -->
+  <div class="modal-overlay" *ngIf="showPartnerForm" (click)="closePartnerForm()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">Nouvelle Compétence Partenaire</h2>
+        <button class="close-btn" (click)="closePartnerForm()">×</button>
+      </div>
+
+      <div class="modal-body">
         <div class="form-grid">
-          <label class="field">
-            <span>Code</span>
-            <input type="text" [(ngModel)]="newFormation.code" placeholder="Ex: LOG-450" />
-          </label>
-
-          <label class="field">
-            <span>Titre</span>
-            <input type="text" [(ngModel)]="newFormation.title" placeholder="Nom de la formation" />
-          </label>
-
-          <label class="field field-full">
-            <span>Description</span>
-            <textarea rows="3" [(ngModel)]="newFormation.description" placeholder="Description du module"></textarea>
-          </label>
-
-          <label class="field">
-            <span>Duree</span>
-            <input type="text" [(ngModel)]="newFormation.duration" placeholder="Ex: 80h" />
-          </label>
-
-          <label class="field">
-            <span>Etudiants</span>
-            <input type="number" min="0" [(ngModel)]="newFormation.students" />
-          </label>
-
-          <label class="field">
-            <span>Semestre</span>
-            <input type="text" [(ngModel)]="newFormation.semester" placeholder="Ex: S5" />
-          </label>
-
-          <label class="field">
-            <span>Statut</span>
-            <select [(ngModel)]="newFormation.statut">
-              <option value="En cours">En cours</option>
-              <option value="Planifie">Planifie</option>
+          <div class="form-field">
+            <label>Code</label>
+            <input type="text" [(ngModel)]="newPartnerSkill.code" placeholder="Ex: PART-ADM-01" />
+          </div>
+          <div class="form-field">
+            <label>Catégorie</label>
+            <select [(ngModel)]="newPartnerSkill.category">
+              @for (cat of categories; track cat) {
+                <option [value]="cat">{{ cat }}</option>
+              }
             </select>
-          </label>
-        </div>
-
-        <p class="form-error" *ngIf="formError">{{ formError }}</p>
-
-        <div class="form-actions">
-          <button class="btn-cancel" (click)="cancelAdd()">Annuler</button>
-          <button class="btn-save" (click)="addFormation()">Enregistrer</button>
+          </div>
+          <div class="form-field full-width">
+            <label>Nom de la Compétence</label>
+            <input type="text" [(ngModel)]="newPartnerSkill.name" placeholder="Nom complet" />
+          </div>
+          <div class="form-field full-width">
+            <label>Description</label>
+            <textarea [(ngModel)]="newPartnerSkill.description" rows="3" placeholder="Description courte..."></textarea>
+          </div>
+          <div class="form-field">
+            <label>Domaine</label>
+            <input type="text" [(ngModel)]="newPartnerSkill.domain" placeholder="Ex: Logistique" />
+          </div>
+          <div class="form-field">
+            <label>Partenaire</label>
+            <input type="text" [(ngModel)]="newPartnerSkill.partner" placeholder="CMA-CGM, SAP, etc." />
+          </div>
+          <div class="form-field">
+            <label>Date de début</label>
+            <input type="date" [(ngModel)]="newPartnerSkill.startDate" />
+          </div>
         </div>
       </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closePartnerForm()">Annuler</button>
+        <button class="btn-primary" (click)="addPartnerSkill()">Enregistrer</button>
+      </div>
+    </div>
   </div>
-</main>
+</section>

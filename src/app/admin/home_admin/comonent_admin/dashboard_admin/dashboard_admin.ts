@@ -227,7 +227,7 @@ export class DashboardAdmin {
   }
 
   openStudentsPopup() {
-    this.showStudentsPopup = true;
+    this.router.navigate(['/admin/etud']);
   }
 
   closeStudentsPopup() {

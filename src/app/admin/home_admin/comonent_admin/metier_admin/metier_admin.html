@@ -1,0 +1,40 @@
+<section class="metier-page" aria-labelledby="metier-title">
+  <!-- ══ HEADER ══════════════════════════════════════════════════ -->
+  <header class="metier-header">
+    <div class="header-content">
+      <span class="header-icon">💼</span>
+      <div>
+        <h1 id="metier-title">Métiers Cibles par Parcours</h1>
+        <p>Correspondance entre spécialisations ISGIS et métiers cibles</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ PARCOURS CARDS ══════════════════════════════════════════ -->
+  <div class="parcours-grid">
+    @for (parcours of parcoursList; track trackByParcours($index, parcours)) {
+      <article class="parcours-panel">
+        <h2 class="parcours-title">{{ parcours.title }}</h2>
+
+        <div class="table-header">
+          <span class="th-name">Métier</span>
+          <span class="th-rate">Taux de correspondance</span>
+        </div>
+
+        <div class="metier-list">
+          @for (metier of parcours.metiers; track trackByMetier($index, metier)) {
+            <div class="metier-row">
+              <span class="metier-name">{{ metier.name }}</span>
+              <div class="rate-column">
+                <div class="progress-track">
+                  <div class="progress-bar" [style.width.%]="metier.rate"></div>
+                </div>
+                <span class="rate-value">{{ metier.rate }}%</span>
+              </div>
+            </div>
+          }
+        </div>
+      </article>
+    }
+  </div>
+</section>

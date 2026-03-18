@@ -14,6 +14,8 @@ import { HomeAdmin } from './admin/home_admin/home_admin/home_admin';
 import { DashboardAdmin } from './admin/home_admin/comonent_admin/dashboard_admin/dashboard_admin';
 import { FormationsAdmin } from './admin/home_admin/comonent_admin/formations_admin/formations_admin';
 import { SettingsAdmin } from './admin/home_admin/comonent_admin/settings_admin/settings_admin';
+import { MetierAdmin } from './admin/home_admin/comonent_admin/metier_admin/metier_admin';
+import { GapsAdmin } from './admin/home_admin/comonent_admin/gaps_admin/gaps_admin';
 
 
 export const routes: Routes = [
@@ -47,6 +49,34 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./admin/home_admin/comonent_admin/matrice_admin').then(
             (module) => module.MatriceAdmin
+          ),
+      },
+      {
+        path: 'score',
+        loadComponent: () =>
+          import('./admin/home_admin/comonent_admin/score_admin').then(
+            (module) => module.ScoreAdmin
+          ),
+      },
+      {
+        path: 'metier',
+        loadComponent: () =>
+          import('./admin/home_admin/comonent_admin/metier_admin').then(
+            (module) => module.MetierAdmin
+          ),
+      },
+      {
+        path: 'gaps',
+        loadComponent: () =>
+          import('./admin/home_admin/comonent_admin/gaps_admin').then(
+            (module) => module.GapsAdmin
+          ),
+      },
+      {
+        path: 'etud',
+        loadComponent: () =>
+          import('./admin/home_admin/comonent_admin/etud_admin/etud_admin').then(
+            (module) => module.EtudAdmin
           ),
       },
       { path: 'settings', component: SettingsAdmin },

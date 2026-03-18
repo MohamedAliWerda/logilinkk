@@ -196,43 +196,7 @@
       </table>
     </div>
 
-    <div class="students-modal-overlay" *ngIf="showStudentsPopup" (click)="closeStudentsPopup()">
-      <div class="students-modal" (click)="$event.stopPropagation()">
-        <div class="students-modal-header">
-          <h3>Liste complète des étudiants</h3>
-          <button class="students-modal-close" type="button" (click)="closeStudentsPopup()">Fermer</button>
-        </div>
-
-        <div class="students-modal-body">
-          <table class="students-table modal-table">
-            <thead>
-              <tr>
-                <th>Étudiant</th>
-                <th>ID</th>
-                <th>Spécialisation</th>
-                <th>Score CV ATS</th>
-                <th>Score Employabilité</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let s of allStudents">
-                <td class="col-name">{{ s.name }}</td>
-                <td class="col-id">{{ s.id }}</td>
-                <td>
-                  <span class="badge"
-                    [style.background]="getBadgeStyle(s.speciality).bg"
-                    [style.color]="getBadgeStyle(s.speciality).color">
-                    {{ s.speciality }}
-                  </span>
-                </td>
-                <td class="col-score" [style.color]="scoreColor(s.score)">{{ s.score }}/100</td>
-                <td class="col-score" [style.color]="scoreColor(s.employabilityScore)">{{ s.employabilityScore }}/100</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    <!-- Student profile modal is still used for individual view, but the full list modal is removed -->
 
     <div class="students-modal-overlay" *ngIf="showStudentProfilePopup" (click)="closeStudentProfile()">
       <div class="students-modal profile-modal" (click)="$event.stopPropagation()" *ngIf="selectedStudent as profile">
