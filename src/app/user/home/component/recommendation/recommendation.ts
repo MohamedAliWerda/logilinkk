@@ -10,6 +10,17 @@ type Formation = {
   description: string;
 };
 
+type Stage = {
+  title: string;
+  company: string;
+  location: string;
+  duration: string;
+  deadline: string;
+  tags: string[];
+  match: number;
+  applied?: boolean;
+};
+
 @Component({
   selector: 'app-recommendation',
   imports: [CommonModule],
@@ -18,7 +29,7 @@ type Formation = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Recommendation {
-  readonly recommendedFormations: Formation[] = [
+  readonly targetJobFormations: Formation[] = [
     {
       priority: 'Priorité haute',
       tone: 'high',
@@ -35,6 +46,9 @@ export class Recommendation {
       duration: '3 semaines',
       description: 'Gap identifié dans Data Analytics',
     },
+  ];
+
+  readonly generalFormations: Formation[] = [
     {
       priority: 'Priorité moyenne',
       tone: 'medium',
@@ -44,14 +58,6 @@ export class Recommendation {
       description: 'Amélioration continue dans la supply chain',
     },
     {
-      priority: 'Priorité moyenne',
-      tone: 'medium',
-      title: 'Commerce international avancé',
-      source: 'ISGI',
-      duration: 'Semestre 6',
-      description: 'Prérequis pour spécialisation TI',
-    },
-    {
       priority: 'Optionnelle',
       tone: 'optional',
       title: 'Management interculturel',
@@ -59,5 +65,33 @@ export class Recommendation {
       duration: '2 semaines',
       description: "Soft skill valorisée à l'international",
     },
+    {
+      priority: 'Priorité moyenne',
+      tone: 'medium',
+      title: 'Commerce international avancé',
+      source: 'ISGI',
+      duration: 'Semestre 6',
+      description: 'Prérequis pour spécialisation TI',
+    },
   ];
+
+  readonly recommendedStages: Stage[] = [
+    {
+      title: 'Stage - Assistant Supply Chain', company: 'Sotrapil', location: 'Casablanca', duration: '3 mois', deadline: '15 Avril 2026',
+      tags: ['SAP', 'Excel', 'Planification'], match: 92, applied: false,
+    },
+    {
+      title: 'Stage - Analyste Logistique', company: 'STAM', location: 'Tanger', duration: '4 mois', deadline: '30 Mars 2026',
+      tags: ['Power BI', 'Python', 'Reporting'], match: 87, applied: false,
+    },
+    {
+      title: 'Stage - Coordinateur Transport', company: 'Marsa Maroc', location: 'Agadir', duration: '6 mois', deadline: '20 Mai 2026',
+      tags: ['Transport', 'Opérations', 'Logistique'], match: 84, applied: false,
+    },
+  ];
+
+  applyStage(stage: Stage) {
+    stage.applied = true;
+  }
 }
+

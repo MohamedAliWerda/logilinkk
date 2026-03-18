@@ -26,6 +26,26 @@
     border: 1px solid #f5d9ac;
 }
 
+.page-header.global-panel-banner {
+    background: linear-gradient(135deg, #fff7eb 0%, #ffe7c5 58%, #ffd9a0 100%);
+    border: 1px solid rgba(224, 120, 0, 0.18);
+    box-shadow: 0 4px 16px rgba(80, 58, 12, 0.08);
+    border-radius: 18px;
+    padding: 1.35rem 1.35rem;
+}
+
+.page-header.global-panel-banner .page-title {
+    color: #4f3314;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.page-header.global-panel-banner .page-sub {
+    color: #6f4d24;
+    font-size: 0.95rem;
+    margin-top: 0.45rem;
+}
+
 .page-title {
     margin: 0;
     font-size: 1.4rem;

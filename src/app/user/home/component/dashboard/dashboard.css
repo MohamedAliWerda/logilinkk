@@ -34,17 +34,23 @@
 /* GREETING */
 
 .greeting-bar {
-    display: inline-block;
-    background: #e6d0ae;
-    border-radius: 2.5rem;
-    padding: 0.6rem 3.2rem;
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    min-height: 60px;
+    background: linear-gradient(135deg, #fff7eb 0%, #ffe7c5 58%, #ffd9a0 100%);
+    border: 1px solid rgba(224, 120, 0, 0.18);
+    box-shadow: 0 4px 16px rgba(80, 58, 12, 0.08);
+    border-radius: 1rem;
+    padding: 0.8rem 1rem;
     font-size: 1.15rem;
     font-weight: 700;
-    color: #5a3e1c;
-    letter-spacing: 1.5px;
+    color: #4f3314;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
-    text-align: center;
-    align-self: center;
+    text-align: left;
+    align-items: center;
+    justify-content: flex-start;
 }
 
 
@@ -114,6 +120,19 @@
     flex-direction: column;
     gap: 0.6rem;
     height: 100%;
+}
+
+.score-card,
+.employ-panel {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfb 100%);
+    border-radius: 1rem;
+    box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+    border: 1px solid rgba(20, 30, 60, 0.04);
+    padding: 1.2rem;
+}
+
+.score-header.panel-header.global-panel-banner {
+    margin-bottom: 1rem;
 }
 
 
@@ -296,6 +315,37 @@
     font-weight: 800;
     color: #162033;
     line-height: 1.25;
+}
+
+.score-header.panel-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.24rem;
+    margin-bottom: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.score-header.panel-header h2 {
+    font-size: 1.25rem;
+    color: #162033;
+    margin: 0;
+}
+
+.score-header.panel-header p {
+    color: #475569;
+    font-size: 1rem;
+    margin: 0;
+}
+
+.score-header.panel-header p {
+    color: #6f4d24;
+    font-size: 0.95rem;
+    margin: 0;
 }
 
 .panel-link {

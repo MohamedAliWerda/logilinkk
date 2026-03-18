@@ -42,10 +42,23 @@
 .matching-head > div:first-child {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
+  text-align: left;
+  padding-top: 1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
 .matching-head h2 {
+  margin: 0 0 0.7rem;
+}
+
+.matching-head .global-panel-banner h1,
+.matching-head .global-panel-banner p {
+  margin-top: 0.65rem;
+}
+
+.matching-head h2.global-pill-title {
   display: inline-block;
   background: #e6d0ae;
   border-radius: 2.5rem;
@@ -56,7 +69,6 @@
   letter-spacing: 1.5px;
   text-align: center;
   text-transform: uppercase;
-  margin: 0 auto 0.55rem;
 }
 
 .matching-head p {
@@ -69,6 +81,16 @@
   white-space: nowrap;
 }
 
+.matching-head p.text-center,
+.matching-subtitle {
+  text-align: center;
+  align-self: center;
+  white-space: normal;
+  margin-top: 0.5rem;
+  margin-bottom: 0.9rem;
+  color: #4f3314;
+  font-weight: 600;
+}
 .matching-search-wrap {
   display: flex;
   align-items: center;
