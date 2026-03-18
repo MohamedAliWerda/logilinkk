@@ -75,32 +75,37 @@
 .main-area {
   flex: 1;
   overflow-y: auto;
-  padding: 2rem 2.2rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
   background: transparent;
-}
-.page-header {
-  margin-bottom: 0.95rem;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 1rem;
 }
-.page-title-wrap {
-  display: flex;
-  justify-content: center;
+
+.dashboard-header {
+  background: linear-gradient(135deg, #fff7eb 0%, #ffe7c5 58%, #ffd9a0 100%);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  border: 1px solid rgba(224, 120, 0, 0.18);
+  box-shadow: 0 4px 14px rgba(80, 58, 12, 0.08);
 }
-.page-title {
-  display: inline-block;
-  background: #e6d0ae;
-  border-radius: 2.5rem;
-  padding: 0.6rem 3.2rem;
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #5a3e1c;
-  letter-spacing: 1.5px;
-  text-align: center;
-  text-transform: uppercase;
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #4f3314;
 }
-.page-subtitle { color: #999; font-size: 0.97rem; font-weight: 500; }
+
+.dashboard-header p {
+  margin: 0.35rem 0 0;
+  color: #6f4d24;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
 
 .settings-card {
   background: #fff;
@@ -108,7 +113,7 @@
   border-radius: 1rem;
   padding: 1.4rem 1.5rem;
   box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-  margin-bottom: 1rem;
+  margin-bottom: 0;
 }
 
 .section-title {
@@ -253,4 +258,9 @@
 @media (max-width: 900px) {
   .admin-layout { flex-direction: column; }
   .sidebar { width: 100%; min-width: 100%; }
+}
+
+@media (max-width: 760px) {
+  .dashboard-header h1 { font-size: 1.15rem; }
+  .dashboard-header p { font-size: 0.86rem; }
 }
