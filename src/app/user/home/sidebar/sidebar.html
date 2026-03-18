@@ -1,21 +1,14 @@
 <aside class="sidebar" [class.collapsed]="!isOpen">
 
-  <div class="sidebar-header">
-    <img src="/isgi-sfax-logo-.png" alt="ISGI" class="sidebar-isgi-logo" />
-    <img src="/djagora-removebg-preview.png" alt="LogiLink" class="sidebar-brand-logo" />
-  </div>
+    <div class="sidebar-header">
+        <img src="/isgi-sfax-logo-.png" alt="ISGI" class="sidebar-isgi-logo" />
+        <!-- Logo removed -->
+    </div>
 
-  <nav class="sidebar-nav" [@listAnimation]="menuItems.length">
+    <nav class="sidebar-nav" [@listAnimation]="menuItems.length">
 
-    <a
-      *ngFor="let item of menuItems"
-      class="nav-item"
-      [routerLink]="item.route"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: item.exact }"
-      (click)="navigateTo(item.route)"
-    >
-      <span class="nav-icon">
+        <a *ngFor="let item of menuItems" class="nav-item" [routerLink]="item.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }" (click)="navigateTo(item.route)">
+            <span class="nav-icon">
         <ng-container [ngSwitch]="item.key">
 
           <svg *ngSwitchCase="'dashboard'" width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
@@ -52,9 +45,9 @@
 
         </ng-container>
       </span>
-      <span class="nav-label">{{ item.label }}</span>
-    </a>
+            <span class="nav-label">{{ item.label }}</span>
+        </a>
 
-  </nav>
+    </nav>
 
 </aside>

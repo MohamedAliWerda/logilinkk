@@ -1,10 +1,11 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsString, MinLength } from 'class-validator';
 
 export class SignInDto {
-  @IsEmail()
-  email!: string;
+  @IsString()
+  @MinLength(4)
+  cin_passport!: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(1)
   mot_de_passe!: string;
 }

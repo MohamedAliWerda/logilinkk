@@ -1,7 +1,6 @@
 import {
   Injectable,
   InternalServerErrorException,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -17,16 +16,25 @@ type UserRecord = {
   role: 'admin' | 'etudiant';
 };
 
+function looksLikeBcryptHash(value: string): boolean {
+  return /^\$2[aby]\$\d{2}\$/.test(value);
+}
+
 @Injectable()
 export class AuthService {
   constructor(private readonly jwtService: JwtService) {}
 
   async signIn(signInDto: SignInDto) {
+    const cinPassportValue = Number(signInDto.cin_passport.trim());
+    if (!Number.isFinite(cinPassportValue)) {
+      throw new UnauthorizedException('This account does not exist');
+    }
+
     const supabase = getSupabase();
     const { data: user, error } = await supabase
       .from('user')
       .select('id, cin_passport, email, mot_de_passe, role')
-      .eq('email', signInDto.email)
+      .eq('cin_passport', cinPassportValue)
       .maybeSingle<UserRecord>();
 
     if (error) {
@@ -34,17 +42,20 @@ export class AuthService {
     }
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new UnauthorizedException('This account does not exist');
     }
 
-    const passwordMatches = await bcrypt.compare(signInDto.mot_de_passe, user.mot_de_passe);
+    const passwordMatches = looksLikeBcryptHash(user.mot_de_passe)
+      ? await bcrypt.compare(signInDto.mot_de_passe, user.mot_de_passe)
+      : signInDto.mot_de_passe === user.mot_de_passe;
+
     if (!passwordMatches) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Password is wrong');
     }
 
     const payload = {
       sub: user.id,
-      email: user.email,
+      cin_passport: user.cin_passport,
       role: user.role,
     };
 

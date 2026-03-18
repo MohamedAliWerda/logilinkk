@@ -1,64 +1,65 @@
-<main class="main-area score-section">
+<main class="main-area">
 
-    <!-- Banner removed: 'Score Employabilité' message deleted as requested -->
+    <header class="dashboard-header" aria-label="Parametres">
+        <h1>PARAMETRES</h1>
+        <p>Configuration generale de la plateforme</p>
+    </header>
 
     <section class="settings-card">
-      <h2 class="section-title">
-        <span class="title-icon">🛡</span>
-        Profil Administrateur
-      </h2>
-      <p class="section-subtitle">Informations de votre compte administrateur</p>
+        <h2 class="section-title">
+            <span class="title-icon">🛡</span> Profil Administrateur
+        </h2>
+        <p class="section-subtitle">Informations de votre compte administrateur</p>
 
-      <div class="grid-2">
-        <label class="field">
+        <div class="grid-2">
+            <label class="field">
           <span>Nom complet</span>
           <input type="text" [(ngModel)]="admin.fullName" />
         </label>
-        <label class="field">
+            <label class="field">
           <span>Email</span>
           <input type="email" [(ngModel)]="admin.email" />
         </label>
-        <label class="field">
+            <label class="field">
           <span>Telephone</span>
           <input type="text" [(ngModel)]="admin.phone" />
         </label>
-        <label class="field">
+            <label class="field">
           <span>Role</span>
           <input type="text" [(ngModel)]="admin.role" disabled />
         </label>
-      </div>
+        </div>
     </section>
 
     <section class="settings-card">
-      <h2 class="section-title">
-        <span class="title-icon">🔔</span>
-        Notifications
-      </h2>
-      <p class="section-subtitle">Gerez vos preferences de notifications</p>
+        <h2 class="section-title">
+            <span class="title-icon">🔔</span> Notifications
+        </h2>
+        <p class="section-subtitle">Gerez vos preferences de notifications</p>
 
-      <div class="switch-row">
-        <div>
-          <h3>Notifications push</h3>
-          <p>Recevoir des notifications en temps reel</p>
-        </div>
-        <label class="switch">
+        <div class="switch-row">
+            <div>
+                <h3>Notifications push</h3>
+                <p>Recevoir des notifications en temps reel</p>
+            </div>
+            <label class="switch">
           <input type="checkbox" [(ngModel)]="notifications.push" />
           <span class="slider"></span>
         </label>
-      </div>
-
-      <div class="separator"></div>
-
-      <div class="switch-row">
-        <div>
-          <h3>Alertes par email</h3>
-          <p>Recevoir un resume quotidien par email</p>
         </div>
-        <label class="switch">
+
+        <div class="separator"></div>
+
+        <div class="switch-row">
+            <div>
+                <h3>Alertes par email</h3>
+                <p>Recevoir un resume quotidien par email</p>
+            </div>
+            <label class="switch">
           <input type="checkbox" [(ngModel)]="notifications.email" />
           <span class="slider"></span>
         </label>
-      </div>
+        </div>
     </section>
 
-  </main>
+</main>

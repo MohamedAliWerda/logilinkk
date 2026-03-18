@@ -1,152 +1,120 @@
 <section class="profil-page">
-	<div class="page-title-wrap">
-		<h1 class="page-title">PROFIL ETUDIANT</h1>
-	</div>
+    <div class="greeting-bar global-panel-banner">
+        <div class="greeting-info">
+            <h1 class="greeting-title">PROFIL ETUDIANT</h1>
+            <p class="greeting-sub">Consultez vos informations academiques et gerez les parametres de votre compte.</p>
+        </div>
+    </div>
 
-	<p class="page-subtitle">
-		Consultez vos informations academiques et gerez les parametres de votre compte.
-	</p>
-
-	<div class="profil-shell">
-		<aside class="profil-summary-card">
-			<div class="profil-avatar-shell">
-				<div class="profil-avatar">
-					@if (profileImageUrl()) {
-						<img class="profil-avatar-image" [src]="profileImageUrl()!" alt="Photo de profil" />
-					} @else {
-						<svg viewBox="0 0 24 24" fill="currentColor" width="58" height="58" aria-hidden="true">
+    <div class="profil-shell">
+        <aside class="profil-summary-card">
+            <div class="profil-avatar-shell">
+                <div class="profil-avatar">
+                    @if (profileImageUrl()) {
+                    <img class="profil-avatar-image" [src]="profileImageUrl()!" alt="Photo de profil" /> } @else {
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="58" height="58" aria-hidden="true">
 							<path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-						</svg>
-					}
-				</div>
+						</svg> }
+                </div>
 
-				<label class="avatar-upload-btn" for="profile-image-input">
+                <label class="avatar-upload-btn" for="profile-image-input">
 					Changer la photo
 				</label>
-				<input
-					id="profile-image-input"
-					class="visually-hidden"
-					type="file"
-					accept="image/*"
-					(change)="onProfileImageSelected($event)"
-				/>
+                <input id="profile-image-input" class="visually-hidden" type="file" accept="image/*" (change)="onProfileImageSelected($event)" /> @if (profileImageError()) {
+                <p class="avatar-upload-error">{{ profileImageError() }}</p>
+                }
+            </div>
 
-				@if (profileImageError()) {
-					<p class="avatar-upload-error">{{ profileImageError() }}</p>
-				}
-			</div>
+            <h2 class="profil-name">{{ userName }}</h2>
+            <span class="profil-badge">{{ profileStatus }}</span>
 
-			<h2 class="profil-name">{{ userName }}</h2>
-			<span class="profil-badge">{{ profileStatus }}</span>
+            <div class="profil-info-list">
+                @for (item of profileSummaryItems; track item.label) {
+                <div class="profil-info-item">
+                    <span class="profil-info-label">{{ item.label }}</span>
+                    <span class="profil-info-value">{{ item.value }}</span>
+                </div>
+                }
+            </div>
+        </aside>
 
-			<div class="profil-info-list">
-				@for (item of profileSummaryItems; track item.label) {
-					<div class="profil-info-item">
-						<span class="profil-info-label">{{ item.label }}</span>
-						<span class="profil-info-value">{{ item.value }}</span>
-					</div>
-				}
-			</div>
-		</aside>
-
-		<div class="profil-content-card">
-			<div class="section-switcher" role="tablist" aria-label="Sections du profil">
-				<button
-					type="button"
-					class="section-chip"
-					[class.active]="activeSection() === 'info'"
-					(click)="showInfoSection()"
-				>
+        <div class="profil-content-card">
+            <div class="section-switcher" role="tablist" aria-label="Sections du profil">
+                <button type="button" class="section-chip" [class.active]="activeSection() === 'info'" (click)="showInfoSection()">
 					Gerer le profil
 				</button>
-				<button
-					type="button"
-					class="section-chip"
-					[class.active]="activeSection() === 'password'"
-					(click)="showPasswordSection()"
-				>
+                <button type="button" class="section-chip" [class.active]="activeSection() === 'password'" (click)="showPasswordSection()">
 					Changer le mot de passe
 				</button>
-				<button
-					type="button"
-					class="section-chip"
-					[class.active]="activeSection() === 'releve-notes'"
-					(click)="showReleveNotesSection()"
-				>
+                <button type="button" class="section-chip" [class.active]="activeSection() === 'releve-notes'" (click)="showReleveNotesSection()">
 					RELEVE DE NOTES
 				</button>
-			</div>
+            </div>
 
-			@if (activeSection() === 'info') {
-				<div class="content-section">
-					<div class="section-heading">
-						<h2>{{ infoSectionTitle }}</h2>
-						<p>{{ infoSectionSubtitle }}</p>
-					</div>
+            @if (activeSection() === 'info') {
+            <div class="content-section">
+                <div class="section-heading">
+                    <h2>{{ infoSectionTitle }}</h2>
+                    <p>{{ infoSectionSubtitle }}</p>
+                </div>
 
-					<div class="info-groups">
-						@for (group of profileInfoGroups; track group.title) {
-							<section class="info-group">
-								<h3 class="info-group-title">{{ group.title }}</h3>
-								<div class="academic-grid">
-									@for (item of group.items; track item.label) {
-										<div class="academic-item">
-											<span class="academic-label">{{ item.label }}</span>
-											<span class="academic-value">{{ item.value }}</span>
-										</div>
-									}
-								</div>
-							</section>
-						}
-					</div>
+                <div class="info-groups">
+                    @for (group of profileInfoGroups; track group.title) {
+                    <section class="info-group">
+                        <h3 class="info-group-title">{{ group.title }}</h3>
+                        <div class="academic-grid">
+                            @for (item of group.items; track item.label) {
+                            <div class="academic-item">
+                                <span class="academic-label">{{ item.label }}</span>
+                                <span class="academic-value">{{ item.value }}</span>
+                            </div>
+                            }
+                        </div>
+                    </section>
+                    }
+                </div>
 
-				</div>
-			} @else if (activeSection() === 'password') {
-				<div class="content-section password-section">
-					<div class="section-heading">
-						<h2>Changer le mot de passe</h2>
-						<p>Mettez a jour votre mot de passe en toute securite.</p>
-					</div>
+            </div>
+            } @else if (activeSection() === 'password') {
+            <div class="content-section password-section">
+                <div class="section-heading">
+                    <h2>Changer le mot de passe</h2>
+                    <p>Mettez a jour votre mot de passe en toute securite.</p>
+                </div>
 
-					<form class="password-form" [formGroup]="passwordForm" (ngSubmit)="savePassword()">
-						<label class="form-field">
+                <form class="password-form" [formGroup]="passwordForm" (ngSubmit)="savePassword()">
+                    <label class="form-field">
 							<span>Mot de passe actuel</span>
 							<input type="password" formControlName="currentPassword" placeholder="Entrez votre mot de passe actuel" />
 						</label>
 
-						<label class="form-field">
+                    <label class="form-field">
 							<span>Nouveau mot de passe</span>
 							<input type="password" formControlName="newPassword" placeholder="Entrez un nouveau mot de passe" />
 						</label>
 
-						<label class="form-field">
+                    <label class="form-field">
 							<span>Confirmer le nouveau mot de passe</span>
 							<input type="password" formControlName="confirmPassword" placeholder="Confirmez le nouveau mot de passe" />
-						</label>
+						</label> @if (passwordForm.invalid && passwordForm.touched) {
+                    <p class="form-message error">Tous les champs sont obligatoires et doivent contenir au moins 8 caracteres.</p>
+                    } @if (passwordError()) {
+                    <p class="form-message error">{{ passwordError() }}</p>
+                    } @if (passwordSaved()) {
+                    <p class="form-message success">Votre mot de passe a ete mis a jour avec succes.</p>
+                    }
 
-						@if (passwordForm.invalid && passwordForm.touched) {
-							<p class="form-message error">Tous les champs sont obligatoires et doivent contenir au moins 8 caracteres.</p>
-						}
-
-						@if (passwordError()) {
-							<p class="form-message error">{{ passwordError() }}</p>
-						}
-
-						@if (passwordSaved()) {
-							<p class="form-message success">Votre mot de passe a ete mis a jour avec succes.</p>
-						}
-
-						<div class="form-actions">
-							<button type="button" class="secondary-btn" (click)="showInfoSection()">Retour au profil</button>
-							<button type="submit" class="primary-btn">Enregistrer</button>
-						</div>
-					</form>
-				</div>
-			} @else {
-				<div class="content-section password-section">
-					<app-releve-notes></app-releve-notes>
-				</div>
-			}
-		</div>
-	</div>
+                    <div class="form-actions">
+                        <button type="button" class="secondary-btn" (click)="showInfoSection()">Retour au profil</button>
+                        <button type="submit" class="primary-btn">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+            } @else {
+            <div class="content-section password-section">
+                <app-releve-notes></app-releve-notes>
+            </div>
+            }
+        </div>
+    </div>
 </section>
