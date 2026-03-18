@@ -15,7 +15,7 @@ export class DashboardAdmin {
   showStudentsPopup = false;
   showStudentProfilePopup = false;
   readonly barW = 76;
-  activeScoreFilter: 'both' | 'cvAts' | 'employability' = 'both';
+  activeScoreFilter: 'synergy' | 'cvAts' | 'employability' = 'synergy';
 
   selectedStudent: {
     name: string;
@@ -32,8 +32,8 @@ export class DashboardAdmin {
 
   stats = [
     { value: '247', label: 'Étudiants inscrits' },
-    { value: '78%', label: 'Taux CV ATS' },
     { value: '74%', label: 'Taux Employabilite' },
+    { value: '81%', label: 'Taux Synergie' },
     { value: '36', label: 'Nombre de Modules' },
   ];
 
@@ -42,48 +42,16 @@ export class DashboardAdmin {
     { color: '#d97706', label: 'Transport' },
   ];
 
-  gapCharts = [
-    {
-      title: 'Gap vs. Profile',
-      color: '#d97706',
-      points: [
-        { label: 'L1', value: 62 },
-        { label: 'L2', value: 54 },
-        { label: 'T1', value: 47 },
-        { label: 'SC', value: 58 },
-      ],
-    },
-    {
-      title: 'Gap vs. Skills',
-      color: '#2f8f83',
-      points: [
-        { label: 'Tech', value: 43 },
-        { label: 'Soft', value: 35 },
-        { label: 'Data', value: 51 },
-        { label: 'Ops', value: 39 },
-      ],
-    },
-    {
-      title: 'Gap vs. Market Requirements',
-      color: '#1e2d5a',
-      points: [
-        { label: 'M1', value: 66 },
-        { label: 'M2', value: 59 },
-        { label: 'M3', value: 63 },
-        { label: 'M4', value: 57 },
-      ],
-    },
-    {
-      title: 'Gap vs. Modules',
-      color: '#8b5cf6',
-      points: [
-        { label: 'Mod1', value: 38 },
-        { label: 'Mod2', value: 42 },
-        { label: 'Mod3', value: 33 },
-        { label: 'Mod4', value: 46 },
-      ],
-    },
+  domainPieLegend = [
+    { color: '#e06456', label: 'SCM & Achat' },
+    { color: '#2a9d8f', label: 'Transport Global' },
+    { color: '#e9c46a', label: 'Logistique d\'Entrepôt' },
   ];
+
+  radarAxes = ['Techniques', 'Organisation', 'Comportement', 'Physiques'];
+  radarReq = [85, 80, 85, 75];
+  radarAcq = [42, 55, 65, 70];
+  radarChart: any;
 
   recentStudents = [
     {
@@ -212,9 +180,9 @@ export class DashboardAdmin {
   ];
 
   specialityColors: Record<string, { bg: string; color: string }> = {
-    'Logistique':    { bg: '#fef3e2', color: '#e07800' },
-    'Transport':     { bg: '#fef3e2', color: '#e07800' },
-    'Supply Chain':  { bg: '#e8f4fb', color: '#5baddb' },
+    'Logistique': { bg: '#fef3e2', color: '#e07800' },
+    'Transport': { bg: '#fef3e2', color: '#e07800' },
+    'Supply Chain': { bg: '#e8f4fb', color: '#5baddb' },
     'Commerce Int.': { bg: '#e8f7ef', color: '#5dbf7a' },
   };
 
@@ -256,6 +224,7 @@ export class DashboardAdmin {
   }
 
   donutSegments: { color: string; dashArray: string; dashOffset: number }[];
+  domainPieSegments: { color: string; dashArray: string; dashOffset: number }[];
   barData: {
     range: string;
     labelX: number;
@@ -268,6 +237,7 @@ export class DashboardAdmin {
   private readonly scoreRanges = ['0-20', '20-40', '40-60', '60-80', '80-100'];
   private readonly cvAtsSeries = [5, 18, 72, 108, 43];
   private readonly employabilitySeries = [7, 21, 69, 98, 49];
+  private readonly synergySeries = [6, 20, 70, 103, 46];
 
   constructor(private router: Router) {
     // ── Donut chart ─────────────────────────────────────────────
@@ -288,6 +258,26 @@ export class DashboardAdmin {
       return seg;
     });
 
+    // ── Domain Pie chart ─────────────────────────────────────────────
+    const CPie = 2 * Math.PI * 50; // ≈ 314.16
+    const rawPieSegs = [
+      { color: '#e06456', pct: 0.45 },
+      { color: '#2a9d8f', pct: 0.35 },
+      { color: '#e9c46a', pct: 0.20 },
+    ];
+    let coveredPie = 0;
+    this.domainPieSegments = rawPieSegs.map((s) => {
+      const arcLength = +(s.pct * CPie).toFixed(2);
+      const seg = {
+        color: s.color,
+        dashArray: `${arcLength} ${+CPie.toFixed(2)}`,
+        dashOffset: +(-coveredPie).toFixed(2),
+      };
+      coveredPie += arcLength;
+      return seg;
+    });
+
+    this.radarChart = this.buildRadarChart();
     this.barData = [];
     this.xGridLines = [];
     this.yGridLines = [];
@@ -295,7 +285,50 @@ export class DashboardAdmin {
     this.rebuildBarChart();
   }
 
-  setScoreFilter(filter: 'both' | 'cvAts' | 'employability') {
+  private buildRadarChart() {
+    const cx = 150, cy = 150, r = 100;
+    const angles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+    const anchors = ['middle', 'start', 'middle', 'end'];
+
+    const axes = this.radarAxes.map((label, i) => {
+      let lxd = 0; let lyd = 0;
+      if (i === 0) { lyd = 15; }
+      else if (i === 1) { lxd = 15; lyd = 2; }
+      else if (i === 2) { lyd = 15; }
+      else if (i === 3) { lxd = 15; lyd = 2; }
+
+      const lx = cx + (r + lxd) * Math.cos(angles[i]);
+      const ly = cy + (r + lyd) * Math.sin(angles[i]);
+      return {
+        label,
+        x1: cx, y1: cy,
+        x2: cx + r * Math.cos(angles[i]),
+        y2: cy + r * Math.sin(angles[i]),
+        lx: lx,
+        ly: ly,
+        anchor: anchors[i]
+      };
+    });
+
+    const getPath = (data: number[]) => {
+      const points = data.map((val, i) => {
+        const d = (val / 100) * r;
+        return `${cx + d * Math.cos(angles[i])},${cy + d * Math.sin(angles[i])}`;
+      });
+      return points.join(' ');
+    };
+
+    const gridPolys = [20, 40, 60, 80, 100].map(level => getPath([level, level, level, level]));
+
+    return {
+      axes,
+      gridPolys,
+      reqPath: getPath(this.radarReq),
+      acqPath: getPath(this.radarAcq)
+    };
+  }
+
+  setScoreFilter(filter: 'synergy' | 'cvAts' | 'employability') {
     this.activeScoreFilter = filter;
     this.rebuildBarChart();
   }
@@ -316,6 +349,11 @@ export class DashboardAdmin {
     const SLOT_W = 96;
 
     const allSeries = {
+      synergy: {
+        label: 'Score Synergie',
+        color: '#c2410c',
+        values: this.synergySeries,
+      },
       cvAts: {
         label: 'Score CV ATS',
         color: '#2f8f83',
@@ -329,8 +367,8 @@ export class DashboardAdmin {
     } as const;
 
     const activeSeries =
-      this.activeScoreFilter === 'both'
-        ? [allSeries.cvAts, allSeries.employability]
+      this.activeScoreFilter === 'synergy'
+        ? [allSeries.synergy]
         : this.activeScoreFilter === 'cvAts'
           ? [allSeries.cvAts]
           : [allSeries.employability];

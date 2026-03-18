@@ -1,243 +1,242 @@
 <main class="main-area">
 
-    <!-- Page title -->
-    <div class="page-title-wrap">
-      <h1 class="page-title">TABLEAU DE BORD ADMIN</h1>
+  <!-- Page header -->
+  <header class="dashboard-header" aria-label="Vue d'ensemble">
+    <h1>TABLEAU DE BORD</h1>
+    <p>Vue d'ensemble</p>
+  </header>
+
+  <!-- ── Stat cards ── -->
+  <div class="stats-grid">
+    <div class="stat-card" *ngFor="let s of stats">
+      <div class="stat-value">{{ s.value }}</div>
+      <div class="stat-label">{{ s.label }}</div>
     </div>
+  </div>
 
-    <!-- Section label -->
-    <p class="section-label">Vue d'ensemble</p>
+  <!-- ── Charts row ── -->
+  <div class="charts-row">
 
-    <!-- ── Stat cards ── -->
-    <div class="stats-grid">
-      <div class="stat-card" *ngFor="let s of stats">
-        <div class="stat-value">{{ s.value }}</div>
-        <div class="stat-label">{{ s.label }}</div>
-      </div>
-    </div>
-
-    <!-- ── Charts row ── -->
-    <div class="charts-row">
-
-      <!-- Donut chart -->
-      <div class="chart-card">
-        <h3 class="chart-title">Répartition par<br />filière</h3>
-        <div class="donut-container">
-          <svg viewBox="0 0 200 200" class="donut-svg" xmlns="http://www.w3.org/2000/svg">
-            <circle
-              *ngFor="let seg of donutSegments"
-              cx="100" cy="100" r="70"
-              fill="none"
-              [attr.stroke]="seg.color"
-              stroke-width="36"
-              [attr.stroke-dasharray]="seg.dashArray"
-              [attr.stroke-dashoffset]="seg.dashOffset"
-              transform="rotate(-90, 100, 100)"
-            />
-            <!-- Center white circle for donut hole -->
-            <circle cx="100" cy="100" r="51" fill="white" />
-          </svg>
-          <div class="donut-legend">
-            <div class="legend-item" *ngFor="let l of donutLegend">
-              <span class="legend-dot" [style.background]="l.color"></span>
-              <span>{{ l.label }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Bar chart -->
-      <div class="chart-card">
-        <h3 class="chart-title score-title">Distribution des Scores</h3>
-        <div class="score-controls">
-          <button
-            type="button"
-            class="score-filter-btn"
-            [class.active]="activeScoreFilter === 'both'"
-            (click)="setScoreFilter('both')"
-          >Tous les deux</button>
-          <button
-            type="button"
-            class="score-filter-btn"
-            [class.active]="activeScoreFilter === 'cvAts'"
-            (click)="setScoreFilter('cvAts')"
-          >Score CV ATS</button>
-          <button
-            type="button"
-            class="score-filter-btn"
-            [class.active]="activeScoreFilter === 'employability'"
-            (click)="setScoreFilter('employability')"
-          >Score Employabilité</button>
-        </div>
-
-        <div class="score-legend" *ngIf="activeSeriesLegend.length > 0">
-          <span class="score-legend-item" *ngFor="let l of activeSeriesLegend">
-            <span class="score-legend-dot" [style.background]="l.color"></span>
-            {{ l.label }}
-          </span>
-        </div>
-
-        <svg viewBox="0 0 550 300" class="bar-svg" xmlns="http://www.w3.org/2000/svg">
-
-          <!-- Vertical gridlines -->
-          <ng-container *ngFor="let x of xGridLines">
-            <line
-              [attr.x1]="x"
-              y1="20"
-              [attr.x2]="x"
-              y2="265"
-              stroke="#d3d9e3"
-              stroke-width="1"
-              stroke-dasharray="4 4"
-            />
-          </ng-container>
-
-          <!-- Horizontal gridlines + Y-axis labels -->
-          <ng-container *ngFor="let g of yGridLines">
-            <line x1="50" [attr.y1]="g.y" x2="530" [attr.y2]="g.y"
-              stroke="#d3d9e3" stroke-width="1" stroke-dasharray="4 4" />
-            <text x="44" [attr.y]="g.y + 4" text-anchor="end"
-              font-size="11" fill="#44546a" font-family="Segoe UI, Arial, sans-serif">{{ g.value }}</text>
-          </ng-container>
-
-          <!-- Bars + X-axis labels -->
-          <ng-container *ngFor="let b of barData">
-            <ng-container *ngFor="let bar of b.bars">
-              <rect
-                [attr.x]="bar.x"
-                [attr.y]="bar.y"
-                [attr.width]="bar.width"
-                [attr.height]="bar.height"
-                rx="3"
-                [attr.fill]="bar.color"
-              />
-            </ng-container>
-            <text
-              [attr.x]="b.labelX"
-              y="282"
-              text-anchor="middle"
-              font-size="12"
-              fill="#44546a"
-              font-family="Segoe UI, Arial, sans-serif"
-            >{{ b.range }}</text>
-          </ng-container>
-
-          <!-- Bottom axis line -->
-          <line x1="50" y1="265" x2="530" y2="265" stroke="#8b96a8" stroke-width="1.2" />
-          <line x1="50" y1="20" x2="50" y2="265" stroke="#8b96a8" stroke-width="1.2" />
+    <!-- Donut chart -->
+    <div class="chart-card">
+      <h3 class="chart-title">Répartition par<br />filière</h3>
+      <div class="donut-container">
+        <svg viewBox="0 0 200 200" class="donut-svg" xmlns="http://www.w3.org/2000/svg">
+          <circle *ngFor="let seg of donutSegments" cx="100" cy="100" r="70" fill="none" [attr.stroke]="seg.color"
+            stroke-width="36" [attr.stroke-dasharray]="seg.dashArray" [attr.stroke-dashoffset]="seg.dashOffset"
+            transform="rotate(-90, 100, 100)" />
+          <!-- Center white circle for donut hole -->
+          <circle cx="100" cy="100" r="51" fill="white" />
         </svg>
-      </div>
-
-    </div>
-
-    <!-- ── General profile recommendations ── -->
-    <div class="formations-section">
-      <div class="panel-header">
-        <h2>Gap Analysis Charts</h2>
-      </div>
-      <div class="formations-grid">
-        <div class="gap-card" *ngFor="let chart of gapCharts">
-          <div class="gap-card-head">
-            <h3 class="gap-card-title">{{ chart.title }}</h3>
-            <span class="gap-chip">Avg {{ averageGap(chart.points) }}%</span>
+        <div class="donut-legend">
+          <div class="legend-item" *ngFor="let l of donutLegend">
+            <span class="legend-dot" [style.background]="l.color"></span>
+            <span>{{ l.label }}</span>
           </div>
-
-          <div class="gap-bars">
-            <div class="gap-col" *ngFor="let point of chart.points">
-              <div class="gap-track">
-                <div
-                  class="gap-fill"
-                  [style.height.%]="point.value"
-                  [style.background]="chart.color"
-                ></div>
-              </div>
-              <span class="gap-col-label">{{ point.label }}</span>
-            </div>
-          </div>
-
-          <p class="gap-foot">Current mismatch level across this axis.</p>
         </div>
       </div>
     </div>
 
-    <!-- ── Recent students table ── -->
-    <div class="table-card">
-      <div class="panel-header">
-        <h3 class="table-title">list des etudiants</h3>
-        <button class="table-panel-link" type="button" (click)="openStudentsPopup()">Voir tout →</button>
+
+
+    <!-- Bar chart -->
+    <div class="chart-card">
+      <h3 class="chart-title score-title">Distribution des Scores</h3>
+      <div class="score-controls">
+        <button type="button" class="score-filter-btn" [class.active]="activeScoreFilter === 'synergy'"
+          (click)="setScoreFilter('synergy')">Score Synergie</button>
+        <button type="button" class="score-filter-btn" [class.active]="activeScoreFilter === 'cvAts'"
+          (click)="setScoreFilter('cvAts')">Score CV ATS</button>
+        <button type="button" class="score-filter-btn" [class.active]="activeScoreFilter === 'employability'"
+          (click)="setScoreFilter('employability')">Score Employabilité</button>
       </div>
-      <table class="students-table">
-        <thead>
-          <tr>
-            <th>Étudiant</th>
-            <th>ID</th>
-            <th>Spécialisation</th>
-            <th>Score CV ATS</th>
-            <th>Score Employabilité</th>
-            <th class="col-actions">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let s of recentStudents">
-            <td class="col-name">{{ s.name }}</td>
-            <td class="col-id">{{ s.id }}</td>
-            <td>
-              <span class="badge"
-                [style.background]="getBadgeStyle(s.speciality).bg"
-                [style.color]="getBadgeStyle(s.speciality).color">
-                {{ s.speciality }}
-              </span>
-            </td>
-            <td class="col-score" [style.color]="scoreColor(s.score)">{{ s.score }}/100</td>
-            <td class="col-score" [style.color]="scoreColor(s.employabilityScore)">{{ s.employabilityScore }}/100</td>
-            <td class="col-actions"><button type="button" class="voir-profil" (click)="openStudentProfile(s)">Voir profil</button></td>
-          </tr>
-        </tbody>
-      </table>
+
+      <div class="score-legend" *ngIf="activeSeriesLegend.length > 0">
+        <span class="score-legend-item" *ngFor="let l of activeSeriesLegend">
+          <span class="score-legend-dot" [style.background]="l.color"></span>
+          {{ l.label }}
+        </span>
+      </div>
+
+      <svg viewBox="0 0 550 300" class="bar-svg" xmlns="http://www.w3.org/2000/svg">
+
+        <!-- Vertical gridlines -->
+        <ng-container *ngFor="let x of xGridLines">
+          <line [attr.x1]="x" y1="20" [attr.x2]="x" y2="265" stroke="#d3d9e3" stroke-width="1" stroke-dasharray="4 4" />
+        </ng-container>
+
+        <!-- Horizontal gridlines + Y-axis labels -->
+        <ng-container *ngFor="let g of yGridLines">
+          <line x1="50" [attr.y1]="g.y" x2="530" [attr.y2]="g.y" stroke="#d3d9e3" stroke-width="1"
+            stroke-dasharray="4 4" />
+          <text x="44" [attr.y]="g.y + 4" text-anchor="end" font-size="11" fill="#44546a"
+            font-family="Segoe UI, Arial, sans-serif">{{ g.value }}</text>
+        </ng-container>
+
+        <!-- Bars + X-axis labels -->
+        <ng-container *ngFor="let b of barData">
+          <ng-container *ngFor="let bar of b.bars">
+            <rect [attr.x]="bar.x" [attr.y]="bar.y" [attr.width]="bar.width" [attr.height]="bar.height" rx="3"
+              [attr.fill]="bar.color" />
+          </ng-container>
+          <text [attr.x]="b.labelX" y="282" text-anchor="middle" font-size="12" fill="#44546a"
+            font-family="Segoe UI, Arial, sans-serif">{{ b.range }}</text>
+        </ng-container>
+
+        <!-- Bottom axis line -->
+        <line x1="50" y1="265" x2="530" y2="265" stroke="#8b96a8" stroke-width="1.2" />
+        <line x1="50" y1="20" x2="50" y2="265" stroke="#8b96a8" stroke-width="1.2" />
+      </svg>
     </div>
 
-    <!-- Student profile modal is still used for individual view, but the full list modal is removed -->
+  </div>
 
-    <div class="students-modal-overlay" *ngIf="showStudentProfilePopup" (click)="closeStudentProfile()">
-      <div class="students-modal profile-modal" (click)="$event.stopPropagation()" *ngIf="selectedStudent as profile">
-        <div class="students-modal-header">
-          <h3>{{ profile.name }} - {{ profile.id }}</h3>
-          <button class="students-modal-close" type="button" (click)="closeStudentProfile()">Fermer</button>
+  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.1rem; align-items: stretch;">
+
+    <!-- ── Radar Chart des Gaps ── -->
+    <div class="formations-section" style="margin: 0; height: 100%;">
+      <div class="panel-header">
+        <h2>Mapping des Profils vs Exigences Cibles (Radar)</h2>
+      </div>
+      <div class="radar-chart-container" style="display: flex; align-items: center; justify-content: center; gap: 6rem; padding: 2rem 0 1rem; flex-wrap: wrap;">
+         <svg viewBox="0 0 300 300" style="width: 320px; height: 320px;" overflow="visible">
+            <!-- Grid -->
+            <polygon *ngFor="let poly of radarChart.gridPolys" [attr.points]="poly" fill="none" stroke="#eef2f8" stroke-width="1.5" />
+            
+            <!-- Axes -->
+            <line *ngFor="let axis of radarChart.axes" [attr.x1]="axis.x1" [attr.y1]="axis.y1" [attr.x2]="axis.x2" [attr.y2]="axis.y2" stroke="#eef2f8" stroke-width="1.5" />
+            
+            <!-- Axis Labels -->
+            <text *ngFor="let axis of radarChart.axes" [attr.x]="axis.lx" [attr.y]="axis.ly" [attr.text-anchor]="axis.anchor" font-size="12" font-weight="700" fill="#6f7a8a" dominant-baseline="middle">{{ axis.label }}</text>
+
+            <!-- Requis Shape -->
+            <polygon [attr.points]="radarChart.reqPath" fill="rgba(224, 100, 86, 0.15)" stroke="#e06456" stroke-width="2.5" stroke-linejoin="round" />
+            
+            <!-- Acquis Shape -->
+            <polygon [attr.points]="radarChart.acqPath" fill="rgba(91, 173, 219, 0.3)" stroke="#5baddb" stroke-width="2.5" stroke-linejoin="round" />
+         </svg>
+
+         <!-- Legend -->
+         <div class="radar-legend" style="display: flex; flex-direction: column; gap: 1.5rem; max-width: 350px;">
+           <div style="display: flex; align-items: center; gap: 1rem;">
+             <span style="width: 20px; height: 20px; border-radius: 6px; background: rgba(224, 100, 86, 0.15); border: 2.5px solid #e06456; display: inline-block;"></span>
+             <div>
+               <div style="font-weight: 800; color: #1a1a2e; font-size: 1.05rem;">Marché (Requis)</div>
+               <div style="font-size: 0.85rem; color: #6f7a8a; margin-top: 0.2rem;">Attentes des entreprises partenaires</div>
+             </div>
+           </div>
+           <div style="display: flex; align-items: center; gap: 1rem;">
+             <span style="width: 20px; height: 20px; border-radius: 6px; background: rgba(91, 173, 219, 0.3); border: 2.5px solid #5baddb; display: inline-block;"></span>
+             <div>
+               <div style="font-weight: 800; color: #1a1a2e; font-size: 1.05rem;">Étudiants (Acquis)</div>
+               <div style="font-size: 0.85rem; color: #6f7a8a; margin-top: 0.2rem;">Moyenne d'évaluation de la promotion</div>
+             </div>
+           </div>
+           
+
+         </div>
+      </div>
+    </div>
+
+    <!-- ── Répartition par Domaine (moved) ── -->
+    <div class="chart-card" style="margin: 0; height: 100%;">
+      <h3 class="chart-title">Répartition par<br />Domaine</h3>
+      <div class="donut-container" style="flex: 1; justify-content: center; margin-top: 3rem;">
+        <svg viewBox="0 0 200 200" class="donut-svg" xmlns="http://www.w3.org/2000/svg">
+          <circle *ngFor="let seg of domainPieSegments" cx="100" cy="100" r="50" fill="none" [attr.stroke]="seg.color"
+            stroke-width="100" [attr.stroke-dasharray]="seg.dashArray" [attr.stroke-dashoffset]="seg.dashOffset"
+            transform="rotate(-90, 100, 100)" />
+        </svg>
+        <div class="donut-legend" style="margin-top: 1rem;">
+          <div class="legend-item" *ngFor="let l of domainPieLegend">
+            <span class="legend-dot" [style.background]="l.color"></span>
+            <span>{{ l.label }}</span>
+          </div>
         </div>
+      </div>
+    </div>
 
-        <div class="students-modal-body profile-body">
-          <div class="profile-summary">
-            <span class="badge"
-              [style.background]="getBadgeStyle(profile.speciality).bg"
-              [style.color]="getBadgeStyle(profile.speciality).color">
-              {{ profile.speciality }}
+  </div>
+
+  <!-- ── Recent students table ── -->
+  <div class="table-card">
+    <div class="panel-header">
+      <h3 class="table-title">list des etudiants</h3>
+      <button class="table-panel-link" type="button" (click)="openStudentsPopup()">Voir tout →</button>
+    </div>
+    <table class="students-table">
+      <thead>
+        <tr>
+          <th>Étudiant</th>
+          <th>ID</th>
+          <th>Spécialisation</th>
+          <th>Score CV ATS</th>
+          <th>Score Employabilité</th>
+          <th class="col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let s of recentStudents">
+          <td class="col-name">{{ s.name }}</td>
+          <td class="col-id">{{ s.id }}</td>
+          <td>
+            <span class="badge" [style.background]="getBadgeStyle(s.speciality).bg"
+              [style.color]="getBadgeStyle(s.speciality).color">
+              {{ s.speciality }}
             </span>
-            <span class="profile-score">CV ATS: <strong [style.color]="scoreColor(profile.score)">{{ profile.score }}/100</strong></span>
-            <span class="profile-score">Employabilité: <strong [style.color]="scoreColor(profile.employabilityScore)">{{ profile.employabilityScore }}/100</strong></span>
-          </div>
+          </td>
+          <td class="col-score" [style.color]="scoreColor(s.score)">{{ s.score }}/100</td>
+          <td class="col-score" [style.color]="scoreColor(s.employabilityScore)">{{ s.employabilityScore }}/100</td>
+          <td class="col-actions"><button type="button" class="voir-profil" (click)="openStudentProfile(s)">Voir
+              profil</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-          <div class="profile-grid">
-            <div class="profile-card">
-              <h4>Les matchings</h4>
-              <ul>
-                <li *ngFor="let item of profile.details.matchings">{{ item }}</li>
-              </ul>
-            </div>
-            <div class="profile-card">
-              <h4>Les gapes</h4>
-              <ul>
-                <li *ngFor="let item of profile.details.gaps">{{ item }}</li>
-              </ul>
-            </div>
-            <div class="profile-card profile-card-wide">
-              <h4>Les recommandations</h4>
-              <ul>
-                <li *ngFor="let item of profile.details.recommendations">{{ item }}</li>
-              </ul>
-            </div>
+  <!-- Student profile modal is still used for individual view, but the full list modal is removed -->
+
+  <div class="students-modal-overlay" *ngIf="showStudentProfilePopup" (click)="closeStudentProfile()">
+    <div class="students-modal profile-modal" (click)="$event.stopPropagation()" *ngIf="selectedStudent as profile">
+      <div class="students-modal-header">
+        <h3>{{ profile.name }} - {{ profile.id }}</h3>
+        <button class="students-modal-close" type="button" (click)="closeStudentProfile()">Fermer</button>
+      </div>
+
+      <div class="students-modal-body profile-body">
+        <div class="profile-summary">
+          <span class="badge" [style.background]="getBadgeStyle(profile.speciality).bg"
+            [style.color]="getBadgeStyle(profile.speciality).color">
+            {{ profile.speciality }}
+          </span>
+          <span class="profile-score">CV ATS: <strong [style.color]="scoreColor(profile.score)">{{ profile.score
+              }}/100</strong></span>
+          <span class="profile-score">Employabilité: <strong [style.color]="scoreColor(profile.employabilityScore)">{{
+              profile.employabilityScore }}/100</strong></span>
+        </div>
+
+        <div class="profile-grid">
+          <div class="profile-card">
+            <h4>Les matchings</h4>
+            <ul>
+              <li *ngFor="let item of profile.details.matchings">{{ item }}</li>
+            </ul>
+          </div>
+          <div class="profile-card">
+            <h4>Les gapes</h4>
+            <ul>
+              <li *ngFor="let item of profile.details.gaps">{{ item }}</li>
+            </ul>
+          </div>
+          <div class="profile-card profile-card-wide">
+            <h4>Les recommandations</h4>
+            <ul>
+              <li *ngFor="let item of profile.details.recommendations">{{ item }}</li>
+            </ul>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
-  </main>
+</main>
