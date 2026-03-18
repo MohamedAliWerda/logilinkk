@@ -18,6 +18,11 @@
     flex-direction: column;
     gap: 1.5rem;
     width: 100%;
+    background: #f5f6f8;
+    border: 1px solid #f0f2f7;
+    box-shadow: 0 4px 14px rgba(16, 24, 40, 0.03);
+    border-radius: 16px;
+    padding: 1.2rem;
 }
 
 
@@ -35,22 +40,42 @@
 
 .greeting-bar {
     display: flex;
-    width: 100%;
-    max-width: 100%;
-    min-height: 60px;
-    background: linear-gradient(135deg, #fff7eb 0%, #ffe7c5 58%, #ffd9a0 100%);
-    border: 1px solid rgba(224, 120, 0, 0.18);
-    box-shadow: 0 4px 16px rgba(80, 58, 12, 0.08);
-    border-radius: 1rem;
-    padding: 0.8rem 1rem;
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #4f3314;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    text-align: left;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
+    width: 100%;
+    background: linear-gradient(135deg, #fff7eb 0%, #ffe7c5 58%, #ffd9a0 100%);
+    border: 1px solid rgba(224, 120, 0, 0.12);
+    box-shadow: 0 6px 20px rgba(16, 24, 40, 0.06);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+}
+
+.greeting-info .greeting-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #4f3314;
+    text-transform: none;
+}
+
+.greeting-info .greeting-sub {
+    margin: 0.25rem 0 0;
+    font-size: 0.95rem;
+    color: #6f4d24;
+    font-weight: 600;
+}
+
+.greeting-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #fff;
+    color: #4f3314;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
 }
 
 
@@ -384,7 +409,9 @@
     flex: 1
 }
 
+
 /* Employability panel - horizontal layout with radial on the left */
+
 .employ-panel .score-body {
     display: flex;
     flex-direction: row;
@@ -408,7 +435,7 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    box-shadow: 0 6px 18px rgba(252,166,58,0.08);
+    box-shadow: 0 6px 18px rgba(252, 166, 58, 0.08);
 }
 
 .employ-panel .radial-inner {
@@ -446,7 +473,9 @@
     font-size: 0.95rem;
 }
 
+
 /* responsive: stack for small screens */
+
 @media (max-width: 800px) {
     .employ-panel .score-body {
         flex-direction: column;

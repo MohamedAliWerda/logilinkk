@@ -87,7 +87,7 @@ export class SidebarAdmin implements OnInit, OnDestroy {
     },
     {
       key: 'settings',
-      label: 'Parametres',
+      label: 'Paramètres',
       route: '/admin/settings',
       exact: false,
     },

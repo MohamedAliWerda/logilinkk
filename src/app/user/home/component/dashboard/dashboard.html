@@ -4,7 +4,11 @@
 
         <!-- Greeting -->
         <div class="greeting-bar global-panel-banner">
-            BONJOUR &lt;{{ studentName }}&gt;
+            <div class="greeting-info">
+                <h1 class="greeting-title">Bonjour, {{ studentName }}</h1>
+                <p class="greeting-sub">Bienvenue sur votre espace personnel</p>
+            </div>
+            <div class="greeting-avatar" title="{{ studentName }}">{{ studentName.split(' ').map(x=>x[0]).slice(0,2).join('') }}</div>
         </div>
 
         <!-- Stat cards -->
