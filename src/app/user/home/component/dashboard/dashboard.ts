@@ -18,7 +18,10 @@ export class Dashboard {
   activeMenu = 'dashboard';
   matchingSearch = '';
 
+  // UI state
   stats: { label: string; value: number; icon: SafeHtml }[];
+  employabilityScore = 0;
+  recommendations: string[] = [];
 
   constructor(private router: Router, private sanitizer: DomSanitizer) {
     const icons = [
@@ -42,11 +45,24 @@ export class Dashboard {
       </svg>`,
     ];
     this.stats = [
-      { label: 'Score CV',              value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[0]) },
-      { label: 'Entreprises matchées',  value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[1]) },
-      { label: 'Formations suggérées',  value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[2]) },
-      { label: 'Gaps identifiés',       value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[3]) },
+      { label: 'Score ATS',             value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[0]) },
+      { label: "Score employabilité", value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[1]) },
+      { label: 'Métiers compatibles',    value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[2]) },
+      { label: 'Nbre de gaps',          value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[3]) },
     ];
+
+    // basic recommendations (placeholder data)
+    this.recommendations = [
+      'Formation SAP - Niveau débutant',
+      'Anglais professionnel - Conversation',
+      'Gestion des stocks avancée',
+      'Certification supply chain',
+      'Atelier optimisation processus',
+    ];
+
+    // compute initial score/stats
+    this.employabilityScore = this.getAvgMatchScore();
+    this.recomputeStats();
   }
 
   companies = [
@@ -112,6 +128,68 @@ export class Dashboard {
       c.tags.some((t) => t.toLowerCase().includes(q)) ||
       c.sector.toLowerCase().includes(q)
     );
+  }
+
+  /**
+   * Returns a CSS conic-gradient value to render the radial meter.
+   */
+  getConicdeg(score: number) {
+    const s = Math.max(0, Math.min(100, Math.round(score)));
+    const color = '#fca63a'; // use the project's orange for the radial fill
+    return `conic-gradient(${color} ${s}%, #eef3f8 ${s}% 100%)`;
+  }
+
+  getEmployabilityDescription(score: number) {
+    const s = Math.max(0, Math.min(100, Math.round(score)));
+    if (s >= 80) {
+      return `Votre score de ${s}/100 reflète un excellent niveau de compétences techniques et un profil solide. Vous êtes bien positionné pour des opportunités avancées ; le maintien et la spécialisation de compétences clés (outils digitaux et expérience terrain) permettront d'augmenter encore votre attractivité.`;
+    }
+    if (s >= 60) {
+      return `Votre score de ${s}/100 reflète un bon niveau de compétences techniques de base, avec un profil linguistique favorable. Cependant, des lacunes existent sur certains outils digitaux (par ex. SAP, WMS, Power BI) et en expérience professionnelle. Le renforcement de ces domaines pourrait significativement améliorer votre employabilité.`;
+    }
+    if (s >= 40) {
+      return `Votre score de ${s}/100 indique des compétences de base mais des écarts importants subsistent. Nous recommandons des formations ciblées (outils digitaux, certifications sectorielles) et des expériences pratiques pour améliorer rapidement votre employabilité.`;
+    }
+    return `Votre score de ${s}/100 montre qu'il est nécessaire d'intervenir sur plusieurs axes : renforcement des compétences techniques, acquisition d'expérience pratique et apprentissage d'outils digitaux (SAP, WMS, Power BI). Des actions ciblées augmenteront significativement vos chances sur le marché du travail.`;
+  }
+
+  getAvgMatchScore() {
+    if (!this.matchingCompanies || this.matchingCompanies.length === 0) return 0;
+    const sum = this.matchingCompanies.reduce((acc, c) => acc + (c.score || 0), 0);
+    return Math.round(sum / this.matchingCompanies.length);
+  }
+
+  getGapPercent(s: { current: number; required: number }) {
+    if (!s || !s.required) return 0;
+    const gap = Math.max(0, s.required - s.current);
+    return Math.round((gap / s.required) * 100);
+  }
+
+  /** Recompute KPI stat values to reflect current data. */
+  recomputeStats() {
+    // ATS score: average coverage of required skill levels
+    const ats = this.skills && this.skills.length
+      ? Math.round(
+          (this.skills.reduce((acc, s) => acc + Math.min(1, s.current / (s.required || 1)), 0) / this.skills.length) * 100
+        )
+      : 0;
+
+    // employability score: average company match
+    this.employabilityScore = this.getAvgMatchScore();
+
+    // métiers compatibles: number of matching companies
+    const metiers = this.matchingCompanies ? this.matchingCompanies.length : 0;
+
+    // nbre de gaps: count of skills with a positive gap
+    const nbreGaps = this.skills ? this.skills.filter(s => (s.required - s.current) > 0).length : 0;
+
+    // assign into stats array in consistent order
+    if (this.stats && this.stats.length >= 4) {
+      this.stats[0].value = ats;
+      this.stats[1].value = Math.round(this.employabilityScore);
+      this.stats[2].value = metiers;
+      this.stats[3].value = nbreGaps;
+    }
   }
 
   logout() {
