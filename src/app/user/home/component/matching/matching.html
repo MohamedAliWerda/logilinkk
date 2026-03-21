@@ -1,1 +1,54 @@
-<p>matching works!</p>
+<div class="dashboard-content score-section">
+    <section class="matching-section">
+        <div class="matching-head">
+            <div class="page-header global-panel-banner">
+                <div>
+                    <h1 class="page-title">Mise en relation avec les entreprises</h1>
+                    <p class="page-sub">Entreprises correspondant à vos compétences et votre profil</p>
+                </div>
+                <!-- search removed -->
+            </div>
+        </div>
+
+        <div class="matching-grid">
+            <article class="matching-card" *ngFor="let c of filteredMatchingCompanies">
+                <div class="matching-card-top">
+                    <div class="company-head">
+                        <span class="company-square-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21h18"></path>
+                  <path d="M5 21V7l8-4v18"></path>
+                  <path d="M19 21V11l-6-4"></path>
+                </svg>
+              </span>
+                        <div>
+                            <h3>{{ c.name }}</h3>
+                            <p class="company-location">{{ c.location }}</p>
+                        </div>
+                    </div>
+                    <div class="score-box">
+                        <span class="score-value">★ {{ c.score }}%</span>
+                        <span class="score-label">match</span>
+                    </div>
+                </div>
+
+                <p class="company-desc">{{ c.description }}</p>
+
+                <div class="tag-row">
+                    <span class="tag-chip" *ngFor="let t of c.tags">{{ t }}</span>
+                </div>
+
+                <div class="matching-divider"></div>
+
+                <div class="meta-row">
+                    <span>{{ c.sector }}</span>
+                    <span>{{ c.employees }}</span>
+                    <span class="stage-chip">{{ c.stage }}</span>
+                </div>
+
+                <button class="detail-btn">Voir le détail</button>
+            </article>
+        </div>
+    </section>
+</div>

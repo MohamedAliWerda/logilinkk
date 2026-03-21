@@ -1,21 +1,14 @@
 <aside class="sidebar" [class.collapsed]="!isOpen">
 
-  <div class="sidebar-header">
-    <img src="/isgi-sfax-logo-.png" alt="ISGI" class="sidebar-isgi-logo" />
-    <img src="/djagora-removebg-preview.png" alt="LogiLink" class="sidebar-brand-logo" />
-  </div>
+    <div class="sidebar-header">
+        <img src="/isgi-sfax-logo-.png" alt="ISGI" class="sidebar-isgi-logo" />
+        <!-- Logo removed -->
+    </div>
 
-  <nav class="sidebar-nav" [@listAnimation]="menuItems.length">
+    <nav class="sidebar-nav" [@listAnimation]="menuItems.length">
 
-    <a
-      *ngFor="let item of menuItems"
-      class="nav-item"
-      [routerLink]="item.route"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: item.exact }"
-      (click)="navigateTo(item.route)"
-    >
-      <span class="nav-icon">
+        <a *ngFor="let item of menuItems" class="nav-item" [routerLink]="item.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }" (click)="navigateTo(item.route)">
+            <span class="nav-icon">
         <ng-container [ngSwitch]="item.key">
 
           <svg *ngSwitchCase="'dashboard'" width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
@@ -44,48 +37,17 @@
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
           </svg>
 
+          <svg *ngSwitchCase="'profil'" width="17" height="17" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+
         </ng-container>
       </span>
-      <span class="nav-label">{{ item.label }}</span>
-    </a>
+            <span class="nav-label">{{ item.label }}</span>
+        </a>
 
-  </nav>
-
-  <div #profileMenuWrapper class="profile-menu-wrapper" (click)="$event.stopPropagation()">
-    <button
-      type="button"
-      class="nav-item profil-btn"
-      [class.active]="isProfileRouteActive() || profileMenuOpen"
-      [attr.aria-expanded]="profileMenuOpen"
-      aria-haspopup="menu"
-      (click)="toggleProfileMenu($event)"
-    >
-      <span class="nav-icon">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-          <circle cx="12" cy="7" r="4"/>
-        </svg>
-      </span>
-      <span class="nav-label">Profil</span>
-    </button>
-
-    @if (profileMenuOpen) {
-      <div
-        class="profile-popup"
-        role="menu"
-        aria-label="Options du profil"
-        [style.left.px]="profilePopupLeft"
-        [style.top.px]="profilePopupTop"
-      >
-        <button type="button" class="profile-popup-item" role="menuitem" (click)="goToProfile()">
-          Gérer le profil
-        </button>
-        <button type="button" class="profile-popup-item" role="menuitem" (click)="goToChangePassword()">
-          Changer le mot de passe
-        </button>
-      </div>
-    }
-  </div>
+    </nav>
 
 </aside>

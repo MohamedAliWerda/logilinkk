@@ -1,0 +1,1 @@
+export { MatriceAdmin } from './matrice_admin';

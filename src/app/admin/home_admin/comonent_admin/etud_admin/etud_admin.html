@@ -1,0 +1,143 @@
+<section class="admin-page-container">
+    <header class="admin-page-header">
+        <div class="header-main">
+            <h1 class="title">Gestion des Étudiants</h1>
+            <p class="subtitle">Suivi des performances et de l'employabilité des étudiants</p>
+        </div>
+    </header>
+
+    <div class="search-bar-wrap">
+        <div class="search-box">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+            <input type="text" [(ngModel)]="searchTerm" placeholder="Rechercher un étudiant..." />
+        </div>
+    </div>
+
+    <div class="table-panel">
+        <div class="table-panel-header">
+            <h3 class="table-panel-title">list des etudiants</h3>
+        </div>
+
+        <table class="dashboard-styled-table">
+            <thead>
+                <tr>
+                    <th (click)="setSort('id')" class="sortable">
+                        ID
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'id'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+                    </th>
+                    <th (click)="setSort('fullName')" class="sortable">
+                        Étudiant
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'fullName'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+                    </th>
+                    <th (click)="setSort('filiere')" class="sortable text-center">
+                        Spécialisation
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'filiere'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+                    </th>
+                    <th (click)="setSort('scoreAts')" class="sortable text-center">
+                        Score CV ATS
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'scoreAts'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+                    </th>
+                    <th (click)="setSort('scoreEmployability')" class="sortable text-center">
+                        Score Employabilité
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'scoreEmployability'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+                    </th>
+                    <th (click)="setSort('scoreSynergie')" class="sortable text-center">
+                        Score Synergie
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'scoreSynergie'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+                    </th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (s of filteredStudents; track trackById($index, s)) {
+                <tr>
+                    <td class="col-id">{{ s.id }}</td>
+                    <td class="col-name">{{ s.fullName }}</td>
+                    <td class="text-center">
+                        <span class="filiere-pill" [attr.data-filiere]="s.filiere">
+                {{ s.filiere }}
+              </span>
+                    </td>
+                    <td class="col-score score-ats text-center">{{ s.scoreAts }}/100</td>
+                    <td class="col-score score-emp text-center">{{ s.scoreEmployability }}/100</td>
+                    <td class="col-score score-syn text-center">{{ s.scoreSynergie }}/100</td>
+                    <td class="col-actions">
+                        <button type="button" class="voir-profil-link" (click)="viewProfile(s.id)">
+                Voir profil
+              </button>
+                    </td>
+                </tr>
+                } @empty {
+                <tr>
+                    <td colspan="7" class="empty-msg">Aucun étudiant trouvé</td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PROFILE MODAL -->
+    @if (showProfileModal && selectedStudent) {
+    <div class="modal-overlay" (click)="closeProfileModal()">
+        <div class="profile-modal-card" (click)="$event.stopPropagation()">
+            <header class="modal-header">
+                <h3 class="modal-title">{{ selectedStudent.fullName }} - {{ selectedStudent.id }}</h3>
+                <button class="close-btn" (click)="closeProfileModal()">Fermer</button>
+            </header>
+
+            <div class="modal-body profile-body">
+                <div class="profile-summary">
+                    <span class="filiere-pill large" [attr.data-filiere]="selectedStudent.filiere">{{ selectedStudent.filiere }}</span>
+                    <span class="score-indicator">CV ATS: <strong class="text-green">{{ selectedStudent.scoreAts }}/100</strong></span>
+                    <span class="score-indicator">Employabilité: <strong class="text-orange">{{ selectedStudent.scoreEmployability }}/100</strong></span>
+                    <span class="score-indicator">Synergie: <strong class="text-blue">{{ selectedStudent.scoreSynergie }}/100</strong></span>
+                </div>
+
+                <div class="profile-grid">
+                    <div class="info-card">
+                        <h4>Les matchings</h4>
+                        <ul>
+                            @for (m of selectedStudent.matchings; track m) {
+                            <li>{{ m }}</li>
+                            }
+                        </ul>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>Les gapes</h4>
+                        <ul>
+                            @for (g of selectedStudent.gaps; track g) {
+                            <li>{{ g }}</li>
+                            }
+                        </ul>
+                    </div>
+
+                    <div class="info-card wide">
+                        <h4>Les recommandations</h4>
+                        <ul>
+                            @for (r of selectedStudent.recommendations; track r) {
+                            <li>{{ r }}</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    }
+</section>

@@ -6,10 +6,12 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
+import { STUDENT_PROFILE_DATA } from '../../student-profile.data';
+import { ReleveNotes as ReleveNotesComponent } from './releve-notes/releve-notes';
 
 @Component({
   selector: 'app-profil',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, ReleveNotesComponent],
   templateUrl: './profil.html',
   styleUrl: './profil.css',
 })
@@ -20,12 +22,18 @@ export class Profil {
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly activeSection = signal<'info' | 'password'>('info');
+  protected readonly activeSection = signal<'info' | 'password' | 'releve-notes'>('info');
   protected readonly passwordSaved = signal(false);
   protected readonly passwordError = signal<string | null>(null);
   protected readonly profileImageUrl = signal<string | null>(null);
   protected readonly profileImageError = signal<string | null>(null);
-  protected readonly userName = 'Ahmed Ben Ali';
+  protected readonly profileData = STUDENT_PROFILE_DATA;
+  protected readonly userName = this.profileData.displayName;
+  protected readonly profileStatus = this.profileData.status;
+  protected readonly profileSummaryItems = this.profileData.summaryItems;
+  protected readonly infoSectionTitle = this.profileData.infoSectionTitle;
+  protected readonly infoSectionSubtitle = this.profileData.infoSectionSubtitle;
+  protected readonly profileInfoGroups = this.profileData.infoGroups;
 
   protected readonly passwordForm = this.formBuilder.nonNullable.group({
     currentPassword: ['', [Validators.required, Validators.minLength(8)]],
@@ -41,7 +49,13 @@ export class Profil {
   constructor() {
     this.route.queryParamMap.subscribe((params) => {
       const section = params.get('section');
-      this.activeSection.set(section === 'password' ? 'password' : 'info');
+      if (section === 'password') {
+        this.activeSection.set('password');
+      } else if (section === 'releve-notes') {
+        this.activeSection.set('releve-notes');
+      } else {
+        this.activeSection.set('info');
+      }
       this.passwordSaved.set(false);
       this.passwordError.set(null);
     });
@@ -61,6 +75,15 @@ export class Profil {
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { section: 'password' },
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  protected showReleveNotesSection(): void {
+    this.activeSection.set('releve-notes');
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { section: 'releve-notes' },
       queryParamsHandling: 'merge',
     });
   }

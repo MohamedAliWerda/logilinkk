@@ -1,0 +1,74 @@
+<section class="matrix-page" aria-labelledby="matrix-title">
+    <header class="matrix-header">
+        <h1 id="matrix-title">Adequation Formation-Emploi</h1>
+        <p>Analyse du taux de couverture des competences marche par les formations ISGIS.</p>
+    </header>
+
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Matrice de Couverture</h2>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sticky-col">Formation</th>
+                        @for (competency of topMarketComps; track trackByCompetency($index, competency)) {
+                        <th>
+                            <div class="header-truncate" [title]="competency.nameFr">{{ competency.nameFr }}</div>
+                        </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (formation of formations; track trackByFormation($index, formation)) {
+                    <tr>
+                        <td class="sticky-col formation-name" [title]="formation.nameFr">{{ formation.nameFr }}</td>
+                        @for (competency of topMarketComps; track trackByCompetency($index, competency)) {
+                        <td>
+                            <div class="coverage-cell" [class.covered]="isCovered(formation, competency.id)" [class.not-covered]="!isCovered(formation, competency.id)" [title]="isCovered(formation, competency.id) ? 'Couvert' : 'Non couvert'"></div>
+                        </td>
+                        }
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Competences non couvertes</h2>
+            <span class="alert-badge">Alerte</span>
+        </div>
+
+        <div class="stack-list">
+            @if (uncoveredCompetencies.length === 0) {
+            <div class="ok-box">Toutes les competences prioritaires du marche sont couvertes.</div>
+            } @else { @for (competency of uncoveredCompetencies; track trackByCompetency($index, competency)) {
+            <div class="alert-item">
+                <div>
+                    <p class="alert-title">{{ competency.nameFr }}</p>
+                    <p class="alert-meta">{{ competency.domain }} - Importance : {{ competency.importanceWeight | number: '1.1-1' }}/5</p>
+                </div>
+                <span class="status-chip">Non couvert</span>
+            </div>
+            } }
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Recommandations IA</h2>
+        </div>
+
+        <div class="stack-list">
+            @for (recommendation of recommendations; track trackByRecommendation($index, recommendation)) {
+            <div class="info-item">
+                <p>{{ recommendation }}</p>
+            </div>
+            }
+        </div>
+    </article>
+</section>

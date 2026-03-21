@@ -1,1 +1,63 @@
-<p>recommendation works!</p>
+<div class="dashboard-content score-section">
+    <section class="recommendation-main">
+        <div class="page-header global-panel-banner recommendation-header">
+            <div>
+                <h1 class="page-title">Recommandations personnalisées</h1>
+                <p class="page-sub">Explorez vos recommandations Formations et Stages</p>
+            </div>
+        </div>
+
+        <!-- section formations -->
+        <div>
+            <div class="recommended-group">
+                <div class="recommendation-block">
+                    <h3>Formations métier ciblé</h3>
+                    <div class="card-grid">
+                        <article class="recommendation-card" *ngFor="let formation of targetJobFormations">
+                            <div class="card-top">
+                                <span class="priority-badge {{ formation.tone }}">{{ formation.priority }}</span>
+                                <span class="tag-pill">Métier visé</span>
+                            </div>
+                            <h3>{{ formation.title }}</h3>
+                            <p class="meta">{{ formation.source }} • {{ formation.duration }}</p>
+                            <p class="desc">{{ formation.description }}</p>
+                        </article>
+                    </div>
+                </div>
+
+                <div class="recommendation-block">
+                    <h3>Autres formations</h3>
+                    <div class="card-grid">
+                        <article class="recommendation-card" *ngFor="let formation of generalFormations">
+                            <div class="card-top">
+                                <span class="priority-badge {{ formation.tone }}">{{ formation.priority }}</span>
+                                <span class="tag-pill">Polyvalent</span>
+                            </div>
+                            <h3>{{ formation.title }}</h3>
+                            <p class="meta">{{ formation.source }} • {{ formation.duration }}</p>
+                            <p class="desc">{{ formation.description }}</p>
+                        </article>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- section stages (sous les formations) -->
+        <div class="recommendation-block">
+            <h2 class="section-title">Stages recommandés</h2>
+            <div class="stage-grid">
+                <article class="stage-card" *ngFor="let stage of recommendedStages">
+                    <div class="stage-top">
+                        <h2>{{ stage.title }}</h2>
+                        <span class="stage-score">★ {{ stage.match }}%</span>
+                    </div>
+                    <p>{{ stage.company }}</p>
+                    <p class="meta">{{ stage.location }} • {{ stage.duration }} • Limite: {{ stage.deadline }}</p>
+                    <div class="tag-row">
+                        <span class="tag-chip" *ngFor="let tag of stage.tags">{{ tag }}</span>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+</div>

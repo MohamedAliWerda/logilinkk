@@ -1,74 +1,77 @@
 <div class="main-login-layout">
-  <div class="login-left">
-    <div class="deco deco-ring deco-ring-1"></div>
-    <div class="deco deco-ring deco-ring-2"></div>
-    <div class="deco deco-ring deco-ring-3"></div>
+    <div class="login-left">
+        <div class="deco deco-ring deco-ring-1"></div>
+        <div class="deco deco-ring deco-ring-2"></div>
+        <div class="deco deco-ring deco-ring-3"></div>
 
-    <!-- Mini bar chart -->
-    <div class="deco viz-bar-chart">
-      <div class="viz-bar" style="height:30px"></div>
-      <div class="viz-bar" style="height:50px"></div>
-      <div class="viz-bar" style="height:38px"></div>
-      <div class="viz-bar" style="height:60px"></div>
-      <div class="viz-bar" style="height:44px"></div>
-    </div>
+        <!-- Mini bar chart -->
+        <div class="deco viz-bar-chart">
+            <div class="viz-bar" style="height:30px"></div>
+            <div class="viz-bar" style="height:50px"></div>
+            <div class="viz-bar" style="height:38px"></div>
+            <div class="viz-bar" style="height:60px"></div>
+            <div class="viz-bar" style="height:44px"></div>
+        </div>
 
-    <!-- Mini pie / donut -->
-    <div class="deco viz-donut">
-      <svg viewBox="0 0 36 36" width="70" height="70">
+        <!-- Mini pie / donut -->
+        <div class="deco viz-donut">
+            <svg viewBox="0 0 36 36" width="70" height="70">
         <circle cx="18" cy="18" r="13" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="5"/>
         <circle cx="18" cy="18" r="13" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="5"
           stroke-dasharray="55 82" stroke-dashoffset="-10" stroke-linecap="round"/>
         <circle cx="18" cy="18" r="13" fill="none" stroke="rgba(255,255,255,0.30)" stroke-width="5"
           stroke-dasharray="25 82" stroke-dashoffset="-65" stroke-linecap="round"/>
       </svg>
-    </div>
-
-    <!-- Mini stat card top-right -->
-    <div class="deco viz-stat-card viz-card-1">
-      <div class="viz-card-line viz-card-line-long"></div>
-      <div class="viz-card-line viz-card-line-short"></div>
-      <div class="viz-card-bar-row">
-        <div class="viz-mini-bar" style="width:55%"></div>
-        <div class="viz-mini-bar" style="width:80%"></div>
-        <div class="viz-mini-bar" style="width:40%"></div>
-      </div>
-    </div>
-
-    <!-- Mini stat card bottom-right -->
-    <div class="deco viz-stat-card viz-card-2">
-      <div class="viz-card-line viz-card-line-long"></div>
-      <div class="viz-card-line viz-card-line-short"></div>
-    </div>
-
-    <div class="left-content">
-      <img src="logo.png" alt="LOGILINK ISGIS & DJAGORA" class="main-logo" />
-    </div>
-
-    <nav class="mobile-top-nav" aria-label="Navigation mobile">
-      <a href="/" class="mobile-nav-link">Login</a>
-      <a href="/verify" class="mobile-nav-link">Verify</a>
-    </nav>
-  </div>
-  <div class="login-right">
-    <div class="login-box">
-      <div class="login-header">
-        <img src="isgi-sfax-logo-.png" alt="ISGI Sfax" class="logo-left">
-        <img src="djagora-removebg-preview.png" alt="Djagora" class="logo-right">
-      </div>
-      <h2>Connexion</h2>
-      <p class="subtitle">Connectez-vous avec votre identifiant étudiant ou email</p>
-      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
-        <label for="identifiant">Identifiant</label>
-        <input id="identifiant" formControlName="identifiant" placeholder="EX : ISGI2025-001" />
-        <label for="password">Mot de passe</label>
-        <div class="password-field">
-          <input [type]="hidePassword ? 'password' : 'text'" formControlName="password" placeholder="••••••••" aria-label="Mot de passe" />
-          <button type="button" (click)="togglePasswordVisibility()" class="toggle-password" [attr.aria-label]="hidePassword ? 'Afficher le mot de passe' : 'Masquer le mot de passe'">&#x1F441;</button>
         </div>
-        <a class="forgot" href="#">mot de passe oublié ?</a>
-        <button class="login-btn" type="submit">Se Connecter</button>
-      </form>
+
+        <!-- Mini stat card top-right -->
+        <div class="deco viz-stat-card viz-card-1">
+            <div class="viz-card-line viz-card-line-long"></div>
+            <div class="viz-card-line viz-card-line-short"></div>
+            <div class="viz-card-bar-row">
+                <div class="viz-mini-bar" style="width:55%"></div>
+                <div class="viz-mini-bar" style="width:80%"></div>
+                <div class="viz-mini-bar" style="width:40%"></div>
+            </div>
+        </div>
+
+        <!-- Mini stat card bottom-right -->
+        <div class="deco viz-stat-card viz-card-2">
+            <div class="viz-card-line viz-card-line-long"></div>
+            <div class="viz-card-line viz-card-line-short"></div>
+        </div>
+
+        <div class="left-content">
+            <img src="logo.png" alt="LOGILINK ISGIS & DJAGORA" class="main-logo" />
+        </div>
+
+        <nav class="mobile-top-nav" aria-label="Navigation mobile">
+            <a href="/" class="mobile-nav-link">Login</a>
+            <a href="/verify" class="mobile-nav-link">Verify</a>
+        </nav>
     </div>
-  </div>
+    <div class="login-right">
+        <div class="login-box">
+            <div class="login-header">
+                <img src="isgi-sfax-logo-.png" alt="ISGI Sfax" class="logo-left">
+                <img src="djagora-removebg-preview.png" alt="Djagora" class="logo-right">
+            </div>
+            <h2>Connexion</h2>
+            <p class="subtitle">Connectez-vous avec votre CIN/Passport et mot de passe</p>
+            <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
+                <label for="identifiant">Identifiant</label>
+                <input id="identifiant" formControlName="identifiant" placeholder="EX : AB123456" />
+                <label for="password">Mot de passe</label>
+                <div class="password-field">
+                    <input [type]="hidePassword ? 'password' : 'text'" formControlName="password" placeholder="••••••••" aria-label="Mot de passe" />
+                    <button type="button" (click)="togglePasswordVisibility()" class="toggle-password" [attr.aria-label]="hidePassword ? 'Afficher le mot de passe' : 'Masquer le mot de passe'">&#x1F441;</button>
+                </div>
+                <p *ngIf="authError" class="auth-error">{{ authError }}</p>
+                <a class="forgot" routerLink="/forgot-password">mot de passe oublié ?</a>
+                <button class="login-btn" type="submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Connexion...' : 'Se Connecter' }}
+        </button>
+            </form>
+        </div>
+    </div>
 </div>

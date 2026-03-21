@@ -1,1 +1,202 @@
-<p>dashboard works!</p>
+<div class="dashboard-content score-section">
+    <!-- ── DASHBOARD VIEW ── -->
+    <ng-container *ngIf="activeMenu === 'dashboard'">
+
+        <!-- Greeting -->
+        <div class="greeting-bar global-panel-banner">
+            <div class="greeting-info">
+                <h1 class="greeting-title">Bonjour, {{ studentName }}</h1>
+                <p class="greeting-sub">Bienvenue sur votre espace personnel</p>
+            </div>
+            <div class="greeting-avatar" title="{{ studentName }}">{{ studentName.split(' ').map(x=>x[0]).slice(0,2).join('') }}</div>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="stats-row">
+            <div class="stat-card" *ngFor="let stat of stats">
+                <div class="stat-info">
+                    <span class="stat-label">{{ stat.label }}</span>
+                    <span class="stat-value">{{ stat.value }}</span>
+                </div>
+                <div class="stat-icon" [innerHTML]="stat.icon"></div>
+            </div>
+        </div>
+
+        <!-- Score Global panel -->
+        <!-- Score d'Employabilité (full summary card) -->
+        <div class="panel score-card employ-panel" style="grid-column: 1 / -1;">
+            <div class="score-header panel-header">
+                <h2>Score Employabilité</h2>
+                <p>Analyse de l'adéquation entre les formations ISGI et les exigences du marché du travail.</p>
+            </div>
+
+            <div class="score-body employ-body-horizontal">
+                <div class="radial-wrap">
+                    <div class="radial" [style.background]="getConicdeg(employabilityScore)">
+                        <div class="radial-inner">
+                            <div class="score">{{ employabilityScore }}
+                                <div class="out">/100</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="score-text">
+                    <h4>Score Global</h4>
+                    <p class="desc">{{ getEmployabilityDescription(employabilityScore) }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gaps vs Matching panel -->
+        <div class="panel graph-card">
+            <div class="panel-header">
+                <h2>Gaps vs Matching</h2>
+                <div></div>
+            </div>
+            <div class="graph-list">
+                <div class="graph-row" *ngFor="let s of skills | slice:0:5">
+                    <div class="g-label">{{ s.name }}</div>
+                    <div class="g-bars">
+                        <div class="g-match" [style.width.%]="getAvgMatchScore()"></div>
+                        <div class="g-gap" [style.width.%]="getGapPercent(s)"></div>
+                    </div>
+                    <div class="g-values"><span class="g-match-val">{{ getAvgMatchScore() }}%</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom panels -->
+        <div class="panels-row">
+
+            <!-- Matching Général (split into three panels) -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Métiers compatibles</h2>
+                    <button class="panel-link" (click)="setMenu('matching')">Voir tout →</button>
+                </div>
+                <ul class="mini-list">
+                    <li class="mini-item" *ngFor="let m of matchingCompanies | slice:0:5">
+                        <div class="mini-icon" [title]="m.name">{{ m.name.split(' ').map(x=>x[0]).slice(0,2).join('') }}</div>
+                        <div class="mini-content">
+                            <div class="mini-title">{{ m.name }}</div>
+                            <div class="mini-meta">{{ m.sector }} • {{ m.location }}</div>
+                        </div>
+                        <div class="mini-right">
+                            <span class="score-badge">{{ m.score }}%</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Gaps général</h2>
+                    <a class="panel-link" href="#">Détails →</a>
+                </div>
+                <ul class="mini-list">
+                    <li class="mini-item" *ngFor="let s of skills | slice:0:5">
+                        <div class="mini-icon small">S</div>
+                        <div class="mini-content">
+                            <div class="mini-title">{{ s.name }}</div>
+                            <div class="mini-meta">Manquant</div>
+                            <div class="gap-bar">
+                                <div class="gap-fill" [style.width.%]="getGapPercent(s)"></div>
+                            </div>
+                        </div>
+                        <div class="mini-right">
+                            <a class="panel-link" href="#">Voir →</a>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Recommandations générales</h2>
+                    <a class="panel-link" href="#">Voir tout →</a>
+                </div>
+                <ul class="mini-list">
+                    <li class="mini-item" *ngFor="let r of recommendations | slice:0:5">
+                        <div class="mini-icon">R</div>
+                        <div class="mini-content">
+                            <div class="mini-title">{{ r }}</div>
+                            <div class="mini-meta">Formation recommandée • Durée variable</div>
+                        </div>
+                        <div class="mini-right">
+                            <button class="start-btn">Voir</button>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+
+
+        </div>
+
+    </ng-container>
+    <!-- ── END DASHBOARD VIEW ── -->
+
+    <!-- ── MATCHING VIEW ── -->
+    <ng-container *ngIf="activeMenu === 'matching'">
+
+        <section class="matching-section">
+            <div class="matching-head">
+                <div>
+                    <h2>Matching Entreprises</h2>
+                    <p>Entreprises&nbsp;correspondant&nbsp;a&nbsp;vos&nbsp;competences&nbsp;et&nbsp;votre&nbsp;profil</p>
+                </div>
+                <div class="matching-search-wrap">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+                    <input type="text" placeholder="Rechercher..." [(ngModel)]="matchingSearch" />
+                </div>
+            </div>
+
+            <div class="matching-grid">
+                <article class="matching-card" *ngFor="let c of filteredMatchingCompanies">
+                    <div class="matching-card-top">
+                        <div class="company-head">
+                            <span class="company-square-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21h18"></path>
+                  <path d="M5 21V7l8-4v18"></path>
+                  <path d="M19 21V11l-6-4"></path>
+                </svg>
+              </span>
+                            <div>
+                                <h3>{{ c.name }}</h3>
+                                <p class="company-location">{{ c.location }}</p>
+                            </div>
+                        </div>
+                        <div class="score-box">
+                            <span class="score-value">★ {{ c.score }}%</span>
+                            <span class="score-label">match</span>
+                        </div>
+                    </div>
+
+                    <p class="company-desc">{{ c.description }}</p>
+
+                    <div class="tag-row">
+                        <span class="tag-chip" *ngFor="let t of c.tags">{{ t }}</span>
+                    </div>
+
+                    <div class="matching-divider"></div>
+
+                    <div class="meta-row">
+                        <span>{{ c.sector }}</span>
+                        <span>{{ c.employees }}</span>
+                        <span class="stage-chip">{{ c.stage }}</span>
+                    </div>
+
+                    <button class="detail-btn">Voir le détail</button>
+                </article>
+            </div>
+        </section>
+
+    </ng-container>
+    <!-- ── END MATCHING VIEW ── -->
+
+</div>
