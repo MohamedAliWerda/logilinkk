@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -22,6 +22,7 @@ export class Login {
     private readonly fb: FormBuilder,
     private readonly router: Router,
     private readonly authApiService: AuthApiService,
+    private readonly cdr: ChangeDetectorRef,
   ) {
     this.loginForm = this.fb.group({
       identifiant: ['', Validators.required],
@@ -34,38 +35,21 @@ export class Login {
 
     this.authError = null;
     this.isSubmitting = true;
+    this.cdr.detectChanges();
 
-    // Quick client-side validation to provide immediate feedback
     const cinPassportRaw = this.loginForm.get('identifiant')?.value as string;
     const password = this.loginForm.get('password')?.value as string;
-    const wrongCredentialsMessage = 'This account does not exist or password is wrong';
 
+    // Client-side format check
     if (!cinPassportRaw || !/^\d{4,}$/.test(cinPassportRaw.trim())) {
-      // immediate feedback for clearly invalid identifier (avoid network call)
       this.authError = 'This account does not exist';
       this.isSubmitting = false;
+      this.cdr.detectChanges(); // ✅ force UI update
       return;
     }
-
-    // Quick client-side password validation to avoid server 400 and show error fast
-    if (!password || password.trim().length < 6) {
-      this.authError = 'Password is wrong';
-      this.isSubmitting = false;
-      return;
-    }
-
-    const safetyTimer = setTimeout(() => {
-      if (this.isSubmitting) {
-        this.isSubmitting = false;
-        if (!this.authError) {
-          this.authError = 'Password is wrong';
-        }
-      }
-    }, 4000);
 
     try {
-      const cinPassport = cinPassportRaw as string;
-      const response = await this.authApiService.signIn(cinPassport, password);
+      const response = await this.authApiService.signIn(cinPassportRaw.trim(), password);
 
       localStorage.setItem('token', response.data.access_token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -81,27 +65,29 @@ export class Login {
         return;
       }
 
+      // Unknown role — clean up and show error
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('role');
-      this.authError = 'Role utilisateur non autorise.';
+      this.authError = 'Rôle utilisateur non autorisé.';
+
     } catch (error) {
       const httpError = error as HttpErrorResponse;
       const serverMessage = this.extractErrorMessage(error);
 
       if (httpError.status === 401) {
-        this.authError = serverMessage || 'Password is wrong';
+        this.authError = serverMessage || 'Identifiant ou mot de passe incorrect.';
       } else if (httpError.status === 400) {
-        // Legacy validation responses are treated as credential errors for UX
-        this.authError = 'Password is wrong';
+        this.authError = 'Identifiant ou mot de passe incorrect.';
       } else if (httpError.status === 0) {
-        this.authError = 'Connexion impossible. Veuillez reessayer.';
+        this.authError = 'Connexion impossible. Veuillez réessayer.';
       } else {
-        this.authError = 'This account does not exist or password is wrong';
+        this.authError = 'Une erreur est survenue. Veuillez réessayer.';
       }
+
     } finally {
-      clearTimeout(safetyTimer);
       this.isSubmitting = false;
+      this.cdr.detectChanges(); // ✅ force UI update no matter what
     }
   }
 
@@ -133,5 +119,4 @@ export class Login {
   togglePasswordVisibility(): void {
     this.hidePassword = !this.hidePassword;
   }
-
 }
