@@ -51,7 +51,7 @@ export class SidebarAdmin implements OnInit, OnDestroy {
     },
     {
       key: 'matrice',
-      label: 'Adéquation formation-emploi',
+      label: 'Adéquation F/E',
       route: '/admin/matrice',
       exact: false,
     },
@@ -81,7 +81,7 @@ export class SidebarAdmin implements OnInit, OnDestroy {
     },
     {
       key: 'etud',
-      label: 'Gestion des Étudiant',
+      label: 'Gestion des étudiants',
       route: '/admin/etud',
       exact: false,
     },
