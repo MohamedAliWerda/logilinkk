@@ -18,7 +18,7 @@
 
     <div class="table-panel">
         <div class="table-panel-header">
-            <h3 class="table-panel-title">list des etudiants</h3>
+            <h3 class="table-panel-title">Liste des étudiants</h3>
         </div>
 
         <table class="dashboard-styled-table">
@@ -77,9 +77,9 @@
                     <td class="col-score score-emp text-center">{{ s.scoreEmployability }}/100</td>
                     <td class="col-score score-syn text-center">{{ s.scoreSynergie }}/100</td>
                     <td class="col-actions">
-                        <button type="button" class="voir-profil-link" (click)="viewProfile(s.id)">
-                Voir profil
-              </button>
+                                                <button type="button" class="voir-profil-link" (click)="viewProfile(s.id)">
+                                Voir le profil
+                            </button>
                     </td>
                 </tr>
                 } @empty {
@@ -110,7 +110,7 @@
 
                 <div class="profile-grid">
                     <div class="info-card">
-                        <h4>Les matchings</h4>
+                        <h4>Appariements</h4>
                         <ul>
                             @for (m of selectedStudent.matchings; track m) {
                             <li>{{ m }}</li>
@@ -119,7 +119,7 @@
                     </div>
 
                     <div class="info-card">
-                        <h4>Les gapes</h4>
+                        <h4>Écarts</h4>
                         <ul>
                             @for (g of selectedStudent.gaps; track g) {
                             <li>{{ g }}</li>

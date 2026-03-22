@@ -38,27 +38,27 @@ export class MatriceAdmin {
   };
 
   readonly competencies: Competency[] = [
-    { id: 'c1', nameFr: 'Gestion d entrepot WMS', domain: 'Digital', importanceWeight: 4.8, source: 'market' },
+    { id: 'c1', nameFr: "Gestion d'entrepôt WMS", domain: 'Digital', importanceWeight: 4.8, source: 'market' },
     { id: 'c2', nameFr: 'SAP/ERP Logistique', domain: 'Digital', importanceWeight: 4.7, source: 'market' },
     { id: 'c3', nameFr: 'Planification transport', domain: 'Operations', importanceWeight: 4.4, source: 'market' },
     { id: 'c4', nameFr: 'Power BI', domain: 'Data', importanceWeight: 4.2, source: 'market' },
     { id: 'c5', nameFr: 'Incoterms 2020', domain: 'Reglementaire', importanceWeight: 4.1, source: 'market' },
-    { id: 'c6', nameFr: 'Optimisation des couts', domain: 'Performance', importanceWeight: 4.0, source: 'market' },
+    { id: 'c6', nameFr: 'Optimisation des coûts', domain: 'Performance', importanceWeight: 4.0, source: 'market' },
     { id: 'c7', nameFr: 'Pilotage KPI supply', domain: 'Data', importanceWeight: 3.9, source: 'market' },
     { id: 'c8', nameFr: 'Lean logistique', domain: 'Performance', importanceWeight: 3.8, source: 'market' },
     { id: 'c9', nameFr: 'Transport multimodal', domain: 'Operations', importanceWeight: 3.6, source: 'market' },
-    { id: 'c10', nameFr: 'Conformite douaniere', domain: 'Reglementaire', importanceWeight: 3.5, source: 'market' },
-    { id: 'c11', nameFr: 'Redaction CV ATS', domain: 'Employabilite', importanceWeight: 3.1, source: 'internal' },
-    { id: 'c12', nameFr: 'Communication pro', domain: 'Soft skills', importanceWeight: 2.8, source: 'internal' },
+    { id: 'c10', nameFr: 'Conformité douanière', domain: 'Reglementaire', importanceWeight: 3.5, source: 'market' },
+    { id: 'c11', nameFr: 'Rédaction CV ATS', domain: 'Employabilite', importanceWeight: 3.1, source: 'internal' },
+    { id: 'c12', nameFr: 'Communication professionnelle', domain: 'Soft skills', importanceWeight: 2.8, source: 'internal' },
   ];
 
   readonly formations: Formation[] = [
     { id: 'f1', nameFr: 'M1-S1 Supply Chain Management', competencyIds: ['c3', 'c6', 'c7'] },
     { id: 'f2', nameFr: 'Transport International et Incoterms', competencyIds: ['c5', 'c9', 'c10'] },
-    { id: 'f3', nameFr: 'Pilotage Entrepot et Flux', competencyIds: ['c6', 'c8'] },
+    { id: 'f3', nameFr: 'Pilotage Entrepôt et Flux', competencyIds: ['c6', 'c8'] },
     { id: 'f4', nameFr: 'Data Logistique et KPI', competencyIds: ['c7', 'c11'] },
     { id: 'f5', nameFr: 'Conduite des Operations Transport', competencyIds: ['c3', 'c9'] },
-    { id: 'f6', nameFr: 'Soft Skills pour Employabilite', competencyIds: ['c12', 'c11'] },
+    { id: 'f6', nameFr: "Soft skills pour l'employabilité", competencyIds: ['c12', 'c11'] },
   ];
 
   readonly jobProfiles: JobProfile[] = [
@@ -68,9 +68,9 @@ export class MatriceAdmin {
   ];
 
   readonly recommendations: string[] = [
-    "Le module 'Gestion d entrepot WMS' n est couvert par aucune formation actuelle mais est exige dans 73% des offres de Responsable Logistique.",
-    "La competence 'SAP/ERP Logistique' peut etre integree au module M1-S1 Supply Chain Management pour renforcer l employabilite de 85% des etudiants.",
-    "L ajout d un module Power BI augmenterait la couverture des competences digitales demandees de 25% a 60%.",
+    "Le module 'Gestion d'entrepôt WMS' n'est couvert par aucune formation actuelle mais est exigé dans 73 % des offres de Responsable Logistique.",
+    "La compétence 'SAP/ERP Logistique' peut être intégrée au module M1-S1 Supply Chain Management pour renforcer l'employabilité de 85 % des étudiants.",
+    "L'ajout d'un module Power BI augmenterait la couverture des compétences digitales demandées de 25 % à 60 %.",
   ];
 
   get topMarketComps(): Competency[] {

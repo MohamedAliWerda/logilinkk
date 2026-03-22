@@ -1,7 +1,7 @@
 <section class="matrix-page" aria-labelledby="matrix-title">
     <header class="matrix-header">
-        <h1 id="matrix-title">Adequation Formation-Emploi</h1>
-        <p>Analyse du taux de couverture des competences marche par les formations ISGIS.</p>
+        <h1 id="matrix-title">Adéquation Formation-Emploi</h1>
+        <p>Analyse du taux de couverture des compétences du marché par les formations ISGIS.</p>
     </header>
 
     <article class="panel">
@@ -39,13 +39,13 @@
 
     <article class="panel">
         <div class="panel-header">
-            <h2>Competences non couvertes</h2>
+            <h2>Compétences non couvertes</h2>
             <span class="alert-badge">Alerte</span>
         </div>
 
         <div class="stack-list">
             @if (uncoveredCompetencies.length === 0) {
-            <div class="ok-box">Toutes les competences prioritaires du marche sont couvertes.</div>
+            <div class="ok-box">Toutes les compétences prioritaires du marché sont couvertes.</div>
             } @else { @for (competency of uncoveredCompetencies; track trackByCompetency($index, competency)) {
             <div class="alert-item">
                 <div>

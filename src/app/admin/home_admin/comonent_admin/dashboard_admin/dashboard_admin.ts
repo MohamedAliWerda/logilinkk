@@ -32,20 +32,20 @@ export class DashboardAdmin {
 
   stats = [
     { value: '247', label: 'Étudiants inscrits' },
-    { value: '74%', label: 'Taux Employabilite' },
+    { value: '74%', label: "Taux d'employabilité" },
     { value: '81%', label: 'Taux Synergie' },
     { value: '36', label: 'Nombre de Modules' },
   ];
 
   donutLegend = [
-    { color: '#1e2d5a', label: 'Logistique' },
-    { color: '#d97706', label: 'Transport' },
+    { color: '#1e2d5a', label: 'Logistique', pct: 0.6 },
+    { color: '#d97706', label: 'Transport', pct: 0.4 },
   ];
 
-  domainPieLegend = [
-    { color: '#e06456', label: 'SCM & Achat' },
-    { color: '#2a9d8f', label: 'Transport Global' },
-    { color: '#e9c46a', label: 'Logistique d\'Entrepôt' },
+  domainPieLegend: { color: string; label: string; pct: number }[] = [
+    { color: '#e06456', label: 'SCM & Achat', pct: 0 },
+    { color: '#2a9d8f', label: 'Transport Global', pct: 0 },
+    { color: '#e9c46a', label: 'Logistique d\'Entrepôt', pct: 0 },
   ];
 
   radarAxes = ['Techniques', 'Organisation', 'Comportement', 'Physiques'];
@@ -58,40 +58,40 @@ export class DashboardAdmin {
       name: 'Ahmed Ben Ali', id: 'ISGI2025-042', speciality: 'Logistique', score: 85, employabilityScore: 81,
       details: {
         matchings: ['Coordinateur Supply Chain', 'Analyste Flux Logistiques'],
-        gaps: ['Optimisation KPI transport', 'Gestion avancee WMS'],
-        recommendations: ['Atelier KPI Logistique', 'Projet terrain entrepot'],
+        gaps: ['Optimisation KPI transport', 'Gestion avancée WMS'],
+        recommendations: ['Atelier KPI Logistique', "Projet terrain d'entrepôt"],
       },
     },
     {
       name: 'Fatma Trabelsi', id: 'ISGI2025-043', speciality: 'Transport', score: 78, employabilityScore: 75,
       details: {
-        matchings: ['Agent Exploitation Transport', 'Planificatrice Tournees'],
-        gaps: ['Modelisation des couts', 'Suivi SLA client'],
-        recommendations: ['Formation TMS avancee', 'Simulation SLA'],
+        matchings: ['Agent Exploitation Transport', 'Planificatrice Tournées'],
+        gaps: ['Modélisation des coûts', 'Suivi SLA client'],
+        recommendations: ['Formation TMS avancée', 'Simulation SLA'],
       },
     },
     {
       name: 'Mohamed Karray', id: 'ISGI2025-044', speciality: 'Supply Chain', score: 91, employabilityScore: 87,
       details: {
         matchings: ['Assistant Demand Planner', 'Junior Supply Analyst'],
-        gaps: ['Data visualisation', 'Negotiation fournisseurs'],
+        gaps: ['Data visualisation', 'Négociation fournisseurs'],
         recommendations: ['Certif BI fundamentals', 'Cas pratique sourcing'],
       },
     },
     {
       name: 'Sarra Gharbi', id: 'ISGI2025-045', speciality: 'Logistique', score: 67, employabilityScore: 69,
       details: {
-        matchings: ['Assistante Stock', 'Operatrice Flux'],
+        matchings: ['Assistante Stock', 'Opératrice Flux'],
         gaps: ['Tableaux de bord', 'Gestion des retours'],
-        recommendations: ['Bootcamp Excel operationnel', 'Module Reverse Logistics'],
+        recommendations: ['Bootcamp Excel opérationnel', 'Module Reverse Logistics'],
       },
     },
     {
       name: 'Youssef Hammami', id: 'ISGI2025-046', speciality: 'Commerce Int.', score: 74, employabilityScore: 72,
       details: {
         matchings: ['Assistant Import/Export', 'Coordinateur Transit Junior'],
-        gaps: ['Documentation douaniere', 'Incoterms avances'],
-        recommendations: ['Atelier Douane', 'Preparation certif Incoterms'],
+        gaps: ['Documentation douanière', 'Incoterms avancés'],
+        recommendations: ['Atelier Douane', 'Préparation certif. Incoterms'],
       },
     },
   ];
@@ -101,55 +101,55 @@ export class DashboardAdmin {
       name: 'Ahmed Ben Ali', id: 'ISGI2025-042', speciality: 'Logistique', score: 85, employabilityScore: 81,
       details: {
         matchings: ['Coordinateur Supply Chain', 'Analyste Flux Logistiques'],
-        gaps: ['Optimisation KPI transport', 'Gestion avancee WMS'],
-        recommendations: ['Atelier KPI Logistique', 'Projet terrain entrepot'],
+        gaps: ['Optimisation KPI transport', 'Gestion avancée WMS'],
+        recommendations: ['Atelier KPI Logistique', "Projet terrain d'entrepôt"],
       },
     },
     {
       name: 'Fatma Trabelsi', id: 'ISGI2025-043', speciality: 'Transport', score: 78, employabilityScore: 75,
       details: {
-        matchings: ['Agent Exploitation Transport', 'Planificatrice Tournees'],
-        gaps: ['Modelisation des couts', 'Suivi SLA client'],
-        recommendations: ['Formation TMS avancee', 'Simulation SLA'],
+        matchings: ['Agent Exploitation Transport', 'Planificatrice Tournées'],
+        gaps: ['Modélisation des coûts', 'Suivi SLA client'],
+        recommendations: ['Formation TMS avancée', 'Simulation SLA'],
       },
     },
     {
       name: 'Mohamed Karray', id: 'ISGI2025-044', speciality: 'Supply Chain', score: 91, employabilityScore: 87,
       details: {
         matchings: ['Assistant Demand Planner', 'Junior Supply Analyst'],
-        gaps: ['Data visualisation', 'Negotiation fournisseurs'],
+        gaps: ['Data visualisation', 'Négociation fournisseurs'],
         recommendations: ['Certif BI fundamentals', 'Cas pratique sourcing'],
       },
     },
     {
       name: 'Sarra Gharbi', id: 'ISGI2025-045', speciality: 'Logistique', score: 67, employabilityScore: 69,
       details: {
-        matchings: ['Assistante Stock', 'Operatrice Flux'],
+        matchings: ['Assistante Stock', 'Opératrice Flux'],
         gaps: ['Tableaux de bord', 'Gestion des retours'],
-        recommendations: ['Bootcamp Excel operationnel', 'Module Reverse Logistics'],
+        recommendations: ['Bootcamp Excel opérationnel', 'Module Reverse Logistics'],
       },
     },
     {
       name: 'Youssef Hammami', id: 'ISGI2025-046', speciality: 'Commerce Int.', score: 74, employabilityScore: 72,
       details: {
         matchings: ['Assistant Import/Export', 'Coordinateur Transit Junior'],
-        gaps: ['Documentation douaniere', 'Incoterms avances'],
-        recommendations: ['Atelier Douane', 'Preparation certif Incoterms'],
+        gaps: ['Documentation douanière', 'Incoterms avancés'],
+        recommendations: ['Atelier Douane', 'Préparation certif. Incoterms'],
       },
     },
     {
       name: 'Nour Ben Hassen', id: 'ISGI2025-047', speciality: 'Transport', score: 83, employabilityScore: 80,
       details: {
-        matchings: ['Planificatrice Transport', 'Assistante Affretement'],
-        gaps: ['Pilotage KPI ponctualite', 'Gestion incidents route'],
-        recommendations: ['Module dispatching avance', 'Cas incidents multi-sites'],
+        matchings: ['Planificatrice Transport', 'Assistante Affrètement'],
+        gaps: ['Pilotage KPI ponctualité', 'Gestion incidents route'],
+        recommendations: ['Module dispatching avancé', 'Cas incidents multi-sites'],
       },
     },
     {
       name: 'Imen Chahed', id: 'ISGI2025-048', speciality: 'Supply Chain', score: 88, employabilityScore: 86,
       details: {
         matchings: ['Supply Planner Junior', 'Analyste Approvisionnement'],
-        gaps: ['Forecasting avance', 'Contract management'],
+        gaps: ['Forecasting avancé', 'Contract management'],
         recommendations: ['Mini-projet S&OP', 'Atelier procurement'],
       },
     },
@@ -158,15 +158,15 @@ export class DashboardAdmin {
       details: {
         matchings: ['Superviseur Quai Junior', 'Coordinateur Stock'],
         gaps: ['Lean logistics', 'Analyse ABC/XYZ'],
-        recommendations: ['Formation Lean entrepot', 'Workshop analyses stocks'],
+        recommendations: ['Formation Lean entrepôt', 'Workshop analyses stocks'],
       },
     },
     {
       name: 'Rim Khelifi', id: 'ISGI2025-050', speciality: 'Commerce Int.', score: 81, employabilityScore: 79,
       details: {
-        matchings: ['Assistante Trade Compliance', 'Chargee Export'],
-        gaps: ['Veille reglementaire', 'Negociation internationale'],
-        recommendations: ['Atelier compliance', 'Simulation negociations'],
+        matchings: ['Assistante Trade Compliance', 'Chargée Export'],
+        gaps: ['Veille réglementaire', 'Négociation internationale'],
+        recommendations: ['Atelier compliance', 'Simulation négociations'],
       },
     },
     {
@@ -225,6 +225,11 @@ export class DashboardAdmin {
 
   donutSegments: { color: string; dashArray: string; dashOffset: number }[];
   domainPieSegments: { color: string; dashArray: string; dashOffset: number }[];
+  domainPieLabels: { x: number; y: number; text: string; color: string }[];
+  marketColor: string;
+  coverageColor: string;
+  gapsData: { label: string; marketPct: number; coverPct: number }[];
+  gapsChart: { label: string; y: number; marketPct: number; coverPct: number; marketW: number; coverW: number }[];
   barData: {
     range: string;
     labelX: number;
@@ -243,8 +248,8 @@ export class DashboardAdmin {
     // ── Donut chart ─────────────────────────────────────────────
     const C = 2 * Math.PI * 70; // ≈ 439.82
     const rawSegs = [
-      { color: '#1e2d5a', pct: 0.5 },
-      { color: '#d97706', pct: 0.5 },
+      { color: '#1e2d5a', pct: 0.6 },
+      { color: '#d97706', pct: 0.4 },
     ];
     let covered = 0;
     this.donutSegments = rawSegs.map((s) => {
@@ -275,6 +280,48 @@ export class DashboardAdmin {
       };
       coveredPie += arcLength;
       return seg;
+    });
+
+    // attach pct to legend entries
+    this.domainPieLegend = this.domainPieLegend.map((d, i) => ({ ...d, pct: rawPieSegs[i]?.pct ?? 0 }));
+
+    // compute label positions for domain pie
+    this.domainPieLabels = [];
+    let cumPct = 0;
+    const labelR = 70;
+    for (const s of rawPieSegs) {
+      const mid = cumPct + s.pct / 2;
+      const angle = mid * Math.PI * 2 - Math.PI / 2; // account for rotate(-90)
+      const x = +(100 + Math.cos(angle) * labelR).toFixed(2);
+      const y = +(100 + Math.sin(angle) * labelR).toFixed(2);
+      const text = `${Math.round(s.pct * 100)}%`;
+      const color = this.getContrastColor(s.color);
+      this.domainPieLabels.push({ x, y, text, color });
+      cumPct += s.pct;
+    }
+
+    // ── Top Gaps chart data (replaces radar visual) ─────────────────
+    this.marketColor = '#1e2d5a';
+    this.coverageColor = '#d97706';
+    this.gapsData = [
+      { label: 'SAP/ERP', marketPct: 92, coverPct: 18 },
+      { label: 'WMS', marketPct: 78, coverPct: 12 },
+      { label: 'Power BI', marketPct: 68, coverPct: 22 },
+      { label: 'RFID/IoT', marketPct: 58, coverPct: 10 },
+      { label: 'TMS', marketPct: 55, coverPct: 20 },
+      { label: 'Lean Mgmt', marketPct: 42, coverPct: 28 },
+    ];
+    const maxBarW = 360;
+    this.gapsChart = this.gapsData.map((d, i) => {
+      const y = 30 + i * 36;
+      return {
+        label: d.label,
+        y,
+        marketPct: d.marketPct,
+        coverPct: d.coverPct,
+        marketW: +((d.marketPct / 100) * maxBarW).toFixed(2),
+        coverW: +((d.coverPct / 100) * maxBarW).toFixed(2),
+      };
     });
 
     this.radarChart = this.buildRadarChart();
@@ -410,6 +457,16 @@ export class DashboardAdmin {
       value: v,
       y: +(Y_BOTTOM - (v / BAR_MAX) * CHART_H).toFixed(2),
     }));
+  }
+
+  private getContrastColor(hex: string): string {
+    if (!hex) return '#ffffff';
+    const c = hex.replace('#', '');
+    const r = parseInt(c.substring(0, 2), 16);
+    const g = parseInt(c.substring(2, 4), 16);
+    const b = parseInt(c.substring(4, 6), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 150 ? '#1a1a2e' : '#ffffff';
   }
 
   logout() {
