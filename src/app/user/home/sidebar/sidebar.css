@@ -261,7 +261,7 @@
     overflow: visible;
     letter-spacing: 0;
     opacity: 0.95;
-    max-width: 155px;
+    max-width: none;
     word-break: break-word;
 }
 
