@@ -483,6 +483,44 @@ textarea.form-control {
 }
 
 
+/* ATS Score Section — between topbar and CV paper */
+
+.ats-score-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 0.85rem 1.2rem;
+    max-width: 820px;
+    margin: 0 auto;
+}
+
+.ats-score-section-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 1;
+}
+
+.ats-score-section-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.ats-score-section-grade {
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+
 /* ATS Header */
 
 .ats-header {

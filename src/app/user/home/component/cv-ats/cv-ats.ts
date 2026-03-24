@@ -238,7 +238,6 @@ export class CvAts {
     this.formError = '';
     this.updatedAt = new Date().toISOString();
     this.atsScore = this.computeCompletenessScore();
-    this.cohortRank = Math.max(1, 100 - Math.round(this.atsScore));
     this.showPreview = true;
   }
 
@@ -608,7 +607,6 @@ export class CvAts {
       const missing = descriptionKeywords.filter((keyword) => !profileKeywords.has(keyword)).slice(0, 12);
 
       this.atsScore = overallScore;
-      this.cohortRank = Math.max(1, 100 - Math.round(overallScore));
       this.atsResult = {
         matchScore,
         overallScore,

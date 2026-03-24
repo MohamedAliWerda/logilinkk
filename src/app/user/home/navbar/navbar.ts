@@ -27,6 +27,41 @@ export class Navbar implements OnInit {
 
   ngOnInit(): void {
     this.sidebarService.open();
+
+    // Try to read the logged-in user from localStorage and update the displayed name.
+    function formatNameFromEmail(email: string): string {
+      const local = email.split('@')[0];
+      const parts = local.split(/[._-]+/).filter(Boolean);
+      if (parts.length === 0) return email;
+      return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    }
+
+    try {
+      const raw = localStorage.getItem('user');
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, unknown> | null;
+        if (parsed) {
+          const displayNameFromFields =
+            (typeof parsed['displayName'] === 'string' && parsed['displayName']) ||
+            ((typeof parsed['firstName'] === 'string' || typeof parsed['lastName'] === 'string')
+              ? `${String(parsed['firstName'] ?? '')} ${String(parsed['lastName'] ?? '')}`.trim()
+              : undefined);
+
+          const email = typeof parsed['email'] === 'string' ? parsed['email'] : undefined;
+          const displayName = displayNameFromFields || (email ? formatNameFromEmail(email) : undefined);
+
+          if (displayName) {
+            this.user.name = displayName;
+          }
+
+          if (typeof parsed['avatarUrl'] === 'string') {
+            this.user.avatarUrl = parsed['avatarUrl'];
+          }
+        }
+      }
+    } catch {
+      // If parsing fails, keep default user object.
+    }
   }
 
   /** Toggles the sidebar open/closed via the shared service. */

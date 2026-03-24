@@ -16,6 +16,23 @@ type UserRecord = {
   role: 'admin' | 'etudiant';
 };
 
+type ProfileEtudiantRecord = {
+  nom?: string;
+  prenom?: string;
+  cin_passport?: number | string;
+  nationalite?: string;
+  ville?: string;
+  sexe?: string;
+  ville_naissance?: string;
+  adresse?: string;
+  code_postal?: number | string;
+  telephone?: number | string;
+  groupe?: string;
+  niveau?: number | string;
+  filiere?: string;
+  departement?: string;
+};
+
 function looksLikeBcryptHash(value: string): boolean {
   return /^\$2[aby]\$\d{2}\$/.test(value);
 }
@@ -61,6 +78,16 @@ export class AuthService {
 
     const accessToken = await this.jwtService.signAsync(payload);
 
+    const { data: profile, error: profileError } = await supabase
+      .from('profils_etudiant')
+      .select('*')
+      .eq('cin_passport', cinPassportValue)
+      .maybeSingle<ProfileEtudiantRecord>();
+
+    if (profileError) {
+      throw new InternalServerErrorException(profileError.message);
+    }
+
     return {
       message: 'Login successful',
       data: {
@@ -70,6 +97,7 @@ export class AuthService {
           email: user.email,
           role: user.role,
           cin_passport: user.cin_passport,
+          ...(profile ?? {}),
         },
       },
     };

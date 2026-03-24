@@ -553,9 +553,6 @@
     <div class="metadata-grid">
         <div class="meta-item"><span>ID étudiant</span><strong>{{ studentId }}</strong></div>
         <div class="meta-item"><span>Création</span><strong>{{ createdAt | date:'short' }}</strong></div>
-        <div class="meta-item"><span>Mise à jour</span><strong>{{ updatedAt | date:'short' }}</strong></div>
-        <div class="meta-item"><span>Score ATS courant</span><strong>{{ atsScore }}%</strong></div>
-        <div class="meta-item"><span>Classement cohorte</span><strong>#{{ cohortRank || '-' }}</strong></div>
     </div>
 
     <label class="consent-row">
@@ -628,6 +625,13 @@
         <button type="button" class="btn-download" (click)="download()">
             <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
           </button>
+    </div>
+
+    <!-- ── ATS Score Section ── -->
+    <div class="ats-score-section">
+        <div class="ats-score-section-label"><i class="fa-solid fa-chart-simple"></i> Score ATS</div>
+        <div class="ats-score-section-value" [style.color]="scoreColor(atsScore)">{{ atsScore }}%</div>
+        <div class="ats-score-section-grade" [style.color]="scoreColor(atsScore)">{{ scoreGrade(atsScore) }}</div>
     </div>
 
     <!-- ── CV PAPER (ATS FORMAT) ── -->
