@@ -42,6 +42,44 @@ export class CvAts {
   formError = '';
   readonly sharedProfileInfo = buildCvAtsPrefill(STUDENT_PROFILE_DATA);
 
+  constructor() {
+    this.applyLoggedInUser();
+  }
+
+  private pick<T = any>(obj: Record<string, any> | null | undefined, ...keys: string[]): T | undefined {
+    if (!obj) return undefined;
+    for (const k of keys) {
+      if (Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null) return obj[k] as T;
+    }
+    return undefined;
+  }
+
+  private applyLoggedInUser(): void {
+    try {
+      const raw = localStorage.getItem('user');
+      if (!raw) return;
+      const u = JSON.parse(raw) as Record<string, any> | null;
+      if (!u) return;
+
+      this.info.prenom = (this.pick(u, 'prenom', 'firstName', 'given_name') as string) ?? this.info.prenom;
+      this.info.nom = (this.pick(u, 'nom', 'lastName', 'family_name') as string) ?? this.info.nom;
+      this.info.email = (this.pick(u, 'email', 'email_address') as string) ?? this.info.email;
+      this.info.telephone = (this.pick(u, 'telephone', 'phone', 'phone_number') as string) ?? this.info.telephone;
+      this.info.ville = (this.pick(u, 'ville', 'city') as string) ?? this.info.ville;
+      this.info.codePostal = (this.pick(u, 'code_postal', 'postal_code', 'zip') as string) ?? this.info.codePostal;
+      this.info.niveau = (this.pick(u, 'niveau', 'level') as string) ?? this.info.niveau;
+      this.info.sexe = (this.pick(u, 'sexe', 'gender') as string) ?? this.info.sexe;
+      this.info.nationalite = (this.pick(u, 'nationalite', 'nationality') as string) ?? this.info.nationalite;
+
+      const filiere = (this.pick(u, 'filiere', 'major') as string) ?? undefined;
+      if (filiere) {
+        this.formations[0].diplome = filiere;
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+
   steps = [
     { label: 'Infos', icon: 'fa-user' },
     { label: 'Profil', icon: 'fa-bullseye' },
@@ -230,15 +268,30 @@ export class CvAts {
   }
 
   generate() {
-    if (!this.consentGiven) {
-      this.formError = 'Le consentement RGPD / Loi tunisienne est obligatoire pour generer le CV.';
-      return;
-    }
+    console.log('generate() clicked, consentGiven=', this.consentGiven);
+    try {
+      if (!this.consentGiven) {
+        this.formError = 'Le consentement RGPD / Loi tunisienne est obligatoire pour generer le CV.';
+        console.warn('Generation blocked: consent not given');
+        return;
+      }
 
-    this.formError = '';
-    this.updatedAt = new Date().toISOString();
-    this.atsScore = this.computeCompletenessScore();
-    this.showPreview = true;
+      this.formError = '';
+      this.updatedAt = new Date().toISOString();
+      try {
+        this.atsScore = this.computeCompletenessScore();
+      } catch (e) {
+        console.error('computeCompletenessScore() threw', e);
+        this.formError = 'Erreur lors du calcul du score. Voir console.';
+        return;
+      }
+
+      this.showPreview = true;
+      console.log('showPreview set true');
+    } catch (err) {
+      console.error('Unexpected error in generate()', err);
+      this.formError = 'Erreur inattendue lors de la génération.';
+    }
   }
 
   backToForm() {
@@ -654,19 +707,20 @@ export class CvAts {
   }
 
   private computeCompletenessScore(): number {
+    const safe = (v: any) => String(v ?? '').trim();
     const checks = [
-      !!this.info.prenom.trim(),
-      !!this.info.nom.trim(),
-      !!this.info.email.trim(),
-      !!this.info.telephone.trim(),
-      !!this.professionalTitle.trim(),
-      !!this.objectif.trim(),
-      !!this.formations[0]?.diplome.trim(),
-      !!this.experiences[0]?.poste.trim(),
-      !!this.hardSkills.some((h) => h.nom.trim()),
-      !!this.softSkills.some((s) => s.nom.trim()),
-      !!this.langues.some((l) => l.langue.trim()),
-      !!this.consentGiven
+      !!safe(this.info.prenom),
+      !!safe(this.info.nom),
+      !!safe(this.info.email),
+      !!safe(this.info.telephone),
+      !!safe(this.professionalTitle),
+      !!safe(this.objectif),
+      !!safe(this.formations?.[0]?.diplome),
+      !!safe(this.experiences?.[0]?.poste),
+      !!this.hardSkills.some((h) => !!safe(h.nom)),
+      !!this.softSkills.some((s) => !!safe(s.nom)),
+      !!this.langues.some((l) => !!safe(l.langue)),
+      !!this.consentGiven,
     ];
 
     const completed = checks.filter(Boolean).length;
@@ -674,14 +728,15 @@ export class CvAts {
   }
 
   private computeStructureScore(): number {
+    const safe = (v: any) => String(v ?? '').trim();
     const sections = [
-      this.formations.some((f) => f.diplome.trim()),
-      this.experiences.some((e) => e.poste.trim() && e.description.trim()),
-      this.hardSkills.some((h) => h.nom.trim()),
-      this.softSkills.some((s) => s.nom.trim()),
-      this.langues.some((l) => l.langue.trim()),
-      this.projets.some((p) => p.titre.trim()),
-      this.certifications.some((c) => c.titre.trim())
+      this.formations.some((f) => !!safe(f?.diplome)),
+      this.experiences.some((e) => !!safe(e?.poste) && !!safe(e?.description)),
+      this.hardSkills.some((h) => !!safe(h?.nom)),
+      this.softSkills.some((s) => !!safe(s?.nom)),
+      this.langues.some((l) => !!safe(l?.langue)),
+      this.projets.some((p) => !!safe(p?.titre)),
+      this.certifications.some((c) => !!safe(c?.titre)),
     ];
 
     return Math.round((sections.filter(Boolean).length / sections.length) * 100);
