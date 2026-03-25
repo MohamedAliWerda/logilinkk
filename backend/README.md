@@ -45,6 +45,7 @@ Create a `.env` file from `.env.example`:
 - `MONGO_URI`
 - `MONGO_URI_FALLBACK` (optional)
 - `MONGO_DB_NAME` (optional, default: `referentiel_competences`)
+- `MONGO_PREFER_FALLBACK` (optional, default: `true`)
 - `MONGO_SERVER_SELECTION_TIMEOUT_MS` (optional, default: `20000`)
 - `MONGO_CONNECT_TIMEOUT_MS` (optional, default: `20000`)
 - `MONGO_FORCE_IPV4` (optional, set `true` if Atlas SRV DNS fails on some machines)
@@ -57,6 +58,7 @@ If you get `querySrv ECONNREFUSED` on a laptop:
 
 1. In Atlas, copy the non-SRV connection string (`mongodb://...`) from the driver connection options.
 2. Put that value in `MONGO_URI_FALLBACK` (or directly in `MONGO_URI`).
+  Keep `MONGO_PREFER_FALLBACK=true` so backend tries the non-SRV URI first.
 3. Set local DNS to Cloudflare (`1.1.1.1`) or Google (`8.8.8.8`) and retry.
 4. Keep `MONGO_FORCE_IPV4=true` on that machine if needed.
 

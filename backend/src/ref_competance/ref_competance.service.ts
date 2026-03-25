@@ -23,6 +23,8 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
   private readonly serverSelectionTimeoutMs: number;
   private readonly connectTimeoutMs: number;
   private readonly forceIpv4: boolean;
+  private readonly preferFallback: boolean;
+  private readonly blockedMongoUris = new Set<string>();
 
   private mongoClient: MongoClient | null = null;
   private db: Db | null = null;
@@ -34,7 +36,15 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
       .get<string>('MONGO_URI_FALLBACK')
       ?.trim();
 
-    this.mongoUris = [configuredPrimaryUri, configuredFallbackUri]
+    const parsedPreferFallback =
+      this.configService.get<string>('MONGO_PREFER_FALLBACK')?.toLowerCase();
+    this.preferFallback = parsedPreferFallback ? parsedPreferFallback === 'true' : true;
+
+    const initialUris = this.preferFallback
+      ? [configuredFallbackUri, configuredPrimaryUri]
+      : [configuredPrimaryUri, configuredFallbackUri];
+
+    this.mongoUris = initialUris
       .filter((value): value is string => Boolean(value && value.length > 0))
       .filter((value, index, values) => values.indexOf(value) === index);
 
@@ -56,6 +66,13 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
 
   onModuleInit(): void {
     if (this.mongoUris.length > 0) {
+      if (
+        this.preferFallback &&
+        this.mongoUris.length > 1 &&
+        this.mongoUris[0].startsWith('mongodb://')
+      ) {
+        this.logger.log('Using non-SRV Mongo fallback URI first for better DNS compatibility.');
+      }
       return;
     }
 
@@ -127,8 +144,14 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
 
   private async connectWithFallback(): Promise<Db> {
     let lastError: unknown;
+    let attemptedConnections = 0;
 
     for (const uri of this.mongoUris) {
+      if (this.blockedMongoUris.has(uri)) {
+        continue;
+      }
+
+      attemptedConnections += 1;
       const options: MongoClientOptions = {
         serverSelectionTimeoutMS: this.serverSelectionTimeoutMs,
         connectTimeoutMS: this.connectTimeoutMs,
@@ -151,6 +174,10 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
         await client.close().catch(() => undefined);
 
         const message = error instanceof Error ? error.message : String(error);
+        if (/querySrv\s+ECONNREFUSED/i.test(message)) {
+          this.blockedMongoUris.add(uri);
+        }
+
         this.logger.warn(
           `MongoDB connection attempt failed for URI: ${this.maskMongoUri(uri)}. ${message}`,
         );
@@ -160,6 +187,12 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
     if (this.mongoUris.length === 0) {
       throw new ServiceUnavailableException(
         `Unable to connect to MongoDB (${this.dbName}). Missing MONGO_URI configuration.`,
+      );
+    }
+
+    if (attemptedConnections === 0) {
+      throw new ServiceUnavailableException(
+        `Unable to connect to MongoDB (${this.dbName}). All configured URIs are temporarily disabled after previous SRV DNS failures. Configure MONGO_URI_FALLBACK with non-SRV mongodb:// URI and restart the API.`,
       );
     }
 
