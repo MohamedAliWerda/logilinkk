@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   OnModuleDestroy,
+  OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -15,7 +16,7 @@ type ReferentielRow = {
 };
 
 @Injectable()
-export class RefCompetanceService implements OnModuleDestroy {
+export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
   private readonly logger = new Logger(RefCompetanceService.name);
   private readonly mongoUris: string[];
   private readonly dbName: string;
@@ -30,16 +31,23 @@ export class RefCompetanceService implements OnModuleDestroy {
       .get<string>('MONGO_URI_FALLBACK')
       ?.trim();
 
-    const defaultSrvUri =
-      'mongodb+srv://bilel-db:JbBLw3NTQf1jasuH@metier.miwjsw8.mongodb.net/';
-
-    this.mongoUris = [configuredPrimaryUri, configuredFallbackUri, defaultSrvUri]
+    this.mongoUris = [configuredPrimaryUri, configuredFallbackUri]
       .filter((value): value is string => Boolean(value && value.length > 0))
       .filter((value, index, values) => values.indexOf(value) === index);
 
     this.dbName =
       this.configService.get<string>('MONGO_DB_NAME') ??
       'referentiel_competences';
+  }
+
+  onModuleInit(): void {
+    if (this.mongoUris.length > 0) {
+      return;
+    }
+
+    this.logger.error(
+      'MongoDB URI is missing. Set MONGO_URI in backend/.env (or MONGO_URI_FALLBACK as secondary).',
+    );
   }
 
   async getReferentielCompetences(): Promise<ReferentielRow[]> {
@@ -125,6 +133,12 @@ export class RefCompetanceService implements OnModuleDestroy {
         const message = error instanceof Error ? error.message : String(error);
         this.logger.warn(`MongoDB connection attempt failed for URI: ${uri}. ${message}`);
       }
+    }
+
+    if (this.mongoUris.length === 0) {
+      throw new ServiceUnavailableException(
+        `Unable to connect to MongoDB (${this.dbName}). Missing MONGO_URI configuration.`,
+      );
     }
 
     const lastErrorMessage =

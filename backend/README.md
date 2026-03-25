@@ -42,6 +42,11 @@ Create a `.env` file from `.env.example`:
 - `SUPABASE_KEY`
 - `JWT_SECRET`
 - `DATABASE_URL`
+- `MONGO_URI`
+- `MONGO_URI_FALLBACK` (optional)
+- `MONGO_DB_NAME` (optional, default: `referentiel_competences`)
+
+For MongoDB Atlas, make sure each teammate's IP is allowed in Atlas Network Access.
 
 ## Install and Run
 
