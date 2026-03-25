@@ -24,6 +24,7 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
   private readonly connectTimeoutMs: number;
   private readonly forceIpv4: boolean;
   private readonly preferFallback: boolean;
+  private readonly disableSrvUri: boolean;
   private readonly blockedMongoUris = new Set<string>();
 
   private mongoClient: MongoClient | null = null;
@@ -62,9 +63,15 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
     );
     this.forceIpv4 =
       this.configService.get<string>('MONGO_FORCE_IPV4')?.toLowerCase() === 'true';
+    this.disableSrvUri =
+      this.configService.get<string>('MONGO_DISABLE_SRV')?.toLowerCase() === 'true';
   }
 
   onModuleInit(): void {
+    if (this.disableSrvUri) {
+      this.logger.warn('MONGO_DISABLE_SRV=true. mongodb+srv URIs will be skipped.');
+    }
+
     if (this.mongoUris.length > 0) {
       if (
         this.preferFallback &&
@@ -147,6 +154,10 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
     let attemptedConnections = 0;
 
     for (const uri of this.mongoUris) {
+      if (this.disableSrvUri && uri.startsWith('mongodb+srv://')) {
+        continue;
+      }
+
       if (this.blockedMongoUris.has(uri)) {
         continue;
       }
@@ -192,7 +203,7 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
 
     if (attemptedConnections === 0) {
       throw new ServiceUnavailableException(
-        `Unable to connect to MongoDB (${this.dbName}). All configured URIs are temporarily disabled after previous SRV DNS failures. Configure MONGO_URI_FALLBACK with non-SRV mongodb:// URI and restart the API.`,
+        `Unable to connect to MongoDB (${this.dbName}). No usable Mongo URI available. Configure MONGO_URI_FALLBACK with non-SRV mongodb:// URI and restart the API.`,
       );
     }
 

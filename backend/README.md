@@ -49,6 +49,7 @@ Create a `.env` file from `.env.example`:
 - `MONGO_SERVER_SELECTION_TIMEOUT_MS` (optional, default: `20000`)
 - `MONGO_CONNECT_TIMEOUT_MS` (optional, default: `20000`)
 - `MONGO_FORCE_IPV4` (optional, set `true` if Atlas SRV DNS fails on some machines)
+- `MONGO_DISABLE_SRV` (optional, set `true` to skip all `mongodb+srv://` URIs)
 
 For MongoDB Atlas, make sure each teammate's IP is allowed in Atlas Network Access.
 
@@ -61,6 +62,7 @@ If you get `querySrv ECONNREFUSED` on a laptop:
   Keep `MONGO_PREFER_FALLBACK=true` so backend tries the non-SRV URI first.
 3. Set local DNS to Cloudflare (`1.1.1.1`) or Google (`8.8.8.8`) and retry.
 4. Keep `MONGO_FORCE_IPV4=true` on that machine if needed.
+5. If warnings still show for `mongodb+srv://`, set `MONGO_DISABLE_SRV=true`.
 
 ## Install and Run
 
