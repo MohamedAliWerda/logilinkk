@@ -53,6 +53,13 @@ For MongoDB Atlas, make sure each teammate's IP is allowed in Atlas Network Acce
 
 Note: environment variables are loaded from `.env` and also `backend/.env`, so the API works whether started from the backend folder or from the monorepo root.
 
+If you get `querySrv ECONNREFUSED` on a laptop:
+
+1. In Atlas, copy the non-SRV connection string (`mongodb://...`) from the driver connection options.
+2. Put that value in `MONGO_URI_FALLBACK` (or directly in `MONGO_URI`).
+3. Set local DNS to Cloudflare (`1.1.1.1`) or Google (`8.8.8.8`) and retry.
+4. Keep `MONGO_FORCE_IPV4=true` on that machine if needed.
+
 ## Install and Run
 
 ```bash

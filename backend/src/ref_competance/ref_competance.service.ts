@@ -166,14 +166,24 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
     const lastErrorMessage =
       lastError instanceof Error ? lastError.message : 'Unknown MongoDB error';
 
+    const srvDnsRefused = /querySrv\s+ECONNREFUSED/i.test(lastErrorMessage);
+
     const hints = [
       'Verify MONGO_URI is correct and credentials are valid.',
       'Ensure MongoDB Atlas Network Access allows the teammate IP.',
       'If SRV DNS fails on a machine, set MONGO_FORCE_IPV4=true and/or use MONGO_URI_FALLBACK.',
-    ].join(' ');
+    ];
+
+    if (srvDnsRefused) {
+      hints.push(
+        'Detected DNS SRV lookup failure (querySrv ECONNREFUSED). Use a non-SRV Atlas URI (mongodb://...) in MONGO_URI_FALLBACK or MONGO_URI and switch local DNS to 1.1.1.1 or 8.8.8.8.',
+      );
+    }
 
     throw new ServiceUnavailableException(
-      `Unable to connect to MongoDB (${this.dbName}). Last error: ${lastErrorMessage}. ${hints}`,
+      `Unable to connect to MongoDB (${this.dbName}). Last error: ${lastErrorMessage}. ${hints.join(
+        ' ',
+      )}`,
     );
   }
 
