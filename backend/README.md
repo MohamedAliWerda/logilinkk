@@ -45,8 +45,13 @@ Create a `.env` file from `.env.example`:
 - `MONGO_URI`
 - `MONGO_URI_FALLBACK` (optional)
 - `MONGO_DB_NAME` (optional, default: `referentiel_competences`)
+- `MONGO_SERVER_SELECTION_TIMEOUT_MS` (optional, default: `20000`)
+- `MONGO_CONNECT_TIMEOUT_MS` (optional, default: `20000`)
+- `MONGO_FORCE_IPV4` (optional, set `true` if Atlas SRV DNS fails on some machines)
 
 For MongoDB Atlas, make sure each teammate's IP is allowed in Atlas Network Access.
+
+Note: environment variables are loaded from `.env` and also `backend/.env`, so the API works whether started from the backend folder or from the monorepo root.
 
 ## Install and Run
 

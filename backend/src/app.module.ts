@@ -8,6 +8,10 @@ import { RefCompetanceModule } from 'src/ref_competance/ref_competance.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // Support both execution styles:
+      // 1) run from backend folder ('.env')
+      // 2) run from monorepo root ('backend/.env')
+      envFilePath: ['.env', 'backend/.env'],
     }),
     AuthModule,
     ProfileModule,

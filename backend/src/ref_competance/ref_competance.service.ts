@@ -6,7 +6,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Db, Document, MongoClient } from 'mongodb';
+import { Db, Document, MongoClient, MongoClientOptions } from 'mongodb';
 
 type ReferentielRow = {
   code: string;
@@ -20,6 +20,9 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
   private readonly logger = new Logger(RefCompetanceService.name);
   private readonly mongoUris: string[];
   private readonly dbName: string;
+  private readonly serverSelectionTimeoutMs: number;
+  private readonly connectTimeoutMs: number;
+  private readonly forceIpv4: boolean;
 
   private mongoClient: MongoClient | null = null;
   private db: Db | null = null;
@@ -38,6 +41,17 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
     this.dbName =
       this.configService.get<string>('MONGO_DB_NAME') ??
       'referentiel_competences';
+
+    this.serverSelectionTimeoutMs = this.readPositiveInt(
+      this.configService.get<string>('MONGO_SERVER_SELECTION_TIMEOUT_MS'),
+      20000,
+    );
+    this.connectTimeoutMs = this.readPositiveInt(
+      this.configService.get<string>('MONGO_CONNECT_TIMEOUT_MS'),
+      20000,
+    );
+    this.forceIpv4 =
+      this.configService.get<string>('MONGO_FORCE_IPV4')?.toLowerCase() === 'true';
   }
 
   onModuleInit(): void {
@@ -115,10 +129,16 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
     let lastError: unknown;
 
     for (const uri of this.mongoUris) {
-      const client = new MongoClient(uri, {
-        serverSelectionTimeoutMS: 6000,
-        connectTimeoutMS: 6000,
-      });
+      const options: MongoClientOptions = {
+        serverSelectionTimeoutMS: this.serverSelectionTimeoutMs,
+        connectTimeoutMS: this.connectTimeoutMs,
+      };
+
+      if (this.forceIpv4) {
+        options.family = 4;
+      }
+
+      const client = new MongoClient(uri, options);
 
       try {
         await client.connect();
@@ -131,7 +151,9 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
         await client.close().catch(() => undefined);
 
         const message = error instanceof Error ? error.message : String(error);
-        this.logger.warn(`MongoDB connection attempt failed for URI: ${uri}. ${message}`);
+        this.logger.warn(
+          `MongoDB connection attempt failed for URI: ${this.maskMongoUri(uri)}. ${message}`,
+        );
       }
     }
 
@@ -144,9 +166,41 @@ export class RefCompetanceService implements OnModuleDestroy, OnModuleInit {
     const lastErrorMessage =
       lastError instanceof Error ? lastError.message : 'Unknown MongoDB error';
 
+    const hints = [
+      'Verify MONGO_URI is correct and credentials are valid.',
+      'Ensure MongoDB Atlas Network Access allows the teammate IP.',
+      'If SRV DNS fails on a machine, set MONGO_FORCE_IPV4=true and/or use MONGO_URI_FALLBACK.',
+    ].join(' ');
+
     throw new ServiceUnavailableException(
-      `Unable to connect to MongoDB (${this.dbName}). Last error: ${lastErrorMessage}`,
+      `Unable to connect to MongoDB (${this.dbName}). Last error: ${lastErrorMessage}. ${hints}`,
     );
+  }
+
+  private readPositiveInt(value: string | undefined, fallback: number): number {
+    if (!value) {
+      return fallback;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return fallback;
+    }
+
+    return Math.floor(parsed);
+  }
+
+  private maskMongoUri(uri: string): string {
+    const atIndex = uri.indexOf('@');
+    const protocolIndex = uri.indexOf('://');
+
+    if (protocolIndex === -1 || atIndex === -1 || atIndex < protocolIndex) {
+      return uri;
+    }
+
+    const prefix = uri.slice(0, protocolIndex + 3);
+    const rest = uri.slice(atIndex + 1);
+    return `${prefix}***:***@${rest}`;
   }
 
   private createDomainLookup(domaines: Document[]): Map<string, string> {
