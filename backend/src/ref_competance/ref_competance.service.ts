@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Db, Document, MongoClient } from 'mongodb';
 
@@ -12,16 +17,26 @@ type ReferentielRow = {
 @Injectable()
 export class RefCompetanceService implements OnModuleDestroy {
   private readonly logger = new Logger(RefCompetanceService.name);
-  private readonly uri: string;
+  private readonly mongoUris: string[];
   private readonly dbName: string;
 
   private mongoClient: MongoClient | null = null;
   private db: Db | null = null;
+  private connectPromise: Promise<Db> | null = null;
 
   constructor(private readonly configService: ConfigService) {
-    this.uri =
-      this.configService.get<string>('MONGO_URI') ??
+    const configuredPrimaryUri = this.configService.get<string>('MONGO_URI')?.trim();
+    const configuredFallbackUri = this.configService
+      .get<string>('MONGO_URI_FALLBACK')
+      ?.trim();
+
+    const defaultSrvUri =
       'mongodb+srv://bilel-db:JbBLw3NTQf1jasuH@metier.miwjsw8.mongodb.net/';
+
+    this.mongoUris = [configuredPrimaryUri, configuredFallbackUri, defaultSrvUri]
+      .filter((value): value is string => Boolean(value && value.length > 0))
+      .filter((value, index, values) => values.indexOf(value) === index);
+
     this.dbName =
       this.configService.get<string>('MONGO_DB_NAME') ??
       'referentiel_competences';
@@ -75,13 +90,49 @@ export class RefCompetanceService implements OnModuleDestroy {
       return this.db;
     }
 
-    this.mongoClient = new MongoClient(this.uri);
-    await this.mongoClient.connect();
-    this.db = this.mongoClient.db(this.dbName);
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
 
-    this.logger.log(`Connected to MongoDB database: ${this.dbName}`);
+    this.connectPromise = this.connectWithFallback();
 
-    return this.db;
+    try {
+      return await this.connectPromise;
+    } finally {
+      this.connectPromise = null;
+    }
+  }
+
+  private async connectWithFallback(): Promise<Db> {
+    let lastError: unknown;
+
+    for (const uri of this.mongoUris) {
+      const client = new MongoClient(uri, {
+        serverSelectionTimeoutMS: 6000,
+        connectTimeoutMS: 6000,
+      });
+
+      try {
+        await client.connect();
+        this.mongoClient = client;
+        this.db = client.db(this.dbName);
+        this.logger.log(`Connected to MongoDB database: ${this.dbName}`);
+        return this.db;
+      } catch (error) {
+        lastError = error;
+        await client.close().catch(() => undefined);
+
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(`MongoDB connection attempt failed for URI: ${uri}. ${message}`);
+      }
+    }
+
+    const lastErrorMessage =
+      lastError instanceof Error ? lastError.message : 'Unknown MongoDB error';
+
+    throw new ServiceUnavailableException(
+      `Unable to connect to MongoDB (${this.dbName}). Last error: ${lastErrorMessage}`,
+    );
   }
 
   private createDomainLookup(domaines: Document[]): Map<string, string> {
