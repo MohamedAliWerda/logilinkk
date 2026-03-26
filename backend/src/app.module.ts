@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
 import { RefCompetanceModule } from 'src/ref_competance/ref_competance.module';
+import { CvSubmissionModule } from './cv_submission/cv-submission.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { RefCompetanceModule } from 'src/ref_competance/ref_competance.module';
     AuthModule,
     ProfileModule,
     RefCompetanceModule,
+    CvSubmissionModule,
   ],
 })
 export class AppModule {}

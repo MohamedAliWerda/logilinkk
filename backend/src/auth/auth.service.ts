@@ -14,6 +14,7 @@ type UserRecord = {
   email: string;
   mot_de_passe: string;
   role: 'admin' | 'etudiant';
+  auth_id?: string;
 };
 
 type ProfileEtudiantRecord = {
@@ -50,7 +51,7 @@ export class AuthService {
     const supabase = getSupabase();
     const { data: user, error } = await supabase
       .from('user')
-      .select('id, cin_passport, email, mot_de_passe, role')
+      .select('id, cin_passport, email, mot_de_passe, role, auth_id')
       .eq('cin_passport', cinPassportValue)
       .maybeSingle<UserRecord>();
 
@@ -71,7 +72,7 @@ export class AuthService {
     }
 
     const payload = {
-      sub: user.id,
+      sub: user.auth_id ?? String(user.id),
       cin_passport: user.cin_passport,
       role: user.role,
     };
@@ -94,6 +95,7 @@ export class AuthService {
         access_token: accessToken,
         user: {
           id: user.id,
+          auth_id: user.auth_id,
           email: user.email,
           role: user.role,
           cin_passport: user.cin_passport,

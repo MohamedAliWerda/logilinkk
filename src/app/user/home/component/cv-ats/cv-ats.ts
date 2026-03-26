@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { CvSubmissionService } from './cv-submission.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -42,7 +43,7 @@ export class CvAts {
   formError = '';
   readonly sharedProfileInfo = buildCvAtsPrefill(STUDENT_PROFILE_DATA);
 
-  constructor() {
+  constructor(private cvSubmissionService: CvSubmissionService) {
     this.applyLoggedInUser();
   }
 
@@ -288,6 +289,24 @@ export class CvAts {
 
       this.showPreview = true;
       console.log('showPreview set true');
+
+      // CV persistence layer call (after preview)
+      this.cvSubmissionService.upsertCv({
+        professionalTitle: this.professionalTitle,
+        specialization:    this.specialization,
+        objectif:          this.objectif,
+        atsScore:          this.atsScore,
+        consentGiven:      this.consentGiven,
+        info:              this.info,
+        formations:        this.formations,
+        experiences:       this.experiences,
+        hardSkills:        this.hardSkills,
+        softSkills:        this.softSkills,
+        langues:           this.langues,
+        projets:           this.projets,
+        certifications:    this.certifications,
+        engagements:       this.engagements,
+      }).catch(err => console.error('CV save failed:', err));
     } catch (err) {
       console.error('Unexpected error in generate()', err);
       this.formError = 'Erreur inattendue lors de la génération.';
