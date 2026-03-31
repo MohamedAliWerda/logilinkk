@@ -1,49 +1,48 @@
 {
-  "name": "logilink",
-  "version": "0.0.0",
-  "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "start:dev": "npm --prefix backend run start:dev",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test"
-  },
-  "prettier": {
-    "printWidth": 100,
-    "singleQuote": true,
-    "overrides": [
-      {
-        "files": "*.html",
-        "options": {
-          "parser": "angular"
-        }
-      }
-    ]
-  },
-  "private": true,
-  "packageManager": "npm@10.8.2",
-  "dependencies": {
-    "@angular/animations": "^21.2.3",
-    "@angular/common": "^21.1.0",
-    "@angular/compiler": "^21.1.0",
-    "@angular/core": "^21.1.0",
-    "@angular/forms": "^21.1.0",
-    "@angular/platform-browser": "^21.1.0",
-    "@angular/router": "^21.1.0",
-    "@nestjs/common": "^11.1.17",
-    "@nestjs/core": "^11.1.17",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "~7.8.0",
-    "tslib": "^2.3.0",
-    "zone.js": "^0.16.1"
-  },
-  "devDependencies": {
-    "@angular/build": "^21.1.2",
-    "@angular/cli": "^21.1.2",
-    "@angular/compiler-cli": "^21.1.0",
-    "jsdom": "^27.1.0",
-    "typescript": "~5.9.2",
-    "vitest": "^4.0.8"
-  }
+    "name": "logilink",
+    "version": "0.0.0",
+    "scripts": {
+        "ng": "ng",
+        "start": "ng serve",
+        "start:dev": "npm --prefix backend run start:dev",
+        "build": "ng build",
+        "watch": "ng build --watch --configuration development",
+        "test": "ng test"
+    },
+    "prettier": {
+        "printWidth": 100,
+        "singleQuote": true,
+        "overrides": [{
+            "files": "*.html",
+            "options": {
+                "parser": "angular"
+            }
+        }]
+    },
+    "private": true,
+    "packageManager": "npm@10.8.2",
+    "dependencies": {
+        "@angular/animations": "^21.2.3",
+        "@angular/common": "^21.1.0",
+        "@angular/compiler": "^21.1.0",
+        "@angular/core": "^21.1.0",
+        "@angular/forms": "^21.1.0",
+        "@angular/platform-browser": "^21.1.0",
+        "@angular/router": "^21.1.0",
+        "@nestjs/common": "^11.1.17",
+        "@nestjs/core": "^11.1.17",
+        "reflect-metadata": "^0.2.2",
+        "rxjs": "~7.8.0",
+        "tslib": "^2.3.0",
+        "zone.js": "^0.16.1",
+        "@supabase/supabase-js": "^2.34.0"
+    },
+    "devDependencies": {
+        "@angular/build": "^21.1.2",
+        "@angular/cli": "^21.1.2",
+        "@angular/compiler-cli": "^21.1.0",
+        "jsdom": "^27.1.0",
+        "typescript": "~5.9.2",
+        "vitest": "^4.0.8"
+    }
 }

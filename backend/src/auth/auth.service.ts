@@ -14,6 +14,24 @@ type UserRecord = {
   email: string;
   mot_de_passe: string;
   role: 'admin' | 'etudiant';
+  auth_id?: string;
+};
+
+type ProfileEtudiantRecord = {
+  nom?: string;
+  prenom?: string;
+  cin_passport?: number | string;
+  nationalite?: string;
+  ville?: string;
+  sexe?: string;
+  ville_naissance?: string;
+  adresse?: string;
+  code_postal?: number | string;
+  telephone?: number | string;
+  groupe?: string;
+  niveau?: number | string;
+  filiere?: string;
+  departement?: string;
 };
 
 function looksLikeBcryptHash(value: string): boolean {
@@ -33,7 +51,7 @@ export class AuthService {
     const supabase = getSupabase();
     const { data: user, error } = await supabase
       .from('user')
-      .select('id, cin_passport, email, mot_de_passe, role')
+      .select('id, cin_passport, email, mot_de_passe, role, auth_id')
       .eq('cin_passport', cinPassportValue)
       .maybeSingle<UserRecord>();
 
@@ -54,12 +72,22 @@ export class AuthService {
     }
 
     const payload = {
-      sub: user.id,
+      sub: user.auth_id ?? String(user.id),
       cin_passport: user.cin_passport,
       role: user.role,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profils_etudiant')
+      .select('*')
+      .eq('cin_passport', cinPassportValue)
+      .maybeSingle<ProfileEtudiantRecord>();
+
+    if (profileError) {
+      throw new InternalServerErrorException(profileError.message);
+    }
 
     return {
       message: 'Login successful',
@@ -67,9 +95,11 @@ export class AuthService {
         access_token: accessToken,
         user: {
           id: user.id,
+          auth_id: user.auth_id,
           email: user.email,
           role: user.role,
           cin_passport: user.cin_passport,
+          ...(profile ?? {}),
         },
       },
     };

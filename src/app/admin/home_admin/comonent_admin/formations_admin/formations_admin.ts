@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ReferentielApiService } from './referentiel-api.service';
 
 type CompetenceCategory = 'Techniques' | 'Organisationnelle' | 'Physique' | 'Comportementale';
 
@@ -29,26 +30,24 @@ interface PartnerSkill {
   styleUrl: './formations_admin.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class FormationsAdmin {
+export class FormationsAdmin implements OnInit {
   searchTerm: string = '';
+  selectedDomain: string = '';
   sortColumn: keyof Competence = 'code';
   sortDirection: 'asc' | 'desc' = 'asc';
+  loadingCompetences = false;
+  competencesError = '';
 
-  competences: Competence[] = [
-    { code: 'TL-TECH-001', name: 'Incoterms 2020', category: 'Techniques', domain: 'Supply Chain' },
-    { code: 'TL-TECH-002', name: 'Gestion douanière', category: 'Techniques', domain: 'Transit' },
-    { code: 'TL-TECH-003', name: 'Transit international', category: 'Techniques', domain: 'Transit' },
-    { code: 'TL-TECH-004', name: 'Transport multimodal', category: 'Techniques', domain: 'Transport Maritime' },
-    { code: 'TL-ORG-001', name: 'Gestion des flux', category: 'Organisationnelle', domain: 'Logistique' },
-    { code: 'TL-ORG-002', name: 'Planification S&OP', category: 'Organisationnelle', domain: 'Supply Chain' },
-    { code: 'TL-PHY-001', name: 'Manutention sécurisée', category: 'Physique', domain: 'Entrepôt' },
-    { code: 'TL-PHY-002', name: 'Conduite de chariots', category: 'Physique', domain: 'Entrepôt' },
-    { code: 'TL-COMP-001', name: 'Esprit d\'équipe', category: 'Comportementale', domain: 'Général' },
-    { code: 'TL-COMP-002', name: 'Réactivité & Urgence', category: 'Comportementale', domain: 'Opérations' },
-    { code: 'TL-TECH-005', name: "Gestion d'entrepôt (WMS)", category: 'Techniques', domain: 'Logistique' },
-    { code: 'TL-TECH-006', name: 'Supply Chain Management', category: 'Techniques', domain: 'Supply Chain' },
-    { code: 'TL-ORG-003', name: 'Optimisation de tournées', category: 'Organisationnelle', domain: 'Transport' },
-  ];
+  competences: Competence[] = [];
+
+  constructor(
+    private readonly referentielApiService: ReferentielApiService,
+    private readonly cdr: ChangeDetectorRef,
+  ) {}
+
+  ngOnInit(): void {
+    void this.loadCompetences();
+  }
 
   partnerSkills: PartnerSkill[] = [
     {
@@ -100,11 +99,16 @@ export class FormationsAdmin {
   }
 
   private countCategory(cat: CompetenceCategory): number {
-    return this.competences.filter(c => c.category === cat).length;
+    return this.competences.filter((c) => this.normalizeCategory(c.category) === cat)
+      .length;
   }
 
   get filteredCompetences(): Competence[] {
     let filtered = this.competences;
+
+    if (this.selectedDomain.trim()) {
+      filtered = filtered.filter((c) => c.domain === this.selectedDomain);
+    }
     
     if (this.searchTerm.trim()) {
       const term = this.searchTerm.toLowerCase();
@@ -115,14 +119,57 @@ export class FormationsAdmin {
       );
     }
 
-    return filtered.sort((a, b) => {
-      const valA = a[this.sortColumn];
-      const valB = b[this.sortColumn];
-      
-      if (valA < valB) return this.sortDirection === 'asc' ? -1 : 1;
-      if (valA > valB) return this.sortDirection === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const valA = String(a[this.sortColumn] ?? '');
+      const valB = String(b[this.sortColumn] ?? '');
+
+      const compare = valA.localeCompare(valB, 'fr', { sensitivity: 'base' });
+      if (compare < 0) return this.sortDirection === 'asc' ? -1 : 1;
+      if (compare > 0) return this.sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
+  }
+
+  get domainOptions(): string[] {
+    return [...new Set(this.competences.map((c) => c.domain))].sort((a, b) =>
+      a.localeCompare(b, 'fr', { sensitivity: 'base' }),
+    );
+  }
+
+  async loadCompetences(): Promise<void> {
+    this.loadingCompetences = true;
+    this.competencesError = '';
+
+    try {
+      const rows = await this.referentielApiService.getCompetences();
+      this.competences = rows.map((row) => ({
+        code: row.code,
+        name: row.competence,
+        category: this.normalizeCategory(row.categorie),
+        domain: row.domaine,
+      }));
+    } catch {
+      this.competencesError =
+        'Impossible de charger le referentiel competences depuis le backend.';
+    } finally {
+      this.loadingCompetences = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  private normalizeCategory(value: string): CompetenceCategory {
+    const normalized = value.toLowerCase();
+
+    if (normalized.includes('tech')) {
+      return 'Techniques';
+    }
+    if (normalized.includes('org')) {
+      return 'Organisationnelle';
+    }
+    if (normalized.includes('phys')) {
+      return 'Physique';
+    }
+    return 'Comportementale';
   }
 
   setSort(column: keyof Competence) {
@@ -169,7 +216,7 @@ export class FormationsAdmin {
     }
   }
 
-  trackByCode(index: number, item: any): string {
+  trackByCode(index: number, item: { code: string }): string {
     return item.code;
   }
 }

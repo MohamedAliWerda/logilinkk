@@ -48,6 +48,19 @@
       </svg>
             <input type="text" [(ngModel)]="searchTerm" placeholder="Rechercher une compétence..." />
         </div>
+        <div class="domain-filter-box">
+            <select [(ngModel)]="selectedDomain">
+        <option value="">Tous les domaines</option>
+        @for (domain of domainOptions; track domain) {
+        <option [value]="domain">{{ domain }}</option>
+        }
+      </select>
+        </div>
+    </div>
+
+    <div class="table-feedback" *ngIf="loadingCompetences">Chargement des competences...</div>
+    <div class="table-feedback table-feedback-error" *ngIf="!loadingCompetences && competencesError">
+        {{ competencesError }}
     </div>
 
     <div class="table-panel">
@@ -86,6 +99,11 @@
             </span>
                     </td>
                     <td class="domain-col">{{ c.domain }}</td>
+                </tr>
+                }
+                @if (!loadingCompetences && !competencesError && filteredCompetences.length === 0) {
+                <tr>
+                    <td colspan="4" class="empty-state">Aucune competence trouvee.</td>
                 </tr>
                 }
             </tbody>

@@ -1,0 +1,89 @@
+.cv-paper {
+    font-family: 'Times New Roman', Times, serif;
+    color: #111;
+    padding: 20px;
+}
+
+.ats-header {
+    text-align: center;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid #111;
+}
+
+.ats-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    text-transform: uppercase
+}
+
+.ats-title {
+    font-style: italic;
+    color: #333
+}
+
+.ats-subtitle {
+    color: #475569
+}
+
+.ats-contacts {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 6px
+}
+
+.ats-section {
+    margin-bottom: 12px
+}
+
+.ats-section-title {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-family: Arial, sans-serif;
+    margin-bottom: 6px
+}
+
+.ats-entry {
+    margin-bottom: 8px
+}
+
+.ats-entry-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px
+}
+
+.ats-entry-left {
+    display: flex;
+    flex-direction: column
+}
+
+.ats-entry-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.ats-entry-main {
+    font-weight: 700
+}
+
+.ats-entry-desc {
+    margin-top: 6px;
+    text-align: justify
+}
+
+.ats-skills-wrap {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px 24px
+}
+
+.ats-skill-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    border-bottom: 1px dotted #ccc
+}

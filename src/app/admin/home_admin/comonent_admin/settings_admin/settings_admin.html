@@ -1,15 +1,15 @@
 <main class="main-area">
 
-    <header class="dashboard-header" aria-label="Parametres">
-        <h1>PARAMETRES</h1>
-        <p>Configuration generale de la plateforme</p>
+    <header class="dashboard-header" aria-label="Paramètres">
+      <h1>PARAMÈTRES</h1>
+      <p>Configuration générale de la plateforme</p>
     </header>
 
     <section class="settings-card">
         <h2 class="section-title">
-            <span class="title-icon">🛡</span> Profil Administrateur
+          <span class="title-icon">🛡</span> Profil administrateur
         </h2>
-        <p class="section-subtitle">Informations de votre compte administrateur</p>
+        <p class="section-subtitle">Informations sur votre compte administrateur</p>
 
         <div class="grid-2">
             <label class="field">
@@ -17,15 +17,15 @@
           <input type="text" [(ngModel)]="admin.fullName" />
         </label>
             <label class="field">
-          <span>Email</span>
+          <span>Adresse e-mail</span>
           <input type="email" [(ngModel)]="admin.email" />
         </label>
             <label class="field">
-          <span>Telephone</span>
+          <span>Téléphone</span>
           <input type="text" [(ngModel)]="admin.phone" />
         </label>
             <label class="field">
-          <span>Role</span>
+          <span>Rôle</span>
           <input type="text" [(ngModel)]="admin.role" disabled />
         </label>
         </div>
@@ -33,14 +33,14 @@
 
     <section class="settings-card">
         <h2 class="section-title">
-            <span class="title-icon">🔔</span> Notifications
+          <span class="title-icon">🔔</span> Notifications
         </h2>
-        <p class="section-subtitle">Gerez vos preferences de notifications</p>
+        <p class="section-subtitle">Gérez vos préférences de notifications</p>
 
         <div class="switch-row">
             <div>
                 <h3>Notifications push</h3>
-                <p>Recevoir des notifications en temps reel</p>
+                <p>Recevoir des notifications en temps réel</p>
             </div>
             <label class="switch">
           <input type="checkbox" [(ngModel)]="notifications.push" />
@@ -52,8 +52,8 @@
 
         <div class="switch-row">
             <div>
-                <h3>Alertes par email</h3>
-                <p>Recevoir un resume quotidien par email</p>
+                <h3>Alertes par e-mail</h3>
+                <p>Recevoir un résumé quotidien par e-mail</p>
             </div>
             <label class="switch">
           <input type="checkbox" [(ngModel)]="notifications.email" />

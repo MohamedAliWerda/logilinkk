@@ -72,7 +72,7 @@ export class ScoreAdmin {
   readonly yGridLinesReversed = [...this.yGridLines].reverse();
   readonly yGridLinesInner = this.yGridLines.slice(1).reverse();
 
-  /* ── 4. Distribution des scores (score -> nombre d'etudiants) ── */
+  /* ── 4. Distribution des scores (score -> nombre d'étudiants) ── */
   readonly distributionBins: DistributionBin[] = [
     { range: '0-20', students: 6 },
     { range: '20-40', students: 21 },

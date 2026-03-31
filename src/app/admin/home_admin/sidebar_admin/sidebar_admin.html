@@ -5,9 +5,11 @@
     </div>
 
     <nav class="sidebar-nav" [@listAnimation]="menuItems.length">
-        <a *ngFor="let item of menuItems" class="nav-item" [routerLink]="item.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }" (click)="navigateTo(item.route)">
-            <span class="nav-icon">
-        <ng-container [ngSwitch]="item.key">
+        <ng-container *ngFor="let item of menuItems">
+            <ng-container *ngIf="item.key !== 'profil' && item.key !== 'deconnexion'">
+                <a class="nav-item" [routerLink]="item.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }" (click)="navigateTo(item.route)">
+                    <span class="nav-icon">
+              <ng-container [ngSwitch]="item.key">
           <svg *ngSwitchCase="'dashboard'" width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
             <rect x="3" y="3" width="8" height="8" rx="1.5" />
             <rect x="13" y="3" width="8" height="8" rx="1.5" />
@@ -77,7 +79,43 @@
           </svg>
         </ng-container>
       </span>
-            <span class="nav-label" [class.nav-label--small]="item.key === 'matrice'">{{ item.label }}</span>
-        </a>
+                    <span class="nav-label">{{ item.label }}</span>
+                </a>
+            </ng-container>
+        </ng-container>
+
+        <div class="profile-block">
+            <ng-container *ngFor="let item of menuItems">
+                <a *ngIf="item.key === 'profil'" class="nav-item" [routerLink]="item.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }" (click)="navigateTo(item.route)">
+                    <span class="nav-icon">
+                  <ng-container [ngSwitch]="item.key">
+                    <svg *ngSwitchCase="'profil'" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </ng-container>
+                </span>
+                    <span class="nav-label">{{ item.label }}</span>
+                </a>
+                <a *ngIf="item.key === 'deconnexion'" class="nav-item" [routerLink]="item.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }" (click)="navigateTo(item.route)">
+                    <span class="nav-icon">
+                  <ng-container [ngSwitch]="item.key">
+                    <svg *ngSwitchCase="'deconnexion'" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                      <polyline points="16 17 21 12 16 7"/>
+                      <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                  </ng-container>
+                </span>
+                    <span class="nav-label">{{ item.label }}</span>
+                </a>
+            </ng-container>
+
+            <div class="djagora-footer">
+                <img src="djagora-removebg-preview.png" alt="Djagora" class="djagora-logo" />
+                <p class="djagora-text">Cette plateforme est générée par la Fondation Djagora dans le cadre du projet PEJC 2025</p>
+            </div>
+        </div>
+
     </nav>
 </aside>

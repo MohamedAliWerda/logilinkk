@@ -24,6 +24,8 @@ export class Dashboard {
   recommendations: string[] = [];
 
   constructor(private router: Router, private sanitizer: DomSanitizer) {
+    this.studentName = this.resolveStudentName();
+
     const icons = [
       // star – Score CV
       `<svg width="22" height="22" viewBox="0 0 24 24" fill="#fca63a">
@@ -63,6 +65,45 @@ export class Dashboard {
     // compute initial score/stats
     this.employabilityScore = this.getAvgMatchScore();
     this.recomputeStats();
+  }
+
+  private resolveStudentName(): string {
+    const formatNameFromEmail = (email: string): string => {
+      const local = email.split('@')[0] ?? '';
+      const parts = local.split(/[._-]+/).filter(Boolean);
+      if (parts.length === 0) return 'Etudiant';
+      return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    };
+
+    try {
+      const raw = localStorage.getItem('user');
+      if (!raw) return 'Etudiant';
+
+      const user = JSON.parse(raw) as Record<string, unknown> | null;
+      if (!user) return 'Etudiant';
+
+      if (typeof user['prenom'] === 'string' || typeof user['nom'] === 'string') {
+        const fullName = `${String(user['prenom'] ?? '')} ${String(user['nom'] ?? '')}`.trim();
+        if (fullName.length > 0) return fullName;
+      }
+
+      if (typeof user['displayName'] === 'string' && user['displayName'].trim().length > 0) {
+        return user['displayName'];
+      }
+
+      if (typeof user['firstName'] === 'string' || typeof user['lastName'] === 'string') {
+        const fullName = `${String(user['firstName'] ?? '')} ${String(user['lastName'] ?? '')}`.trim();
+        if (fullName.length > 0) return fullName;
+      }
+
+      if (typeof user['email'] === 'string' && user['email'].trim().length > 0) {
+        return formatNameFromEmail(user['email']);
+      }
+
+      return 'Etudiant';
+    } catch {
+      return 'Etudiant';
+    }
   }
 
   companies = [

@@ -1,9 +1,16 @@
 import { ValidationPipe } from '@nestjs/common';
+import { setServers } from 'node:dns';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ResponseInterceptor } from './common/response.interceptor';
 
 async function bootstrap() {
+  // Force Node DNS servers to known public resolvers to avoid local DNS issues
+  try {
+    setServers(['8.8.8.8', '8.8.4.4']);
+  } catch (e) {
+    // ignore if not supported in this Node environment
+  }
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({

@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { CvSubmissionService } from './cv-submission.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -25,6 +26,10 @@ interface AtsResult {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CvAts {
+  private asString(v: any): string {
+    if (v === undefined || v === null) return '';
+    return String(v);
+  }
   private readonly lockedInfoFields = new Set([
     'prenom',
     'nom',
@@ -41,6 +46,68 @@ export class CvAts {
   step = 1;
   formError = '';
   readonly sharedProfileInfo = buildCvAtsPrefill(STUDENT_PROFILE_DATA);
+
+  constructor(private cvSubmissionService: CvSubmissionService) {
+    this.applyLoggedInUser();
+  }
+
+  savedCvKey = 'mySavedCvHtml';
+  savedCvTimestampKey = 'mySavedCvTimestamp';
+  savedCvExists = false;
+
+  private checkSavedCv(): void {
+    try {
+      const html = localStorage.getItem(this.savedCvKey);
+      this.savedCvExists = !!html;
+    } catch {
+      this.savedCvExists = false;
+    }
+  }
+
+  metiers: Array<{ _id: any; nom_metier: string; domaine: string }> = [];
+
+  async ngOnInit(): Promise<void> {
+    try {
+      this.metiers = await this.cvSubmissionService.fetchMetiers();
+      this.checkSavedCv();
+    } catch (err) {
+      console.error('Failed to load metiers', err);
+    }
+  }
+
+  private pick<T = any>(obj: Record<string, any> | null | undefined, ...keys: string[]): T | undefined {
+    if (!obj) return undefined;
+    for (const k of keys) {
+      if (Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null) return obj[k] as T;
+    }
+    return undefined;
+  }
+
+  private applyLoggedInUser(): void {
+    try {
+      const raw = localStorage.getItem('user');
+      if (!raw) return;
+      const u = JSON.parse(raw) as Record<string, any> | null;
+      if (!u) return;
+
+      this.info.prenom = this.asString(this.pick(u, 'prenom', 'firstName', 'given_name') ?? this.info.prenom);
+      this.info.nom = this.asString(this.pick(u, 'nom', 'lastName', 'family_name') ?? this.info.nom);
+      this.info.email = this.asString(this.pick(u, 'email', 'email_address') ?? this.info.email);
+      this.info.telephone = this.asString(this.pick(u, 'telephone', 'phone', 'phone_number') ?? this.info.telephone);
+      this.info.ville = this.asString(this.pick(u, 'ville', 'city') ?? this.info.ville);
+      this.info.codePostal = this.asString(this.pick(u, 'code_postal', 'postal_code', 'zip') ?? this.info.codePostal);
+      this.info.niveau = this.asString(this.pick(u, 'niveau', 'level') ?? this.info.niveau);
+      this.info.sexe = this.asString(this.pick(u, 'sexe', 'gender') ?? this.info.sexe);
+      this.info.nationalite = this.asString(this.pick(u, 'nationalite', 'nationality') ?? this.info.nationalite);
+
+      const filiere = (this.pick(u, 'filiere', 'major') as string) ?? undefined;
+      if (filiere) {
+        this.formations[0].diplome = filiere;
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
 
   steps = [
     { label: 'Infos', icon: 'fa-user' },
@@ -75,6 +142,51 @@ export class CvAts {
   professionalTitle = '';
   specialization = '';
   objectif = '';
+
+  onMetierChange(selected: string) {
+    this.professionalTitle = selected || '';
+    const found = this.metiers.find((m) => m.nom_metier === selected || String(m._id) === String(selected));
+    if (found) {
+      this.specialization = found.domaine || '';
+    }
+  }
+
+  savePreviewAsHtml(): boolean {
+    const printContent = document.getElementById('cv-paper');
+    if (!printContent) return false;
+
+    const cvStyles = `
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'Times New Roman', Times, serif; color: #111; background: #fff; line-height: 1.5; }
+      @page { size: A4; margin: 15mm; }
+    `;
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Mon CV</title><style>${cvStyles}</style></head><body>${printContent.outerHTML}</body></html>`;
+
+    try {
+      localStorage.setItem(this.savedCvKey, html);
+      localStorage.setItem(this.savedCvTimestampKey, new Date().toISOString());
+      this.savedCvExists = true;
+      return true;
+    } catch (err) {
+      console.error('Failed to save CV HTML to localStorage', err);
+      return false;
+    }
+  }
+
+  openSavedCv(alsoPrint = false) {
+    try {
+      const html = localStorage.getItem(this.savedCvKey);
+      if (!html) return;
+      const popup = window.open('', '_blank', 'width=900,height=1200');
+      if (!popup) return;
+      popup.document.open();
+      popup.document.write(html + (alsoPrint ? `<script>window.onload = function(){ window.print(); };<\/script>` : ''));
+      popup.document.close();
+    } catch (err) {
+      console.error('Failed to open saved CV', err);
+    }
+  }
 
   formations = [
     {
@@ -175,12 +287,12 @@ export class CvAts {
   }
 
   get fullName(): string {
-    return `${this.info.prenom} ${this.info.nom}`.trim();
+    return `${this.asString(this.info.prenom)} ${this.asString(this.info.nom)}`.trim();
   }
 
   get interestLabels(): string {
     return this.interests
-      .map((it) => it.label.trim())
+      .map((it) => this.asString(it.label).trim())
       .filter((label) => !!label)
       .join(', ');
   }
@@ -213,33 +325,132 @@ export class CvAts {
 
   canGoNext(): boolean {
     if (this.step === 1) {
-      return !!(this.info.prenom.trim() && this.info.nom.trim() && this.info.email.trim() && this.info.telephone.trim());
+      return !!(
+        this.asString(this.info.prenom).trim() &&
+        this.asString(this.info.nom).trim() &&
+        this.asString(this.info.email).trim() &&
+        this.asString(this.info.telephone).trim()
+      );
     }
     if (this.step === 2) {
-      return !!(this.professionalTitle.trim() && this.objectif.trim());
+      return !!(this.asString(this.professionalTitle).trim() && this.asString(this.objectif).trim());
     }
     if (this.step === 3) {
       const first = this.formations[0];
-      return !!(first?.diplome.trim() && first?.institution.trim());
+      return !!(this.asString(first?.diplome).trim() && this.asString(first?.institution).trim());
     }
     if (this.step === 4) {
       const first = this.experiences[0];
-      return !!(first?.poste.trim() && first?.entreprise.trim() && first?.dateDebut && first?.dateFin && first?.description.trim() && first?.motsCles.trim());
+      return !!(
+        this.asString(first?.poste).trim() &&
+        this.asString(first?.entreprise).trim() &&
+        this.asString(first?.dateDebut).trim() &&
+        this.asString(first?.dateFin).trim() &&
+        this.asString(first?.description).trim() &&
+        this.asString(first?.motsCles).trim()
+      );
     }
     return true;
   }
 
-  generate() {
-    if (!this.consentGiven) {
-      this.formError = 'Le consentement RGPD / Loi tunisienne est obligatoire pour generer le CV.';
-      return;
-    }
+  async generate() {
+    console.log('generate() clicked, consentGiven=', this.consentGiven);
+    try {
+      if (!this.consentGiven) {
+        this.formError = 'Le consentement RGPD / Loi tunisienne est obligatoire pour generer le CV.';
+        console.warn('Generation blocked: consent not given');
+        return;
+      }
 
-    this.formError = '';
-    this.updatedAt = new Date().toISOString();
-    this.atsScore = this.computeCompletenessScore();
-    this.cohortRank = Math.max(1, 100 - Math.round(this.atsScore));
-    this.showPreview = true;
+      this.formError = '';
+      this.updatedAt = new Date().toISOString();
+      try {
+        this.atsScore = this.computeCompletenessScore();
+      } catch (e) {
+        console.error('computeCompletenessScore() threw', e);
+        this.formError = 'Erreur lors du calcul du score. Voir console.';
+        return;
+      }
+
+      this.showPreview = true;
+      console.log('showPreview set true');
+
+      // Save printable HTML and generate PDF stored in localStorage so 'Mon CV' can display it
+      try {
+        this.savePreviewAsHtml();
+        await this.generatePdfAndSave();
+        this.checkSavedCv();
+      } catch (err) {
+        console.warn('Auto-save PDF failed:', err);
+      }
+
+      // CV persistence layer call (after preview)
+      const cleanArray = (arr: any[], predicate: (item: any) => boolean) => (Array.isArray(arr) ? arr.filter(predicate) : []);
+
+      const payload = {
+        professionalTitle: this.asString(this.professionalTitle),
+        specialization: this.asString(this.specialization),
+        objectif: this.asString(this.objectif),
+        atsScore: this.atsScore,
+        consentGiven: this.consentGiven,
+        info: { ...this.info, telephone: this.asString(this.info.telephone) },
+        formations: cleanArray(this.formations, (f) => (this.asString(f?.diplome).trim().length > 0) || (this.asString(f?.institution).trim().length > 0)),
+        experiences: cleanArray(this.experiences, (e) => (this.asString(e?.poste).trim().length > 0) || (this.asString(e?.entreprise).trim().length > 0) || (this.asString(e?.description).trim().length > 0)),
+        hardSkills: cleanArray(this.hardSkills, (s) => this.asString(s?.nom).trim().length > 0),
+        softSkills: cleanArray(this.softSkills, (s) => this.asString(s?.nom).trim().length > 0),
+        langues: cleanArray(this.langues, (l) => this.asString(l?.langue).trim().length > 0),
+        projets: cleanArray(this.projets, (p) => this.asString(p?.titre).trim().length > 0),
+        certifications: cleanArray(this.certifications, (c) => this.asString(c?.titre).trim().length > 0),
+        engagements: cleanArray(this.engagements, (en) => (this.asString(en?.role).trim().length > 0) || (this.asString(en?.type).trim().length > 0)),
+      };
+
+      this.cvSubmissionService.upsertCv(payload).catch((err) => console.error('CV save failed:', err));
+    } catch (err) {
+      console.error('Unexpected error in generate()', err);
+      this.formError = 'Erreur inattendue lors de la génération.';
+    }
+  }
+
+  private loadHtml2PdfScript(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if ((window as any).html2pdf) return resolve();
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js';
+      s.onload = () => resolve();
+      s.onerror = (e) => reject(e);
+      document.head.appendChild(s);
+    });
+  }
+
+  private async generatePdfAndSave(): Promise<boolean> {
+    const el = document.getElementById('cv-paper');
+    if (!el) return false;
+
+    try {
+      await this.loadHtml2PdfScript();
+      const html2pdf = (window as any).html2pdf;
+      if (!html2pdf) return false;
+
+      const opt = {
+        margin:       10,
+        filename:     'mon_cv.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      // html2pdf returns a chainable instance; to get the pdf object we use toPdf().get('pdf')
+      const worker = html2pdf().from(el).set(opt).toPdf();
+      const pdf: any = await worker.get('pdf');
+      const dataUriString: string = pdf.output('datauristring');
+      const base64 = dataUriString.split(',')[1];
+      localStorage.setItem('mySavedCvPdf', base64);
+      localStorage.setItem('mySavedCvTimestamp', new Date().toISOString());
+      return true;
+    } catch (err) {
+      console.error('generatePdfAndSave failed', err);
+      return false;
+    }
   }
 
   backToForm() {
@@ -570,7 +781,7 @@ export class CvAts {
   }
 
   checkAts() {
-    const jd = this.atsJobDescription.trim();
+    const jd = this.asString(this.atsJobDescription).trim();
     if (!jd) {
       this.atsError = 'Veuillez coller une offre d emploi.';
       return;
@@ -608,13 +819,12 @@ export class CvAts {
       const missing = descriptionKeywords.filter((keyword) => !profileKeywords.has(keyword)).slice(0, 12);
 
       this.atsScore = overallScore;
-      this.cohortRank = Math.max(1, 100 - Math.round(overallScore));
       this.atsResult = {
         matchScore,
         overallScore,
         successScore,
         missingKeywords: missing.join(', '),
-        profileSummary: `${this.fullName || 'Profil'} - ${this.professionalTitle || 'Etudiant'} avec ${this.hardSkills.filter((s) => s.nom.trim()).length} hard skills, ${this.softSkills.filter((s) => s.nom.trim()).length} soft skills et ${this.experiences.filter((e) => e.poste.trim()).length} experiences renseignees.`,
+        profileSummary: `${this.fullName || 'Profil'} - ${this.professionalTitle || 'Etudiant'} avec ${this.hardSkills.filter((s) => this.asString(s.nom).trim()).length} hard skills, ${this.softSkills.filter((s) => this.asString(s.nom).trim()).length} soft skills et ${this.experiences.filter((e) => this.asString(e.poste).trim()).length} experiences renseignees.`,
         suggestions: this.buildSuggestions(missing)
       };
 
@@ -656,19 +866,20 @@ export class CvAts {
   }
 
   private computeCompletenessScore(): number {
+    const safe = (v: any) => String(v ?? '').trim();
     const checks = [
-      !!this.info.prenom.trim(),
-      !!this.info.nom.trim(),
-      !!this.info.email.trim(),
-      !!this.info.telephone.trim(),
-      !!this.professionalTitle.trim(),
-      !!this.objectif.trim(),
-      !!this.formations[0]?.diplome.trim(),
-      !!this.experiences[0]?.poste.trim(),
-      !!this.hardSkills.some((h) => h.nom.trim()),
-      !!this.softSkills.some((s) => s.nom.trim()),
-      !!this.langues.some((l) => l.langue.trim()),
-      !!this.consentGiven
+      !!safe(this.info.prenom),
+      !!safe(this.info.nom),
+      !!safe(this.info.email),
+      !!safe(this.info.telephone),
+      !!safe(this.professionalTitle),
+      !!safe(this.objectif),
+      !!safe(this.formations?.[0]?.diplome),
+      !!safe(this.experiences?.[0]?.poste),
+      !!this.hardSkills.some((h) => !!safe(h.nom)),
+      !!this.softSkills.some((s) => !!safe(s.nom)),
+      !!this.langues.some((l) => !!safe(l.langue)),
+      !!this.consentGiven,
     ];
 
     const completed = checks.filter(Boolean).length;
@@ -676,14 +887,15 @@ export class CvAts {
   }
 
   private computeStructureScore(): number {
+    const safe = (v: any) => String(v ?? '').trim();
     const sections = [
-      this.formations.some((f) => f.diplome.trim()),
-      this.experiences.some((e) => e.poste.trim() && e.description.trim()),
-      this.hardSkills.some((h) => h.nom.trim()),
-      this.softSkills.some((s) => s.nom.trim()),
-      this.langues.some((l) => l.langue.trim()),
-      this.projets.some((p) => p.titre.trim()),
-      this.certifications.some((c) => c.titre.trim())
+      this.formations.some((f) => !!safe(f?.diplome)),
+      this.experiences.some((e) => !!safe(e?.poste) && !!safe(e?.description)),
+      this.hardSkills.some((h) => !!safe(h?.nom)),
+      this.softSkills.some((s) => !!safe(s?.nom)),
+      this.langues.some((l) => !!safe(l?.langue)),
+      this.projets.some((p) => !!safe(p?.titre)),
+      this.certifications.some((c) => !!safe(c?.titre)),
     ];
 
     return Math.round((sections.filter(Boolean).length / sections.length) * 100);

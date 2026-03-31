@@ -22,7 +22,7 @@
                   <i class="fa-solid" [class]="'fa-solid ' + s.icon"></i>
                 }
               </span>
-                              <span class="stepper-label">{{ s.label === 'Formation' ? 'Diplôme' : s.label }}</span>
+                              <span class="stepper-label">{{ s.label === 'Formation' ? 'Diplômes' : s.label }}</span>
             </button> @if (i
             < steps.length - 1) { <div class="stepper-line" [class.done]="step > i + 1">
         </div>
@@ -121,10 +121,15 @@
         </div>
     </div>
     <div class="form-grid-2">
-        <div class="form-group">
-            <label>Titre du poste visé <span class="req">*</span></label>
-            <input class="form-control" maxlength="120" [(ngModel)]="professionalTitle" placeholder="Assistant Supply Chain" />
-        </div>
+                <div class="form-group">
+                        <label>Titre du poste visé <span class="req">*</span></label>
+                        <select class="form-control" [(ngModel)]="professionalTitle" (ngModelChange)="onMetierChange($event)">
+                                    <option value="">Sélectionnez un métier...</option>
+                                    @for (m of metiers; track m) {
+                                        <option [value]="m.nom_metier">{{ m.nom_metier }}</option>
+                                    }
+                                </select>
+                </div>
         <div class="form-group">
             <label>Sous-titre / spécialisation</label>
             <input class="form-control" [(ngModel)]="specialization" placeholder="Spécialisation Logistique Internationale" />
@@ -553,9 +558,6 @@
     <div class="metadata-grid">
         <div class="meta-item"><span>ID étudiant</span><strong>{{ studentId }}</strong></div>
         <div class="meta-item"><span>Création</span><strong>{{ createdAt | date:'short' }}</strong></div>
-        <div class="meta-item"><span>Mise à jour</span><strong>{{ updatedAt | date:'short' }}</strong></div>
-        <div class="meta-item"><span>Score ATS courant</span><strong>{{ atsScore }}%</strong></div>
-        <div class="meta-item"><span>Classement cohorte</span><strong>#{{ cohortRank || '-' }}</strong></div>
     </div>
 
     <label class="consent-row">
@@ -625,9 +627,11 @@
               <i class="fa-solid fa-eye"></i> Aperçu ATS
             </span>
         </div>
-        <button type="button" class="btn-download" (click)="download()">
-            <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
-          </button>
+                <div style="display:flex;gap:.6rem;align-items:center;">
+                    <button type="button" class="btn-download" (click)="download()">
+                            <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
+                    </button>
+                </div>
     </div>
 
     <!-- ── CV PAPER (ATS FORMAT) ── -->
@@ -671,7 +675,7 @@
         </div>
         } @if (formations[0]?.diplome || formations[0]?.institution) {
         <div class="ats-section">
-            <div class="ats-section-title">FORMATION ACADÉMIQUE</div>
+            <div class="ats-section-title">DIPLÔMES</div>
             @for (f of formations; track $index) { @if (f.diplome || f.institution) {
             <div class="ats-entry">
                 <div class="ats-entry-row">

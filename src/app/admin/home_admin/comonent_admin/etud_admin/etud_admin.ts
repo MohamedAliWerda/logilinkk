@@ -40,7 +40,7 @@ export class EtudAdmin {
       scoreSynergie: 92,
       matchings: ['Coordinateur Supply Chain', 'Analyste Flux Logistiques'],
       gaps: ['Optimisation KPI transport', 'Gestion avancée WMS'],
-      recommendations: ['Atelier KPI Logistique', 'Projet terrain entrepot']
+      recommendations: ['Atelier KPI Logistique', "Projet terrain d'entrepôt"]
     },
     { 
       id: '2024002', 

@@ -71,6 +71,10 @@
 /* ══ SEARCH BOX ═══════════════════════════════════════════ */
 
 .search-bar-wrap {
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+    flex-wrap: wrap;
     margin-bottom: 1rem;
 }
 
@@ -100,6 +104,36 @@
 
 .search-box input:focus {
     border-color: #e07800;
+}
+
+.domain-filter-box {
+    min-width: 240px;
+}
+
+.domain-filter-box select {
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    border: 1.5px solid #edf2f7;
+    border-radius: 10px;
+    font-size: 0.92rem;
+    outline: none;
+    background: #fff;
+    color: #263044;
+    transition: border-color 0.2s;
+}
+
+.domain-filter-box select:focus {
+    border-color: #e07800;
+}
+
+.table-feedback {
+    margin-bottom: 0.8rem;
+    font-size: 0.9rem;
+    color: #445169;
+}
+
+.table-feedback-error {
+    color: #b42318;
 }
 
 
@@ -168,6 +202,12 @@
 
 .standard-table tbody tr:last-child td {
     border-bottom: none;
+}
+
+.empty-state {
+    text-align: center;
+    color: #7e869a;
+    font-style: italic;
 }
 
 
