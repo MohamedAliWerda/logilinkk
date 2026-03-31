@@ -224,31 +224,8 @@
     overflow: hidden;
 }
 
-.content-section.password-section app-releve-notes {
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-}
 
-@media screen {
-    :host ::ng-deep app-releve-notes .page-wrapper {
-        width: 100%;
-        max-width: 100%;
-        align-items: stretch;
-    }
-    :host ::ng-deep app-releve-notes .a4-page {
-        width: min(100%, 210mm);
-        max-width: 100%;
-        min-height: 0;
-        height: auto;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    :host ::ng-deep app-releve-notes .grades-section {
-        overflow-x: auto;
-    }
-}
+/* releve-notes / mon-cv styles removed (component deleted) */
 
 .section-switcher {
     display: flex;
@@ -474,6 +451,79 @@
 .primary-btn {
     background: linear-gradient(180deg, #f7ad4a 0%, #ea8a13 100%);
     color: #ffffff;
+}
+
+
+/* Save button (distinct from generic primary) */
+
+.save-btn {
+    /* Use the site's primary orange gradient for save (primary action) */
+    background: linear-gradient(180deg, #f7ad4a 0%, #ea8a13 100%);
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(234, 138, 19, 0.16);
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+}
+
+.save-btn:hover {
+    box-shadow: 0 12px 28px rgba(234, 138, 19, 0.22);
+    filter: brightness(1.02);
+}
+
+.save-btn:active {
+    transform: translateY(0);
+}
+
+.save-btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-icon {
+    display: inline-flex;
+    width: 1.1rem;
+    height: 1.1rem;
+    line-height: 0;
+    color: inherit;
+}
+
+
+/* Download button style */
+
+.btn-download {
+    /* Use site color palette for a warm, outlined download CTA */
+    background: #fffaf0;
+    color: #cb7000;
+    border: 1px solid #f0b25c;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    padding: 0.72rem 1rem;
+    font-weight: 800;
+    font-size: 0.92rem;
+    box-shadow: 0 6px 14px rgba(224, 120, 0, 0.06);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.btn-download:hover {
+    box-shadow: 0 12px 26px rgba(224, 120, 0, 0.12);
+    background: #fff4e2;
+    border-color: #ea8a13;
+}
+
+.btn-download:active {
+    transform: translateY(0);
+}
+
+.btn-download[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .secondary-btn {

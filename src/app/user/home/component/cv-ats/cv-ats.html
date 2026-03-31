@@ -121,10 +121,15 @@
         </div>
     </div>
     <div class="form-grid-2">
-        <div class="form-group">
-            <label>Titre du poste visé <span class="req">*</span></label>
-            <input class="form-control" maxlength="120" [(ngModel)]="professionalTitle" placeholder="Assistant Supply Chain" />
-        </div>
+                <div class="form-group">
+                        <label>Titre du poste visé <span class="req">*</span></label>
+                        <select class="form-control" [(ngModel)]="professionalTitle" (ngModelChange)="onMetierChange($event)">
+                                    <option value="">Sélectionnez un métier...</option>
+                                    @for (m of metiers; track m) {
+                                        <option [value]="m.nom_metier">{{ m.nom_metier }}</option>
+                                    }
+                                </select>
+                </div>
         <div class="form-group">
             <label>Sous-titre / spécialisation</label>
             <input class="form-control" [(ngModel)]="specialization" placeholder="Spécialisation Logistique Internationale" />
@@ -622,16 +627,11 @@
               <i class="fa-solid fa-eye"></i> Aperçu ATS
             </span>
         </div>
-        <button type="button" class="btn-download" (click)="download()">
-            <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
-          </button>
-    </div>
-
-    <!-- ── ATS Score Section ── -->
-    <div class="ats-score-section">
-        <div class="ats-score-section-label"><i class="fa-solid fa-chart-simple"></i> Score ATS</div>
-        <div class="ats-score-section-value" [style.color]="scoreColor(atsScore)">{{ atsScore }}%</div>
-        <div class="ats-score-section-grade" [style.color]="scoreColor(atsScore)">{{ scoreGrade(atsScore) }}</div>
+                <div style="display:flex;gap:.6rem;align-items:center;">
+                    <button type="button" class="btn-download" (click)="download()">
+                            <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
+                    </button>
+                </div>
     </div>
 
     <!-- ── CV PAPER (ATS FORMAT) ── -->

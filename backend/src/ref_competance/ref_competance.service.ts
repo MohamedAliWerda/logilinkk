@@ -60,6 +60,40 @@ export class RefCompetanceService implements OnModuleDestroy {
     });
   }
 
+  async getMetiers(): Promise<Document[]> {
+    const db = await this.getDatabase();
+    const [metiers, domaines] = await Promise.all([
+      db.collection('metiers').find({}).toArray(),
+      db.collection('domaines').find({}).toArray(),
+    ]);
+
+    const domainLookup = this.createDomainLookup(domaines);
+
+    return metiers.map((m) => {
+      const nom = this.readString(m, 'nom_metier', this.readString(m, 'nom', 'Metier non defini'));
+      const domaineId = this.readOptional(m, 'domaine_id') ?? this.readOptional(m, 'id_domaine') ?? this.readOptional(m, 'domaineId') ?? this.readOptional(m, 'domain_id');
+
+      let domaineName = 'Domaine non defini';
+      if (domaineId !== undefined && domaineId !== null) {
+        const found = domainLookup.get(String(domaineId));
+        if (found) domaineName = found;
+      }
+
+      return {
+        _id: m._id,
+        nom_metier: nom,
+        domaine: domaineName,
+        raw: m,
+      } as Document;
+    });
+  }
+
+  async getDomaines(): Promise<Document[]> {
+    const db = await this.getDatabase();
+    const domaines = await db.collection('domaines').find({}).toArray();
+    return domaines.map((d) => ({ _id: d._id, nom_domaine: this.readString(d, 'nom_domaine', this.readString(d, 'nom', 'Domaine non defini')) } as Document));
+  }
+
   async onModuleDestroy(): Promise<void> {
     if (!this.mongoClient) {
       return;

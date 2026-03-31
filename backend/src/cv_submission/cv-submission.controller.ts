@@ -1,4 +1,4 @@
-import { Body, Controller, HttpException, HttpStatus, Post, UseGuards, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Post, UseGuards, Req } from '@nestjs/common';
 import { CvSubmissionService } from './cv-submission.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { getSupabase } from '../config/supabase.client';
@@ -44,6 +44,46 @@ export class CvSubmissionController {
       return { ok: true };
     } catch (err: any) {
       console.error('[cv-submissions] create error:', err?.message ?? err, err);
+      if (err instanceof HttpException) throw err;
+      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+  
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getMyCv(@Req() req: any) {
+    let authId = req.user?.sub || req.user?.id || req.user?.userId;
+
+    const isUuid = (val?: string) => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    try {
+      if (!isUuid(authId)) {
+        const supabase = getSupabase();
+        const { data: userRow, error: userErr } = await supabase
+          .from('user')
+          .select('auth_id')
+          .eq('id', Number(authId))
+          .maybeSingle();
+
+        if (userErr) {
+          console.error('[cv-submissions] failed to lookup user auth_id', userErr);
+          throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        authId = userRow?.auth_id;
+        if (!authId) {
+          console.error('[cv-submissions] user missing auth_id for id', req.user?.sub);
+          throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+        }
+      }
+
+      const cv = await this.svc.getCvByAuthId(authId);
+      if (!cv) {
+        return { found: false };
+      }
+      return { found: true, cv };
+    } catch (err: any) {
+      console.error('[cv-submissions] getMyCv error:', err?.message ?? err);
       if (err instanceof HttpException) throw err;
       throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
     }

@@ -10,73 +10,61 @@
         <aside class="profil-summary-card">
             <div class="profil-avatar-shell">
                 <div class="profil-avatar">
-                    @if (profileImageUrl()) {
-                    <img class="profil-avatar-image" [src]="profileImageUrl()!" alt="Photo de profil" /> } @else {
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="58" height="58" aria-hidden="true">
-							<path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-						</svg> }
+                    <ng-container *ngIf="profileImageUrl(); else noAvatar">
+                        <img class="profil-avatar-image" [src]="profileImageUrl()!" alt="Photo de profil" />
+                    </ng-container>
+                    <ng-template #noAvatar>
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="58" height="58" aria-hidden="true">
+                            <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+                        </svg>
+                    </ng-template>
                 </div>
 
-                <label class="avatar-upload-btn" for="profile-image-input">
-					Changer la photo
-				</label>
-                <input id="profile-image-input" class="visually-hidden" type="file" accept="image/*" (change)="onProfileImageSelected($event)" /> @if (profileImageError()) {
-                <p class="avatar-upload-error">{{ profileImageError() }}</p>
-                }
+                <label class="avatar-upload-btn" for="profile-image-input">Changer la photo</label>
+                <input id="profile-image-input" class="visually-hidden" type="file" accept="image/*" (change)="onProfileImageSelected($event)" />
+                <p *ngIf="profileImageError()" class="avatar-upload-error">{{ profileImageError() }}</p>
             </div>
 
             <h2 class="profil-name">{{ userName }}</h2>
             <span class="profil-badge">{{ profileStatus }}</span>
 
             <div class="profil-info-list">
-                @for (item of profileSummaryItems; track item.label) {
-                <div class="profil-info-item">
-                    <span class="profil-info-label">{{ item.label }}</span>
-                    <span class="profil-info-value">{{ item.value }}</span>
+                <div *ngFor="let item of profileSummaryItems">
+                    <div class="profil-info-item">
+                        <span class="profil-info-label">{{ item.label }}</span>
+                        <span class="profil-info-value">{{ item.value }}</span>
+                    </div>
                 </div>
-                }
             </div>
         </aside>
 
         <div class="profil-content-card">
             <div class="section-switcher" role="tablist" aria-label="Sections du profil">
-                <button type="button" class="section-chip" [class.active]="activeSection() === 'info'" (click)="showInfoSection()">
-					Gerer le profil
-				</button>
-                <button type="button" class="section-chip" [class.active]="activeSection() === 'password'" (click)="showPasswordSection()">
-					Changer le mot de passe
-				</button>
-                <button type="button" class="section-chip" [class.active]="activeSection() === 'releve-notes'" (click)="showReleveNotesSection()">
-					RELEVE DE NOTES
-				</button>
+                <button type="button" class="section-chip" [class.active]="activeSection() === 'info'" (click)="showInfoSection()">Gerer le profil</button>
+                <button type="button" class="section-chip" [class.active]="activeSection() === 'password'" (click)="showPasswordSection()">Changer le mot de passe</button>
+                <button type="button" class="section-chip" [class.active]="activeSection() === 'mon-cv'" (click)="showReleveNotesSection()">MON CV</button>
             </div>
 
-            @if (activeSection() === 'info') {
-            <div class="content-section">
+            <div *ngIf="activeSection() === 'info'" class="content-section">
                 <div class="section-heading">
                     <h2>{{ infoSectionTitle }}</h2>
                     <p>{{ infoSectionSubtitle }}</p>
                 </div>
 
                 <div class="info-groups">
-                    @for (group of profileInfoGroups; track group.title) {
-                    <section class="info-group">
+                    <section *ngFor="let group of profileInfoGroups" class="info-group">
                         <h3 class="info-group-title">{{ group.title }}</h3>
                         <div class="academic-grid">
-                            @for (item of group.items; track item.label) {
-                            <div class="academic-item">
+                            <div *ngFor="let item of group.items" class="academic-item">
                                 <span class="academic-label">{{ item.label }}</span>
                                 <span class="academic-value">{{ item.value }}</span>
                             </div>
-                            }
                         </div>
                     </section>
-                    }
                 </div>
-
             </div>
-            } @else if (activeSection() === 'password') {
-            <div class="content-section password-section">
+
+            <div *ngIf="activeSection() === 'password'" class="content-section password-section">
                 <div class="section-heading">
                     <h2>Changer le mot de passe</h2>
                     <p>Mettez a jour votre mot de passe en toute securite.</p>
@@ -84,25 +72,23 @@
 
                 <form class="password-form" [formGroup]="passwordForm" (ngSubmit)="savePassword()">
                     <label class="form-field">
-							<span>Mot de passe actuel</span>
-							<input type="password" formControlName="currentPassword" placeholder="Entrez votre mot de passe actuel" />
-						</label>
+                        <span>Mot de passe actuel</span>
+                        <input type="password" formControlName="currentPassword" placeholder="Entrez votre mot de passe actuel" />
+                    </label>
 
                     <label class="form-field">
-							<span>Nouveau mot de passe</span>
-							<input type="password" formControlName="newPassword" placeholder="Entrez un nouveau mot de passe" />
-						</label>
+                        <span>Nouveau mot de passe</span>
+                        <input type="password" formControlName="newPassword" placeholder="Entrez un nouveau mot de passe" />
+                    </label>
 
                     <label class="form-field">
-							<span>Confirmer le nouveau mot de passe</span>
-							<input type="password" formControlName="confirmPassword" placeholder="Confirmez le nouveau mot de passe" />
-						</label> @if (passwordForm.invalid && passwordForm.touched) {
-                    <p class="form-message error">Tous les champs sont obligatoires et doivent contenir au moins 8 caracteres.</p>
-                    } @if (passwordError()) {
-                    <p class="form-message error">{{ passwordError() }}</p>
-                    } @if (passwordSaved()) {
-                    <p class="form-message success">Votre mot de passe a ete mis a jour avec succes.</p>
-                    }
+                        <span>Confirmer le nouveau mot de passe</span>
+                        <input type="password" formControlName="confirmPassword" placeholder="Confirmez le nouveau mot de passe" />
+                    </label>
+
+                    <p *ngIf="passwordForm.invalid && passwordForm.touched" class="form-message error">Tous les champs sont obligatoires et doivent contenir au moins 8 caracteres.</p>
+                    <p *ngIf="passwordError()" class="form-message error">{{ passwordError() }}</p>
+                    <p *ngIf="passwordSaved()" class="form-message success">Votre mot de passe a ete mis a jour avec succes.</p>
 
                     <div class="form-actions">
                         <button type="button" class="secondary-btn" (click)="showInfoSection()">Retour au profil</button>
@@ -110,11 +96,51 @@
                     </div>
                 </form>
             </div>
-            } @else {
-            <div class="content-section password-section">
-                <app-releve-notes></app-releve-notes>
+
+            <div *ngIf="activeSection() === 'mon-cv'" class="content-section password-section">
+                <div *ngIf="savedCvFromDb; else maybeGenerate">
+                    <div style="display:flex;flex-direction:column;gap:.6rem;">
+                        <div style="display:flex;gap:.6rem;align-items:center;justify-content:flex-end;">
+                            <button class="btn-download" (click)="generatePdfFromDb()" aria-label="Télécharger mon CV (PDF)">
+                                <span class="btn-icon" aria-hidden="true">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
+                                        <path d="M12 3v10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M8 11l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M21 21H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </span>
+                                <span>Télécharger mon CV (PDF)</span>
+                            </button>
+                        </div>
+                        <app-cv-preview [cv]="savedCvFromDb" [profile]="profileData"></app-cv-preview>
+                    </div>
+                </div>
+                <ng-template #maybeGenerate>
+                    <div *ngIf="savedCvExists; else noCv">
+                        <div style="display:flex;flex-direction:column;gap:.6rem;">
+                            <div style="display:flex;gap:.6rem;align-items:center;justify-content:flex-end;">
+                                <button class="primary-btn save-btn" (click)="generatePdfFromDb()" aria-label="Générer et enregistrer le CV">
+                                    <span class="btn-icon" aria-hidden="true">
+                                        <!-- floppy / save icon -->
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
+                                            <path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4z" fill="currentColor" opacity="0.95"/>
+                                            <path d="M17 3v4a2 2 0 0 1-2 2H7v-6h10z" fill="#fff" opacity="0.15"/>
+                                            <path d="M9 12h6v6H9z" fill="#fff" opacity="0.9"/>
+                                        </svg>
+                                    </span>
+                                    <span>Générer et enregistrer le CV</span>
+                                </button>
+                            </div>
+                            <div class="empty-message">Un CV existe pour votre compte (métadonnées). Cliquez pour récupérer et générer le PDF depuis les données en base.</div>
+                        </div>
+                    </div>
+                </ng-template>
+                <!-- Debug output hidden in production UI -->
+
+                <ng-template #noCv>
+                    <div class="empty-message">Aucun CV enregistré. Veuillez générer votre CV depuis "Créer mon CV ATS".</div>
+                </ng-template>
             </div>
-            }
         </div>
     </div>
 </section>

@@ -20,4 +20,32 @@ export class RefCompetanceController {
       throw new InternalServerErrorException('Failed to fetch referentiel competences');
     }
   }
+
+  @Get('metiers')
+  async getMetiers() {
+    try {
+      const data = await this.refCompetanceService.getMetiers();
+      return {
+        message: 'Metiers fetched',
+        data,
+      };
+    } catch (err) {
+      this.logger.error('Failed to fetch metiers', err as Error);
+      throw new InternalServerErrorException('Failed to fetch metiers');
+    }
+  }
+
+  @Get('domaines')
+  async getDomaines() {
+    try {
+      const data = await this.refCompetanceService.getDomaines();
+      return {
+        message: 'Domaines fetched',
+        data,
+      };
+    } catch (err) {
+      this.logger.error('Failed to fetch domaines', err as Error);
+      throw new InternalServerErrorException('Failed to fetch domaines');
+    }
+  }
 }

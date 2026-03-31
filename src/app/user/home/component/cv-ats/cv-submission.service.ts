@@ -62,4 +62,28 @@ export class CvSubmissionService {
       throw err;
     }
   }
+
+  async fetchMetiers(): Promise<any[]> {
+    try {
+      const resp = await fetch(`${environment.apiUrl}/ref-competance/metiers`);
+      if (!resp.ok) return [];
+      const json = await resp.json();
+      return json?.data ?? [];
+    } catch (err) {
+      console.error('fetchMetiers error', err);
+      return [];
+    }
+  }
+
+  async fetchDomaines(): Promise<any[]> {
+    try {
+      const resp = await fetch(`${environment.apiUrl}/ref-competance/domaines`);
+      if (!resp.ok) return [];
+      const json = await resp.json();
+      return json?.data ?? [];
+    } catch (err) {
+      console.error('fetchDomaines error', err);
+      return [];
+    }
+  }
 }
