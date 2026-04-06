@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthApiService } from '../services/auth-api.service';
+import { CvSubmissionService } from '../../user/home/component/cv-ats/cv-submission.service';
 
 @Component({
   selector: 'app-login',
@@ -22,6 +23,7 @@ export class Login {
     private readonly fb: FormBuilder,
     private readonly router: Router,
     private readonly authApiService: AuthApiService,
+    private readonly cvSubmissionService: CvSubmissionService,
     private readonly cdr: ChangeDetectorRef,
   ) {
     this.loginForm = this.fb.group({
@@ -61,7 +63,7 @@ export class Login {
       }
 
       if (response.data.user.role === 'etudiant') {
-        await this.router.navigate(['/home/dashboard']);
+        await this.navigateStudentAfterLogin();
         return;
       }
 
@@ -114,6 +116,20 @@ export class Login {
     }
 
     return '';
+  }
+
+  private async navigateStudentAfterLogin(): Promise<void> {
+    try {
+      const cv = await this.cvSubmissionService.fetchMyCv();
+      if (cv) {
+        await this.router.navigate(['/home/dashboard']);
+        return;
+      }
+    } catch {
+      // Fallback to onboarding path when CV status cannot be resolved.
+    }
+
+    await this.router.navigate(['/home/cv-landing']);
   }
 
   togglePasswordVisibility(): void {

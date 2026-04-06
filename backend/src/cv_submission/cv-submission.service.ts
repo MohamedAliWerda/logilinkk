@@ -1,9 +1,29 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { getSupabase } from '../config/supabase.client';
+import { RefCompetanceService } from '../ref_competance/ref_competance.service';
+
+type AtsScoreResult = {
+  matchScore: number;
+  successScore: number;
+  atsScore: number;
+  rawResponse: string;
+};
 
 @Injectable()
 export class CvSubmissionService {
-  private supabase = getSupabase();
+  private readonly logger = new Logger(CvSubmissionService.name);
+  private readonly supabase = getSupabase();
+  private readonly geminiModel = 'gemini-2.5-flash-lite';
+  private readonly geminiApiKey: string;
+
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly refCompetanceService: RefCompetanceService,
+  ) {
+    this.geminiApiKey = this.configService.get<string>('GEMINI_API_KEY') ?? '';
+  }
+
   private sanitizeDate(value: any): string | null {
     if (!value && value !== 0) return null;
     const v = String(value).trim();
@@ -265,5 +285,344 @@ export class CvSubmissionService {
     }
 
     return result;
+  }
+
+  async getAtsScoreByAuthId(authId: string): Promise<number | null> {
+    const { data, error } = await this.supabase
+      .from('cv_submissions')
+      .select('ats_score')
+      .eq('auth_id', authId)
+      .limit(1);
+
+    if (error) throw error;
+    const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    if (!row || row.ats_score === undefined || row.ats_score === null) {
+      return null;
+    }
+
+    return this.clampScore(Number(row.ats_score));
+  }
+
+  async updateAtsScore(authId: string, atsScore: number): Promise<void> {
+    const safeScore = this.clampScore(atsScore);
+    const now = new Date().toISOString();
+
+    const { data: existing, error: existingErr } = await this.supabase
+      .from('cv_submissions')
+      .select('id')
+      .eq('auth_id', authId)
+      .limit(1);
+
+    if (existingErr) throw existingErr;
+
+    if (Array.isArray(existing) && existing.length > 0) {
+      const { error: updateErr } = await this.supabase
+        .from('cv_submissions')
+        .update({ ats_score: safeScore, updated_at: now })
+        .eq('auth_id', authId);
+      if (updateErr) throw updateErr;
+      return;
+    }
+
+    const { error: insertErr } = await this.supabase
+      .from('cv_submissions')
+      .insert([
+        {
+          auth_id: authId,
+          ats_score: safeScore,
+          status: 'draft',
+          updated_at: now,
+        },
+      ]);
+
+    if (insertErr) throw insertErr;
+  }
+
+  async calculateAtsScore(payload: any): Promise<AtsScoreResult> {
+    const resumeText = this.buildResumeText(payload);
+    const referenceKeywords = await this.loadReferenceKeywordsSafely();
+
+    try {
+      const prompt = this.buildScorePrompt(resumeText, referenceKeywords);
+      const rawResponse = await this.generateGeminiText(prompt);
+      const parsedMatch = this.parseScore(rawResponse, /Job Description Match[:\s]*([0-9]{1,3})\s*%/i);
+      const parsedSuccess = this.parseScore(rawResponse, /Application Success rates?[:\s]*([0-9]{1,3})\s*%/i);
+
+      if (parsedMatch !== null && parsedSuccess !== null) {
+        const matchScore = this.clampScore(parsedMatch);
+        const successScore = this.clampScore(parsedSuccess);
+        return {
+          matchScore,
+          successScore,
+          atsScore: this.clampScore(Math.round((matchScore + successScore) / 2)),
+          rawResponse,
+        };
+      }
+
+      this.logger.warn('Gemini response format mismatch; applying deterministic fallback score.');
+      const fallback = this.computeFallbackScore(resumeText, referenceKeywords);
+      return {
+        ...fallback,
+        rawResponse,
+      };
+    } catch (err: any) {
+      this.logger.warn(`Gemini scoring failed, using fallback score: ${err?.message ?? err}`);
+      const fallback = this.computeFallbackScore(resumeText, referenceKeywords);
+      return {
+        ...fallback,
+        rawResponse: `FALLBACK_SCORE: ${err?.message ?? 'unknown error'}`,
+      };
+    }
+  }
+
+  private async loadReferenceKeywordsSafely(): Promise<string[]> {
+    try {
+      const keywords = await this.loadReferenceKeywords();
+      if (keywords.length > 0) {
+        return keywords;
+      }
+      this.logger.warn('Reference keywords from database are empty; using defaults only.');
+    } catch (err: any) {
+      this.logger.error(`Failed to load database keywords, using defaults only: ${err?.message ?? err}`);
+    }
+
+    return this.defaultReferenceKeywords();
+  }
+
+  private defaultReferenceKeywords(): string[] {
+    return [
+      'logistique', 'transport', 'supply', 'douane', 'wms', 'tms', 'sap', 'incoterms', 'excel', 'powerbi',
+      'inventaire', 'entrepot', 'flux', 'optimisation', 'planification', 'approvisionnement', 'distribution',
+      'lean', 'kpi', 'analyse', 'operation', 'procurement', 'forecast', 'service', 'qualite', 'securite',
+    ];
+  }
+
+  private computeFallbackScore(
+    resumeText: string,
+    referenceKeywords: string[],
+  ): Omit<AtsScoreResult, 'rawResponse'> {
+    const resumeTokens = new Set(this.extractKeywords(resumeText));
+    const matched = referenceKeywords.filter((k) => resumeTokens.has(k)).length;
+    const matchScore = this.clampScore(
+      Math.round((matched / Math.max(referenceKeywords.length, 1)) * 100),
+    );
+    const successScore = this.clampScore(Math.round(matchScore * 0.9 + 5));
+
+    return {
+      matchScore,
+      successScore,
+      atsScore: this.clampScore(Math.round((matchScore + successScore) / 2)),
+    };
+  }
+
+  private clampScore(value: number): number {
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+
+  private parseScore(text: string, regex: RegExp): number | null {
+    const m = text.match(regex);
+    if (!m) return null;
+    const value = Number(m[1]);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  private async generateGeminiText(prompt: string): Promise<string> {
+    if (!this.geminiApiKey) {
+      throw new Error('GEMINI_API_KEY is not configured in backend environment.');
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.geminiModel}:generateContent?key=${this.geminiApiKey}`;
+    const maxAttempts = 4;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0,
+            topP: 0.1,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        const transient = response.status === 429 || response.status === 503 || response.status >= 500;
+        lastError = new Error(`Gemini API failed (${response.status}): ${text}`);
+
+        if (transient && attempt < maxAttempts) {
+          const waitMs = 500 * 2 ** (attempt - 1) + Math.floor(Math.random() * 200);
+          this.logger.warn(
+            `Gemini temporary error (${response.status}) on attempt ${attempt}/${maxAttempts}; retrying in ${waitMs}ms.`,
+          );
+          await this.sleep(waitMs);
+          continue;
+        }
+
+        throw lastError;
+      }
+
+      const json: any = await response.json();
+      const parts = json?.candidates?.[0]?.content?.parts;
+      if (!Array.isArray(parts)) {
+        throw new Error('Gemini API returned an empty response payload.');
+      }
+
+      const text = parts
+        .map((p: any) => (typeof p?.text === 'string' ? p.text : ''))
+        .join('\n')
+        .trim();
+
+      if (!text) {
+        throw new Error('Gemini API returned empty text content.');
+      }
+
+      return text;
+    }
+
+    throw lastError ?? new Error('Gemini API request failed after retries.');
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private buildScorePrompt(resumeText: string, referenceKeywords: string[]): string {
+    return `
+You are an advanced and highly experienced Applicant Tracking System (ATS) specialized in transport, logistics, and supply chain profiles.
+
+Your task is to evaluate the resume against the reference keyword base provided below (coming from our database).
+
+Rules:
+1. Be strict and deterministic: for the same input, return the same scores.
+2. Use only the resume content and reference keywords.
+3. Output only numeric percentages between 1 and 100.
+4. Do not add any explanation.
+
+Resume: ${resumeText.slice(0, 14000)}
+Reference Keywords: ${referenceKeywords.join(', ')}
+
+Respond ONLY in this exact format with these exact section headers:
+• Job Description Match: [number 1-100]%
+• Application Success rates: [number 1-100]%
+`.trim();
+  }
+
+  private async loadReferenceKeywords(): Promise<string[]> {
+    const [competences, metiers, domaines] = await Promise.all([
+      this.refCompetanceService.getReferentielCompetences(),
+      this.refCompetanceService.getMetiers(),
+      this.refCompetanceService.getDomaines(),
+    ]);
+
+    const keywordSet = new Set<string>();
+    const addText = (value: unknown) => {
+      if (typeof value !== 'string' || value.trim().length === 0) return;
+      for (const kw of this.extractKeywords(value)) {
+        keywordSet.add(kw);
+      }
+    };
+
+    for (const c of competences as any[]) {
+      addText(c?.competence);
+      addText(c?.categorie);
+      addText(c?.domaine);
+    }
+
+    for (const m of metiers as any[]) {
+      addText(m?.nom_metier ?? m?.nom);
+      addText(m?.domaine);
+    }
+
+    for (const d of domaines as any[]) {
+      addText(d?.nom_domaine ?? d?.nom);
+    }
+
+    const defaults = ['logistique', 'transport', 'supply', 'douane', 'wms', 'tms', 'sap', 'incoterms', 'excel', 'powerbi'];
+    for (const d of defaults) {
+      keywordSet.add(d);
+    }
+
+    return Array.from(keywordSet).slice(0, 350);
+  }
+
+  private buildResumeText(payload: any): string {
+    const safe = (v: any) => String(v ?? '').trim();
+    const joinMapped = (arr: any, mapper: (item: any) => string) =>
+      Array.isArray(arr) ? arr.map(mapper).join(' ') : '';
+
+    const header = [
+      safe(payload?.professionalTitle),
+      safe(payload?.specialization),
+      safe(payload?.objectif),
+      safe(payload?.info?.permis),
+      safe(payload?.info?.linkedin),
+    ].join(' ');
+
+    const formations = joinMapped(
+      payload?.formations,
+      (f) =>
+        `${safe(f?.diplome)} ${safe(f?.institution)} ${safe(f?.modules)} ${safe(
+          f?.pfeTitre,
+        )} ${safe(f?.pfeTechnologies)}`,
+    );
+    const experiences = joinMapped(
+      payload?.experiences,
+      (e) =>
+        `${safe(e?.poste)} ${safe(e?.entreprise)} ${safe(e?.secteur)} ${safe(
+          e?.description,
+        )} ${safe(e?.motsCles ?? e?.mots_cles)}`,
+    );
+    const hardSkills = joinMapped(
+      payload?.hardSkills,
+      (h) => `${safe(h?.type)} ${safe(h?.nom)} ${safe(h?.niveau)}`,
+    );
+    const softSkills = joinMapped(
+      payload?.softSkills,
+      (s) => `${safe(s?.nom)} ${safe(s?.niveau)} ${safe(s?.contexte)}`,
+    );
+    const langues = joinMapped(
+      payload?.langues,
+      (l) => `${safe(l?.langue)} ${safe(l?.niveau)} ${safe(l?.certification)} ${safe(l?.score)}`,
+    );
+    const projets = joinMapped(
+      payload?.projets,
+      (p) => `${safe(p?.titre)} ${safe(p?.description)} ${safe(p?.technologies)}`,
+    );
+    const certifications = joinMapped(
+      payload?.certifications,
+      (c) => `${safe(c?.titre)} ${safe(c?.organisme)} ${safe(c?.verification)}`,
+    );
+
+    return [
+      header,
+      formations,
+      experiences,
+      hardSkills,
+      softSkills,
+      langues,
+      projets,
+      certifications,
+    ]
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private extractKeywords(text: string): string[] {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((token) => token.length > 2)
+      .filter((token) => !['avec', 'pour', 'dans', 'une', 'des', 'les', 'sur', 'par', 'and', 'the'].includes(token));
   }
 }

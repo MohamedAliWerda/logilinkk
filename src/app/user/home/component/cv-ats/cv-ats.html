@@ -121,15 +121,15 @@
         </div>
     </div>
     <div class="form-grid-2">
-                <div class="form-group">
-                        <label>Titre du poste visé <span class="req">*</span></label>
-                        <select class="form-control" [(ngModel)]="professionalTitle" (ngModelChange)="onMetierChange($event)">
+        <div class="form-group">
+            <label>Titre du poste visé <span class="req">*</span></label>
+            <select class="form-control" [(ngModel)]="professionalTitle" (ngModelChange)="onMetierChange($event)">
                                     <option value="">Sélectionnez un métier...</option>
                                     @for (m of metiers; track m) {
                                         <option [value]="m.nom_metier">{{ m.nom_metier }}</option>
                                     }
                                 </select>
-                </div>
+        </div>
         <div class="form-group">
             <label>Sous-titre / spécialisation</label>
             <input class="form-control" [(ngModel)]="specialization" placeholder="Spécialisation Logistique Internationale" />
@@ -627,12 +627,29 @@
               <i class="fa-solid fa-eye"></i> Aperçu ATS
             </span>
         </div>
-                <div style="display:flex;gap:.6rem;align-items:center;">
-                    <button type="button" class="btn-download" (click)="download()">
-                            <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
+        <div class="preview-topbar-actions">
+            <button type="button" class="btn-download" (click)="download()">
+                        <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
                     </button>
-                </div>
+            <button type="button" class="btn-get-score" (click)="getYourScoreAndGoDashboard()" [disabled]="getScoreLoading">
+                @if (!getScoreLoading) {
+                <span><i class="fa-solid fa-chart-bar"></i> Get your score</span>
+                } @else {
+                <span><i class="fa-solid fa-spinner fa-spin"></i> Calcul en cours...</span>
+                }
+            </button>
+        </div>
     </div>
+
+    @if (getScoreLoading) {
+    <div class="score-loading-banner">
+        <i class="fa-solid fa-spinner fa-spin"></i> Analyse ATS en cours avec Gemini. Redirection vers le dashboard apres calcul...
+    </div>
+    } @if (getScoreError) {
+    <div class="form-error">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ getScoreError }}
+    </div>
+    }
 
     <!-- ── CV PAPER (ATS FORMAT) ── -->
     <div class="cv-paper" id="cv-paper">

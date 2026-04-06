@@ -5,11 +5,15 @@ import { AppModule } from './app.module';
 import { ResponseInterceptor } from './common/response.interceptor';
 
 async function bootstrap() {
-  // Force Node DNS servers to known public resolvers to avoid local DNS issues
-  try {
-    setServers(['8.8.8.8', '8.8.4.4']);
-  } catch (e) {
-    // ignore if not supported in this Node environment
+  // Use system DNS by default. Public DNS forcing can break connectivity on restricted networks.
+  if (String(process.env.FORCE_PUBLIC_DNS ?? '').toLowerCase() === 'true') {
+    try {
+      setServers(['8.8.8.8', '8.8.4.4']);
+      // eslint-disable-next-line no-console
+      console.log('[bootstrap] FORCE_PUBLIC_DNS=true, using Google DNS resolvers.');
+    } catch {
+      // ignore if not supported in this Node environment
+    }
   }
   const app = await NestFactory.create(AppModule);
 

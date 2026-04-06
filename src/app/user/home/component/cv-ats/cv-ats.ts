@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { CvSubmissionService } from './cv-submission.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import {
   buildCvAtsPrefill,
   STUDENT_PROFILE_DATA,
@@ -47,7 +48,10 @@ export class CvAts {
   formError = '';
   readonly sharedProfileInfo = buildCvAtsPrefill(STUDENT_PROFILE_DATA);
 
-  constructor(private cvSubmissionService: CvSubmissionService) {
+  constructor(
+    private cvSubmissionService: CvSubmissionService,
+    private router: Router,
+  ) {
     this.applyLoggedInUser();
   }
 
@@ -261,6 +265,8 @@ export class CvAts {
   atsLoading = false;
   atsError = '';
   atsResult: AtsResult | null = null;
+  getScoreLoading = false;
+  getScoreError = '';
 
   get totalSteps(): number {
     return this.steps.length;
@@ -385,29 +391,72 @@ export class CvAts {
       }
 
       // CV persistence layer call (after preview)
-      const cleanArray = (arr: any[], predicate: (item: any) => boolean) => (Array.isArray(arr) ? arr.filter(predicate) : []);
-
-      const payload = {
-        professionalTitle: this.asString(this.professionalTitle),
-        specialization: this.asString(this.specialization),
-        objectif: this.asString(this.objectif),
-        atsScore: this.atsScore,
-        consentGiven: this.consentGiven,
-        info: { ...this.info, telephone: this.asString(this.info.telephone) },
-        formations: cleanArray(this.formations, (f) => (this.asString(f?.diplome).trim().length > 0) || (this.asString(f?.institution).trim().length > 0)),
-        experiences: cleanArray(this.experiences, (e) => (this.asString(e?.poste).trim().length > 0) || (this.asString(e?.entreprise).trim().length > 0) || (this.asString(e?.description).trim().length > 0)),
-        hardSkills: cleanArray(this.hardSkills, (s) => this.asString(s?.nom).trim().length > 0),
-        softSkills: cleanArray(this.softSkills, (s) => this.asString(s?.nom).trim().length > 0),
-        langues: cleanArray(this.langues, (l) => this.asString(l?.langue).trim().length > 0),
-        projets: cleanArray(this.projets, (p) => this.asString(p?.titre).trim().length > 0),
-        certifications: cleanArray(this.certifications, (c) => this.asString(c?.titre).trim().length > 0),
-        engagements: cleanArray(this.engagements, (en) => (this.asString(en?.role).trim().length > 0) || (this.asString(en?.type).trim().length > 0)),
-      };
+      const payload = this.buildSubmissionPayload(this.atsScore);
 
       this.cvSubmissionService.upsertCv(payload).catch((err) => console.error('CV save failed:', err));
     } catch (err) {
       console.error('Unexpected error in generate()', err);
       this.formError = 'Erreur inattendue lors de la génération.';
+    }
+  }
+
+  private buildSubmissionPayload(atsScore: number) {
+    const cleanArray = (arr: any[], predicate: (item: any) => boolean) => (Array.isArray(arr) ? arr.filter(predicate) : []);
+
+    return {
+      professionalTitle: this.asString(this.professionalTitle),
+      specialization: this.asString(this.specialization),
+      objectif: this.asString(this.objectif),
+      atsScore: Math.max(0, Math.min(100, Math.round(Number(atsScore) || 0))),
+      consentGiven: this.consentGiven,
+      info: { ...this.info, telephone: this.asString(this.info.telephone) },
+      formations: cleanArray(this.formations, (f) => (this.asString(f?.diplome).trim().length > 0) || (this.asString(f?.institution).trim().length > 0)),
+      experiences: cleanArray(this.experiences, (e) => (this.asString(e?.poste).trim().length > 0) || (this.asString(e?.entreprise).trim().length > 0) || (this.asString(e?.description).trim().length > 0)),
+      hardSkills: cleanArray(this.hardSkills, (s) => this.asString(s?.nom).trim().length > 0),
+      softSkills: cleanArray(this.softSkills, (s) => this.asString(s?.nom).trim().length > 0),
+      langues: cleanArray(this.langues, (l) => this.asString(l?.langue).trim().length > 0),
+      projets: cleanArray(this.projets, (p) => this.asString(p?.titre).trim().length > 0),
+      certifications: cleanArray(this.certifications, (c) => this.asString(c?.titre).trim().length > 0),
+      engagements: cleanArray(this.engagements, (en) => (this.asString(en?.role).trim().length > 0) || (this.asString(en?.type).trim().length > 0)),
+    };
+  }
+
+  async getYourScoreAndGoDashboard(): Promise<void> {
+    if (this.getScoreLoading) return;
+
+    this.getScoreLoading = true;
+    this.getScoreError = '';
+
+    try {
+      const baseScore = this.atsScore > 0 ? this.atsScore : this.computeCompletenessScore();
+      const scoreResult = await this.cvSubmissionService.calculateAtsScore(
+        this.buildSubmissionPayload(baseScore),
+      );
+
+      this.atsScore = scoreResult.atsScore;
+      this.atsResult = {
+        matchScore: scoreResult.matchScore,
+        overallScore: scoreResult.atsScore,
+        successScore: scoreResult.successScore,
+        missingKeywords: '',
+        profileSummary: 'Score ATS calculé via Gemini avec le référentiel de compétences de la base de données.',
+        suggestions: '',
+      };
+
+      localStorage.setItem('latestAtsScore', String(scoreResult.atsScore));
+      localStorage.setItem('latestAtsMatchScore', String(scoreResult.matchScore));
+      localStorage.setItem('latestAtsSuccessScore', String(scoreResult.successScore));
+
+      this.cvSubmissionService
+        .upsertCv(this.buildSubmissionPayload(scoreResult.atsScore))
+        .catch((err) => console.error('CV score save failed:', err));
+
+      await this.router.navigate(['/home/dashboard']);
+    } catch (err) {
+      console.error('getYourScoreAndGoDashboard error', err);
+      this.getScoreError = 'Impossible de calculer votre score ATS pour le moment. Veuillez reessayer.';
+    } finally {
+      this.getScoreLoading = false;
     }
   }
 
