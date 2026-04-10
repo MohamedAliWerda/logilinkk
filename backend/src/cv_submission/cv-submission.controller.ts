@@ -131,6 +131,23 @@ export class CvSubmissionController {
       throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
+  @Get('extract-skills')
+  @UseGuards(JwtAuthGuard)
+  async extractSkills(@Req() req: any) {
+    try {
+      const authId = await this.resolveAuthId(req.user);
+      const skills = await this.withRetry(() => this.svc.extractSkillsFromNotes(authId));
+      return {
+        found: skills.hardSkills.length > 0 || skills.softSkills.length > 0,
+        ...skills,
+      };
+    } catch (err: any) {
+      console.error('[cv-submissions] extractSkills error:', err?.message ?? err);
+      if (err instanceof HttpException) throw err;
+      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
   
   @Get('me')
   @UseGuards(JwtAuthGuard)

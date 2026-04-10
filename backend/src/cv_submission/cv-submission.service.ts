@@ -10,12 +10,35 @@ type AtsScoreResult = {
   rawResponse: string;
 };
 
+type ExtractedHardSkill = {
+  type: string;
+  nom: string;
+  niveau: string;
+};
+
+type ExtractedSoftSkill = {
+  nom: string;
+  niveau: string;
+  contexte: string;
+};
+
+type ExtractedSkillsResult = {
+  hardSkills: ExtractedHardSkill[];
+  softSkills: ExtractedSoftSkill[];
+};
+
+type ResolvedStudentNote = {
+  codeEcue: string;
+  moyenne: number;
+};
+
 @Injectable()
 export class CvSubmissionService {
   private readonly logger = new Logger(CvSubmissionService.name);
   private readonly supabase = getSupabase();
   private readonly geminiModel = 'gemini-2.5-flash-lite';
   private readonly geminiApiKey: string;
+  private static readonly AUTO_SKILL_CONTEXT = '__auto_generated_from_notes__';
 
   constructor(
     private readonly configService: ConfigService,
@@ -34,6 +57,15 @@ export class CvSubmissionService {
   }
 
   async upsertCv(authId: string, payload: any): Promise<void> {
+    const { data: existingCv, error: existingCvErr } = await this.supabase
+      .from('cv_submissions')
+      .select('id')
+      .eq('auth_id', authId)
+      .maybeSingle();
+
+    if (existingCvErr) throw existingCvErr;
+    const isFirstCv = !existingCv?.id;
+
     // Upsert main row using auth_id as unique key
     const { data: mainRow, error: mainError } = await this.supabase
       .from('cv_submissions')
@@ -63,7 +95,6 @@ export class CvSubmissionService {
     const childTables = [
       'cv_formations',
       'cv_experiences',
-      'cv_skills',
       'cv_langues',
       'cv_projets',
       'cv_certifications',
@@ -117,37 +148,7 @@ export class CvSubmissionService {
       }
     }
 
-    // Skills (hard / soft) -> cv_skills expects: category, skill_type, nom, niveau, contexte
-    const skills: any[] = [];
-    if (payload.hardSkills?.length) {
-      skills.push(...payload.hardSkills.map((s: any, i: number) => ({
-        cv_submission_id: cvSubmissionId,
-        sort_order: i,
-        category: 'hard',
-        skill_type: s.type ?? s.skill_type ?? null,
-        nom: s.nom ?? s.name ?? null,
-        niveau: s.niveau ?? null,
-        contexte: s.contexte ?? null,
-      })));
-    }
-    if (payload.softSkills?.length) {
-      skills.push(...payload.softSkills.map((s: any, i: number) => ({
-        cv_submission_id: cvSubmissionId,
-        sort_order: i,
-        category: 'soft',
-        skill_type: s.type ?? null,
-        nom: s.nom ?? s.name ?? null,
-        niveau: s.niveau ?? null,
-        contexte: s.contexte ?? s.context ?? null,
-      })));
-    }
-    if (skills.length) {
-      const { error: skErr } = await this.supabase.from('cv_skills').insert(skills);
-      if (skErr) {
-        console.error('[cv-submissions] cv_skills insert error', skErr);
-        throw skErr;
-      }
-    }
+    await this.upsertCvSkills(authId, cvSubmissionId, payload, isFirstCv);
 
     // Langues
     if (payload.langues?.length) {
@@ -216,6 +217,430 @@ export class CvSubmissionService {
         throw enErr;
       }
     }
+  }
+
+  private normalizeSkillKey(value: unknown): string {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private normalizeSkillLevel(value: unknown): string {
+    const normalized = this.normalizeSkillKey(value);
+    if (!normalized) return 'Intermediaire';
+    if (normalized.includes('expert')) return 'Expert';
+    if (normalized.includes('avance')) return 'Avance';
+    if (normalized.includes('intermediaire')) return 'Intermediaire';
+    if (normalized.includes('notion')) return 'Notions';
+    if (
+      normalized.includes('debutant')
+      || normalized.includes('faible')
+      || normalized.includes('non acquis')
+      || normalized === 'non_acquis'
+    ) {
+      return 'Debutant';
+    }
+    return 'Intermediaire';
+  }
+
+  private skillLevelPriority(level: unknown): number {
+    const normalized = this.normalizeSkillLevel(level);
+    const order: Record<string, number> = {
+      Debutant: 1,
+      Notions: 2,
+      Intermediaire: 3,
+      Avance: 4,
+      Expert: 5,
+    };
+    return order[normalized] ?? 0;
+  }
+
+  private dedupeSkillList<T extends { nom: string; niveau: string }>(skills: T[]): T[] {
+    const byName = new Map<string, T>();
+    for (const item of skills) {
+      const nom = String(item.nom ?? '').trim();
+      if (!nom) continue;
+
+      const key = this.normalizeSkillKey(nom);
+      const normalizedItem = {
+        ...item,
+        nom,
+        niveau: this.normalizeSkillLevel(item.niveau),
+      };
+      const existing = byName.get(key);
+      if (!existing || this.skillLevelPriority(normalizedItem.niveau) > this.skillLevelPriority(existing.niveau)) {
+        byName.set(key, normalizedItem as T);
+      }
+    }
+    return Array.from(byName.values());
+  }
+
+  private normalizeIncomingHardSkills(skills: any[] | undefined): Array<{
+    type: string;
+    nom: string;
+    niveau: string;
+    contexte: string | null;
+  }> {
+    if (!Array.isArray(skills)) return [];
+    return skills
+      .map((s) => ({
+        type: String(s?.type ?? s?.skill_type ?? 'Metier T&L').trim() || 'Metier T&L',
+        nom: String(s?.nom ?? s?.name ?? '').trim(),
+        niveau: this.normalizeSkillLevel(s?.niveau),
+        contexte: s?.contexte ? String(s.contexte) : null,
+      }))
+      .filter((s) => s.nom.length > 0);
+  }
+
+  private normalizeIncomingSoftSkills(skills: any[] | undefined): Array<{
+    nom: string;
+    niveau: string;
+    contexte: string | null;
+  }> {
+    if (!Array.isArray(skills)) return [];
+    return skills
+      .map((s) => ({
+        nom: String(s?.nom ?? s?.name ?? '').trim(),
+        niveau: this.normalizeSkillLevel(s?.niveau),
+        contexte: s?.contexte ? String(s.contexte) : (s?.context ? String(s.context) : null),
+      }))
+      .filter((s) => s.nom.length > 0);
+  }
+
+  private async upsertCvSkills(
+    authId: string,
+    cvSubmissionId: string,
+    payload: any,
+    isFirstCv: boolean,
+  ): Promise<void> {
+    const { data: existingSkills, error: existingSkillsErr } = await this.supabase
+      .from('cv_skills')
+      .select('category, skill_type, nom, niveau, contexte, sort_order')
+      .eq('cv_submission_id', cvSubmissionId)
+      .order('sort_order', { ascending: true });
+
+    if (existingSkillsErr) throw existingSkillsErr;
+
+    const existingRows = Array.isArray(existingSkills) ? existingSkills : [];
+    const systemHardExisting = existingRows
+      .filter((s: any) => s.category === 'hard' && s.contexte === CvSubmissionService.AUTO_SKILL_CONTEXT)
+      .map((s: any) => ({
+        type: String(s.skill_type ?? 'Metier T&L').trim() || 'Metier T&L',
+        nom: String(s.nom ?? '').trim(),
+        niveau: this.normalizeSkillLevel(s.niveau),
+        contexte: CvSubmissionService.AUTO_SKILL_CONTEXT,
+      }))
+      .filter((s) => s.nom.length > 0);
+
+    const extracted = isFirstCv
+      ? await this.extractSkillsFromNotes(authId)
+      : { hardSkills: [], softSkills: [] };
+
+    const extractedHard = extracted.hardSkills.map((s) => ({
+      type: String(s.type ?? 'Metier T&L').trim() || 'Metier T&L',
+      nom: String(s.nom ?? '').trim(),
+      niveau: this.normalizeSkillLevel(s.niveau),
+      contexte: CvSubmissionService.AUTO_SKILL_CONTEXT,
+    })).filter((s) => s.nom.length > 0);
+
+    const incomingHard = this.dedupeSkillList(this.normalizeIncomingHardSkills(payload?.hardSkills));
+    const incomingSoft = this.dedupeSkillList(this.normalizeIncomingSoftSkills(payload?.softSkills));
+
+    const lockedHard = this.dedupeSkillList(
+      systemHardExisting.length > 0 ? systemHardExisting : extractedHard,
+    );
+
+    const finalHard = this.dedupeSkillList(
+      lockedHard.length > 0 ? lockedHard : incomingHard,
+    );
+    const finalSoft = this.dedupeSkillList(incomingSoft);
+
+    const skillRows: any[] = [];
+    for (const s of finalHard) {
+      skillRows.push({
+        cv_submission_id: cvSubmissionId,
+        sort_order: skillRows.length,
+        category: 'hard',
+        skill_type: s.type,
+        nom: s.nom,
+        niveau: s.niveau,
+        contexte: s.contexte ?? null,
+      });
+    }
+    for (const s of finalSoft) {
+      skillRows.push({
+        cv_submission_id: cvSubmissionId,
+        sort_order: skillRows.length,
+        category: 'soft',
+        skill_type: null,
+        nom: s.nom,
+        niveau: s.niveau,
+        contexte: s.contexte ?? null,
+      });
+    }
+
+    const { error: deleteErr } = await this.supabase
+      .from('cv_skills')
+      .delete()
+      .eq('cv_submission_id', cvSubmissionId);
+    if (deleteErr) throw deleteErr;
+
+    if (!skillRows.length) {
+      return;
+    }
+
+    const { error: skErr } = await this.supabase.from('cv_skills').insert(skillRows);
+    if (skErr) {
+      console.error('[cv-submissions] cv_skills insert error', skErr);
+      throw skErr;
+    }
+  }
+
+  private splitPipeValues(value: unknown): string[] {
+    if (typeof value !== 'string') return [];
+    return value
+      .split('|')
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+  }
+
+  private toBooleanFlag(value: unknown): boolean {
+    if (value === true || value === 1 || value === '1') return true;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === 'true' || normalized === 'yes' || normalized === 'oui';
+    }
+    return false;
+  }
+
+  private predictLevelFromMoyenne(moyenne: number, isHard: boolean): string {
+    if (moyenne < 10) return 'Debutant';
+    if (moyenne < 12) return 'Debutant';
+    if (moyenne < 15) {
+      if (isHard && moyenne >= 13) return 'Avance';
+      return 'Intermediaire';
+    }
+    return 'Avance';
+  }
+
+  private classifySkillCategory(compType: string, isHardSkill: unknown): 'hard' | 'soft' {
+    const normalized = this.normalizeSkillKey(compType);
+    if (normalized.includes('comportement')) return 'soft';
+    if (normalized.includes('organisation')) return 'soft';
+    if (normalized.includes('soft')) return 'soft';
+
+    if (!normalized && !this.toBooleanFlag(isHardSkill)) {
+      return 'soft';
+    }
+
+    return 'hard';
+  }
+
+  private classifyHardSkillType(competence: string, compType: string): string {
+    const normalized = this.normalizeSkillKey(`${competence} ${compType}`);
+
+    if (
+      ['sap', 'erp', 'wms', 'tms', 'excel', 'vba', 'sql', 'iot', 'scanner', 'pda', 'si', 'data']
+        .some((hint) => normalized.includes(hint))
+    ) {
+      return 'Outil / Logiciel';
+    }
+
+    if (
+      ['lean', 'kaizen', 'fifo', 's op', 'sop', 'method']
+        .some((hint) => normalized.includes(hint))
+    ) {
+      return 'Methodologie';
+    }
+
+    if (
+      ['iso', 'rse', 'cmr', 'incoterm', 'oea', 'douane', 'reglement', 'audit', 'delta']
+        .some((hint) => normalized.includes(hint))
+    ) {
+      return 'Norme / Reglement';
+    }
+
+    return 'Metier T&L';
+  }
+
+  private async loadStudentNotes(studentId: number): Promise<ResolvedStudentNote[]> {
+    const attempts: Array<{
+      select: string;
+      idColumn: string;
+      moyenneColumn: string;
+    }> = [
+      {
+        select: 'student_id, code_ecue, moyenne',
+        idColumn: 'student_id',
+        moyenneColumn: 'moyenne',
+      },
+      {
+        select: 'etudiant, code_ecue, moyenne_matiere',
+        idColumn: 'etudiant',
+        moyenneColumn: 'moyenne_matiere',
+      },
+    ];
+
+    let lastError: any = null;
+
+    for (const attempt of attempts) {
+      const { data, error } = await this.supabase
+        .from('note')
+        .select(attempt.select)
+        .eq(attempt.idColumn, studentId);
+
+      if (error) {
+        lastError = error;
+        continue;
+      }
+
+      const rows = Array.isArray(data) ? data : [];
+      if (!rows.length) {
+        continue;
+      }
+
+      return rows
+        .map((row: any) => {
+          const moyenne = Number(row?.[attempt.moyenneColumn]);
+          return {
+            codeEcue: String(row?.code_ecue ?? '').trim(),
+            moyenne,
+          };
+        })
+        .filter((row) => row.codeEcue.length > 0 && Number.isFinite(row.moyenne));
+    }
+
+    if (lastError) {
+      this.logger.warn(`extractSkillsFromNotes: failed note query for student_id=${studentId}: ${lastError?.message ?? lastError}`);
+    }
+
+    return [];
+  }
+
+  private async loadMatiereCompetenceLookup(codeEcues: string[]): Promise<Map<string, any>> {
+    if (!codeEcues.length) return new Map<string, any>();
+
+    const attempts = [
+      'code_ecue, competences, comp_types, is_hard, is_hard_skill',
+      'code_ecue, competences, is_hard, is_hard_skill',
+      'code_ecue, competences, is_hard',
+    ];
+
+    let lastError: any = null;
+
+    for (const select of attempts) {
+      const { data, error } = await this.supabase
+        .from('matiere_competence')
+        .select(select)
+        .in('code_ecue', codeEcues);
+
+      if (error) {
+        lastError = error;
+        continue;
+      }
+
+      const rows = Array.isArray(data) ? data : [];
+      const lookup = new Map<string, any>();
+      for (const row of rows as any[]) {
+        const key = String(row?.code_ecue ?? '').trim();
+        if (!key) continue;
+        lookup.set(key, row);
+      }
+      return lookup;
+    }
+
+    if (lastError) {
+      this.logger.warn(`extractSkillsFromNotes: failed matiere_competence query: ${lastError?.message ?? lastError}`);
+    }
+
+    return new Map<string, any>();
+  }
+
+  async extractSkillsFromNotes(authId: string): Promise<ExtractedSkillsResult> {
+    const emptyResult: ExtractedSkillsResult = { hardSkills: [], softSkills: [] };
+
+    const { data: userRow, error: userErr } = await this.supabase
+      .from('user')
+      .select('id')
+      .eq('auth_id', authId)
+      .maybeSingle();
+
+    if (userErr || !userRow) {
+      this.logger.warn(`extractSkillsFromNotes: no user found for auth_id=${authId}`);
+      return emptyResult;
+    }
+
+    const studentId = Number(userRow.id);
+    if (!Number.isFinite(studentId)) {
+      this.logger.warn(`extractSkillsFromNotes: invalid student id for auth_id=${authId}`);
+      return emptyResult;
+    }
+
+    const notes = await this.loadStudentNotes(studentId);
+    if (!notes.length) {
+      this.logger.warn(`extractSkillsFromNotes: no notes for student_id=${studentId}`);
+      return emptyResult;
+    }
+
+    const codeEcues = [...new Set(notes.map((note) => note.codeEcue).filter(Boolean))];
+    const matiereLookup = await this.loadMatiereCompetenceLookup(codeEcues);
+    if (!matiereLookup.size) {
+      this.logger.warn(`extractSkillsFromNotes: no matiere_competence rows for student_id=${studentId}`);
+      return emptyResult;
+    }
+
+    const hardMap = new Map<string, ExtractedHardSkill & { priority: number }>();
+
+    for (const note of notes) {
+      const matiere = matiereLookup.get(note.codeEcue);
+      if (!matiere) continue;
+
+      const competences = this.splitPipeValues(matiere?.competences);
+      if (!competences.length) continue;
+
+      const compTypes = this.splitPipeValues(matiere?.comp_types);
+      const isHardMatiere = this.toBooleanFlag(matiere?.is_hard);
+      const predictedLevel = this.predictLevelFromMoyenne(note.moyenne, isHardMatiere);
+      const levelPriority = this.skillLevelPriority(predictedLevel);
+
+      for (let i = 0; i < competences.length; i += 1) {
+        const competence = String(competences[i] ?? '').trim();
+        if (!competence) continue;
+
+        const compType = String(compTypes[i] ?? compTypes[0] ?? '').trim();
+        const category = this.classifySkillCategory(compType, matiere?.is_hard_skill);
+        const key = this.normalizeSkillKey(competence);
+        if (!key) continue;
+
+        if (category === 'hard') {
+          const next: ExtractedHardSkill & { priority: number } = {
+            type: this.classifyHardSkillType(competence, compType),
+            nom: competence,
+            niveau: predictedLevel,
+            priority: levelPriority,
+          };
+          const existing = hardMap.get(key);
+          if (!existing || next.priority > existing.priority) {
+            hardMap.set(key, next);
+          }
+          continue;
+        }
+
+        // Soft skills are intentionally not auto-filled from notes.
+      }
+    }
+
+    const hardSkills = Array.from(hardMap.values())
+      .sort((a, b) => {
+        if (b.priority !== a.priority) return b.priority - a.priority;
+        return a.nom.localeCompare(b.nom, 'fr');
+      })
+      .map(({ priority: _priority, ...skill }) => skill);
+
+    return { hardSkills, softSkills: [] };
   }
 
   async getCvByAuthId(authId: string): Promise<any | null> {

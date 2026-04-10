@@ -136,6 +136,34 @@ export class CvSubmissionService {
     return data.cv ?? null;
   }
 
+  async fetchExtractedSkills(): Promise<{
+    found: boolean;
+    hardSkills: Array<{ type: string; nom: string; niveau: string }>;
+    softSkills: Array<{ nom: string; niveau: string; contexte: string }>;
+  }> {
+    const token = await this.getAuthToken();
+    if (!token) return { found: false, hardSkills: [], softSkills: [] };
+
+    try {
+      const resp = await fetch(`${environment.apiUrl}/cv-submissions/extract-skills`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) return { found: false, hardSkills: [], softSkills: [] };
+
+      const json = await resp.json();
+      const data = json?.data ?? json;
+      return {
+        found: !!data?.found,
+        hardSkills: Array.isArray(data?.hardSkills) ? data.hardSkills : [],
+        softSkills: Array.isArray(data?.softSkills) ? data.softSkills : [],
+      };
+    } catch (err) {
+      console.error('fetchExtractedSkills error', err);
+      return { found: false, hardSkills: [], softSkills: [] };
+    }
+  }
+
   async fetchMetiers(): Promise<any[]> {
     try {
       const resp = await fetch(`${environment.apiUrl}/ref-competance/metiers`);

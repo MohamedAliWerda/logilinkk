@@ -74,8 +74,51 @@ export class CvAts {
     try {
       this.metiers = await this.cvSubmissionService.fetchMetiers();
       this.checkSavedCv();
+      await this.loadExtractedSkills();
     } catch (err) {
       console.error('Failed to load metiers', err);
+    }
+  }
+
+  private async loadExtractedSkills(): Promise<void> {
+    // If CV already exists, restore saved skills.
+    const existingCv = await this.cvSubmissionService.fetchMyCv();
+    if (existingCv?.hardSkills?.length || existingCv?.softSkills?.length) {
+      this.hardSkills = (Array.isArray(existingCv.hardSkills) ? existingCv.hardSkills : []).map((s: any) => ({
+        type: s.skill_type ?? s.type ?? 'Metier T&L',
+        nom: s.nom ?? '',
+        niveau: (s.niveau ?? 'Intermediaire') as Level,
+        _system: true,
+      }));
+
+      this.softSkills = (Array.isArray(existingCv.softSkills) ? existingCv.softSkills : []).map((s: any) => ({
+        nom: s.nom ?? '',
+        niveau: (s.niveau ?? 'Intermediaire') as Level,
+        contexte: s.contexte ?? '',
+      }));
+
+      this.skillsExtracted = this.hardSkills.length > 0;
+      return;
+    }
+
+    // First-time CV: fetch auto-generated skills from notes.
+    this.skillsLoading = true;
+    try {
+      const result = await this.cvSubmissionService.fetchExtractedSkills();
+      if (result.found && result.hardSkills.length > 0) {
+        this.hardSkills = result.hardSkills.map((s) => ({
+          type: s.type,
+          nom: s.nom,
+          niveau: s.niveau as Level,
+          _system: true,
+        }));
+
+        this.skillsExtracted = this.hardSkills.length > 0;
+      }
+    } catch (err) {
+      console.error('Failed to extract skills from notes', err);
+    } finally {
+      this.skillsLoading = false;
     }
   }
 
@@ -219,14 +262,17 @@ export class CvAts {
     }
   ];
 
-  hardSkills = [
+  hardSkills: Array<{ type: string; nom: string; niveau: Level; _system?: boolean }> = [
     { type: 'Metier T&L', nom: '', niveau: 'Intermediaire' as Level },
     { type: 'Outil / Logiciel', nom: '', niveau: 'Intermediaire' as Level }
   ];
 
-  softSkills = [
+  softSkills: Array<{ nom: string; niveau: Level; contexte: string }> = [
     { nom: 'Communication', niveau: 'Intermediaire' as Level, contexte: '' }
   ];
+
+  skillsExtracted = false;
+  skillsLoading = false;
 
   langues = [
     { langue: '', niveau: 'B1', certification: '', score: '' }
@@ -716,10 +762,12 @@ export class CvAts {
   }
 
   addHardSkill() {
+    if (this.skillsExtracted) return;
     this.hardSkills.push({ type: 'Metier T&L', nom: '', niveau: 'Intermediaire' });
   }
 
   removeHardSkill(i: number) {
+    if (this.skillsExtracted) return;
     if (this.hardSkills.length > 1) {
       this.hardSkills.splice(i, 1);
     }
@@ -733,6 +781,10 @@ export class CvAts {
     if (this.softSkills.length > 1) {
       this.softSkills.splice(i, 1);
     }
+  }
+
+  isHardSkillLocked(): boolean {
+    return this.skillsExtracted;
   }
 
   addLangue() {
