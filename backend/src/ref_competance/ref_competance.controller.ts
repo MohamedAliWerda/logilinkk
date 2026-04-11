@@ -1,5 +1,5 @@
 import { Controller, Get, InternalServerErrorException, Logger } from '@nestjs/common';
-import { RefCompetanceService } from 'src/ref_competance/ref_competance.service';
+import { RefCompetanceService } from './ref_competance.service';
 
 @Controller('ref-competance')
 export class RefCompetanceController {

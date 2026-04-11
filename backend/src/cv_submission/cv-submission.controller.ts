@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Post, UseGuards, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Post, UseGuards, Req, Query } from '@nestjs/common';
 import { CvSubmissionService } from './cv-submission.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { getSupabase } from '../config/supabase.client';
@@ -110,7 +110,7 @@ export class CvSubmissionController {
   async calculateAtsScore(@Req() req: any, @Body() payload: any) {
     try {
       const authId = await this.resolveAuthId(req.user);
-      const result = await this.svc.calculateAtsScore(payload);
+      const result = await this.svc.calculateAtsScore(payload, authId);
       try {
         await this.svc.updateAtsScore(authId, result.atsScore);
       } catch (persistErr: any) {
@@ -134,10 +134,19 @@ export class CvSubmissionController {
 
   @Get('extract-skills')
   @UseGuards(JwtAuthGuard)
-  async extractSkills(@Req() req: any) {
+  async extractSkills(@Req() req: any, @Query('metierId') metierId?: string) {
     try {
       const authId = await this.resolveAuthId(req.user);
-      const skills = await this.withRetry(() => this.svc.extractSkillsFromNotes(authId));
+      const requestedMetierId = String(metierId ?? '').trim();
+      if (!requestedMetierId) {
+        return {
+          found: false,
+          hardSkills: [],
+          softSkills: [],
+        };
+      }
+
+      const skills = await this.withRetry(() => this.svc.extractSkillsFromNotes(authId, requestedMetierId));
       return {
         found: skills.hardSkills.length > 0 || skills.softSkills.length > 0,
         ...skills,
@@ -151,11 +160,12 @@ export class CvSubmissionController {
   
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getMyCv(@Req() req: any) {
+  async getMyCv(@Req() req: any, @Query('metierId') metierId?: string) {
     try {
       const authId = await this.resolveAuthId(req.user);
+      const requestedMetierId = String(metierId ?? '').trim();
 
-      const cv = await this.svc.getCvByAuthId(authId);
+      const cv = await this.svc.getCvByAuthId(authId, requestedMetierId);
       if (!cv) {
         return { found: false };
       }

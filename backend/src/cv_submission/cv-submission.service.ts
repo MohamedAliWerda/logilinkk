@@ -14,6 +14,7 @@ type ExtractedHardSkill = {
   type: string;
   nom: string;
   niveau: string;
+  metierIds: string[];
 };
 
 type ExtractedSoftSkill = {
@@ -32,19 +33,43 @@ type ResolvedStudentNote = {
   moyenne: number;
 };
 
+type GeminiProviderConfig = {
+  name: 'primary' | 'secondary';
+  apiKey: string;
+  model: string;
+};
+
 @Injectable()
 export class CvSubmissionService {
   private readonly logger = new Logger(CvSubmissionService.name);
   private readonly supabase = getSupabase();
-  private readonly geminiModel = 'gemini-2.5-flash-lite';
-  private readonly geminiApiKey: string;
+  private readonly geminiPrimaryApiKey: string;
+  private readonly geminiSecondaryApiKey: string;
+  private readonly geminiPrimaryModel: string;
+  private readonly geminiSecondaryModel: string;
+  private readonly disabledGeminiProviders = new Set<string>();
   private static readonly AUTO_SKILL_CONTEXT = '__auto_generated_from_notes__';
 
   constructor(
     private readonly configService: ConfigService,
     private readonly refCompetanceService: RefCompetanceService,
   ) {
-    this.geminiApiKey = this.configService.get<string>('GEMINI_API_KEY') ?? '';
+    this.geminiPrimaryApiKey =
+      this.configService.get<string>('GEMINI_API_KEY_PRIMARY')
+      ?? this.configService.get<string>('GEMINI_API_KEY')
+      ?? '';
+
+    this.geminiSecondaryApiKey =
+      this.configService.get<string>('GEMINI_API_KEY_SECONDARY')
+      ?? '';
+
+    this.geminiPrimaryModel =
+      this.configService.get<string>('GEMINI_MODEL_PRIMARY')
+      ?? 'gemini-3.1-flash-lite-preview';
+
+    this.geminiSecondaryModel =
+      this.configService.get<string>('GEMINI_MODEL_SECONDARY')
+      ?? 'gemini-2.5-flash-lite';
   }
 
   private sanitizeDate(value: any): string | null {
@@ -57,21 +82,13 @@ export class CvSubmissionService {
   }
 
   async upsertCv(authId: string, payload: any): Promise<void> {
-    const { data: existingCv, error: existingCvErr } = await this.supabase
-      .from('cv_submissions')
-      .select('id')
-      .eq('auth_id', authId)
-      .maybeSingle();
-
-    if (existingCvErr) throw existingCvErr;
-    const isFirstCv = !existingCv?.id;
-
     // Upsert main row using auth_id as unique key
     const { data: mainRow, error: mainError } = await this.supabase
       .from('cv_submissions')
       .upsert([
         {
           auth_id: authId,
+          metier_id: this.normalizeMetierId(payload?.metierId) || null,
           professional_title: payload.professionalTitle,
           specialization: payload.specialization,
           objectif: payload.objectif,
@@ -148,7 +165,7 @@ export class CvSubmissionService {
       }
     }
 
-    await this.upsertCvSkills(authId, cvSubmissionId, payload, isFirstCv);
+    await this.upsertCvSkills(authId, cvSubmissionId, payload);
 
     // Langues
     if (payload.langues?.length) {
@@ -258,22 +275,35 @@ export class CvSubmissionService {
     return order[normalized] ?? 0;
   }
 
-  private dedupeSkillList<T extends { nom: string; niveau: string }>(skills: T[]): T[] {
+  private dedupeSkillList<T extends { nom: string; niveau: string; metierIds?: string[] }>(skills: T[]): T[] {
     const byName = new Map<string, T>();
     for (const item of skills) {
       const nom = String(item.nom ?? '').trim();
       if (!nom) continue;
 
       const key = this.normalizeSkillKey(nom);
+      const normalizedMetierIds = this.parseMetierIds((item as any).metierIds);
       const normalizedItem = {
         ...item,
         nom,
         niveau: this.normalizeSkillLevel(item.niveau),
-      };
+        ...(normalizedMetierIds.length > 0 ? { metierIds: normalizedMetierIds } : {}),
+      } as T;
       const existing = byName.get(key);
-      if (!existing || this.skillLevelPriority(normalizedItem.niveau) > this.skillLevelPriority(existing.niveau)) {
-        byName.set(key, normalizedItem as T);
+      if (!existing) {
+        byName.set(key, normalizedItem);
+        continue;
       }
+
+      const existingMetierIds = this.parseMetierIds((existing as any).metierIds);
+      const mergedMetierIds = [...new Set([...existingMetierIds, ...normalizedMetierIds])];
+      const keepNew = this.skillLevelPriority(normalizedItem.niveau) > this.skillLevelPriority(existing.niveau);
+      const winner = keepNew ? normalizedItem : existing;
+
+      byName.set(key, {
+        ...winner,
+        ...(mergedMetierIds.length > 0 ? { metierIds: mergedMetierIds } : {}),
+      } as T);
     }
     return Array.from(byName.values());
   }
@@ -283,6 +313,7 @@ export class CvSubmissionService {
     nom: string;
     niveau: string;
     contexte: string | null;
+    metierIds: string[];
   }> {
     if (!Array.isArray(skills)) return [];
     return skills
@@ -291,6 +322,7 @@ export class CvSubmissionService {
         nom: String(s?.nom ?? s?.name ?? '').trim(),
         niveau: this.normalizeSkillLevel(s?.niveau),
         contexte: s?.contexte ? String(s.contexte) : null,
+        metierIds: this.parseMetierIds(s?.metierIds ?? s?.metier_ids),
       }))
       .filter((s) => s.nom.length > 0);
   }
@@ -314,43 +346,85 @@ export class CvSubmissionService {
     authId: string,
     cvSubmissionId: string,
     payload: any,
-    isFirstCv: boolean,
   ): Promise<void> {
     const { data: existingSkills, error: existingSkillsErr } = await this.supabase
       .from('cv_skills')
-      .select('category, skill_type, nom, niveau, contexte, sort_order')
+      .select('id, category, skill_type, nom, niveau, contexte, sort_order')
       .eq('cv_submission_id', cvSubmissionId)
       .order('sort_order', { ascending: true });
 
     if (existingSkillsErr) throw existingSkillsErr;
 
     const existingRows = Array.isArray(existingSkills) ? existingSkills : [];
-    const systemHardExisting = existingRows
-      .filter((s: any) => s.category === 'hard' && s.contexte === CvSubmissionService.AUTO_SKILL_CONTEXT)
-      .map((s: any) => ({
-        type: String(s.skill_type ?? 'Metier T&L').trim() || 'Metier T&L',
-        nom: String(s.nom ?? '').trim(),
-        niveau: this.normalizeSkillLevel(s.niveau),
-        contexte: CvSubmissionService.AUTO_SKILL_CONTEXT,
-      }))
+    const existingSystemHardRows = existingRows
+      .filter((s: any) => s.category === 'hard' && s.contexte === CvSubmissionService.AUTO_SKILL_CONTEXT);
+
+    const existingSystemHardIds = existingSystemHardRows
+      .map((s: any) => String(s.id ?? '').trim())
+      .filter((id) => id.length > 0);
+
+    const existingMetiersBySkillId = new Map<string, string[]>();
+    if (existingSystemHardIds.length > 0) {
+      try {
+        const { data: existingLinks, error: existingLinksErr } = await this.supabase
+          .from('cv_skill_metiers')
+          .select('cv_skill_id, metier_id')
+          .in('cv_skill_id', existingSystemHardIds);
+
+        if (existingLinksErr) {
+          const message = String(existingLinksErr?.message ?? '').toLowerCase();
+          if (!message.includes('cv_skill_metiers')) {
+            throw existingLinksErr;
+          }
+          this.logger.warn('cv_skill_metiers table not available yet; hard-skill metier links cannot be restored.');
+        } else if (Array.isArray(existingLinks)) {
+          for (const link of existingLinks as any[]) {
+            const skillId = String(link?.cv_skill_id ?? '').trim();
+            const metierId = this.normalizeMetierId(link?.metier_id);
+            if (!skillId || !metierId) continue;
+
+            const current = existingMetiersBySkillId.get(skillId) ?? [];
+            if (!current.includes(metierId)) {
+              current.push(metierId);
+              existingMetiersBySkillId.set(skillId, current);
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed to load existing skill-metier links: ${err?.message ?? err}`);
+      }
+    }
+
+    const systemHardExisting = existingSystemHardRows
+      .map((s: any) => {
+        const skillId = String(s.id ?? '').trim();
+        return {
+          type: String(s.skill_type ?? 'Metier T&L').trim() || 'Metier T&L',
+          nom: String(s.nom ?? '').trim(),
+          niveau: this.normalizeSkillLevel(s.niveau),
+          contexte: CvSubmissionService.AUTO_SKILL_CONTEXT,
+          metierIds: existingMetiersBySkillId.get(skillId) ?? [],
+        };
+      })
       .filter((s) => s.nom.length > 0);
 
-    const extracted = isFirstCv
-      ? await this.extractSkillsFromNotes(authId)
-      : { hardSkills: [], softSkills: [] };
+    const extractedInventory = await this.extractAllHardSkillsFromNotes(authId);
 
-    const extractedHard = extracted.hardSkills.map((s) => ({
+    const extractedHard = extractedInventory.map((s) => ({
       type: String(s.type ?? 'Metier T&L').trim() || 'Metier T&L',
       nom: String(s.nom ?? '').trim(),
       niveau: this.normalizeSkillLevel(s.niveau),
       contexte: CvSubmissionService.AUTO_SKILL_CONTEXT,
+      metierIds: this.parseMetierIds(s.metierIds),
     })).filter((s) => s.nom.length > 0);
 
     const incomingHard = this.dedupeSkillList(this.normalizeIncomingHardSkills(payload?.hardSkills));
     const incomingSoft = this.dedupeSkillList(this.normalizeIncomingSoftSkills(payload?.softSkills));
 
     const lockedHard = this.dedupeSkillList(
-      systemHardExisting.length > 0 ? systemHardExisting : extractedHard,
+      extractedHard.length > 0
+        ? extractedHard
+        : (systemHardExisting.length > 0 ? systemHardExisting : []),
     );
 
     const finalHard = this.dedupeSkillList(
@@ -358,29 +432,33 @@ export class CvSubmissionService {
     );
     const finalSoft = this.dedupeSkillList(incomingSoft);
 
-    const skillRows: any[] = [];
-    for (const s of finalHard) {
-      skillRows.push({
+    const hardRowsWithMetiers = finalHard.map((s, index) => ({
+      row: {
         cv_submission_id: cvSubmissionId,
-        sort_order: skillRows.length,
+        sort_order: index,
         category: 'hard',
         skill_type: s.type,
         nom: s.nom,
         niveau: s.niveau,
         contexte: s.contexte ?? null,
-      });
-    }
-    for (const s of finalSoft) {
-      skillRows.push({
-        cv_submission_id: cvSubmissionId,
-        sort_order: skillRows.length,
-        category: 'soft',
-        skill_type: null,
-        nom: s.nom,
-        niveau: s.niveau,
-        contexte: s.contexte ?? null,
-      });
-    }
+      },
+      metierIds: this.parseMetierIds((s as any).metierIds),
+    }));
+
+    const softRows = finalSoft.map((s, index) => ({
+      cv_submission_id: cvSubmissionId,
+      sort_order: hardRowsWithMetiers.length + index,
+      category: 'soft',
+      skill_type: null,
+      nom: s.nom,
+      niveau: s.niveau,
+      contexte: s.contexte ?? null,
+    }));
+
+    const rowsToInsert = [
+      ...hardRowsWithMetiers.map((entry) => entry.row),
+      ...softRows,
+    ];
 
     const { error: deleteErr } = await this.supabase
       .from('cv_skills')
@@ -388,14 +466,60 @@ export class CvSubmissionService {
       .eq('cv_submission_id', cvSubmissionId);
     if (deleteErr) throw deleteErr;
 
-    if (!skillRows.length) {
+    if (!rowsToInsert.length) {
       return;
     }
 
-    const { error: skErr } = await this.supabase.from('cv_skills').insert(skillRows);
+    const { data: insertedSkills, error: skErr } = await this.supabase
+      .from('cv_skills')
+      .insert(rowsToInsert)
+      .select('id, category, sort_order');
     if (skErr) {
       console.error('[cv-submissions] cv_skills insert error', skErr);
       throw skErr;
+    }
+
+    const hardMetierRows: Array<{ cv_skill_id: string; metier_id: string }> = [];
+    if (Array.isArray(insertedSkills)) {
+      const metiersBySortOrder = new Map<number, string[]>(
+        hardRowsWithMetiers.map((entry) => [entry.row.sort_order, entry.metierIds]),
+      );
+
+      for (const inserted of insertedSkills as any[]) {
+        if (inserted?.category !== 'hard') continue;
+
+        const skillId = String(inserted?.id ?? '').trim();
+        const sortOrder = Number(inserted?.sort_order);
+        if (!skillId || !Number.isFinite(sortOrder)) continue;
+
+        const metierIds = metiersBySortOrder.get(sortOrder) ?? [];
+        for (const metierId of metierIds) {
+          if (!metierId) continue;
+          hardMetierRows.push({
+            cv_skill_id: skillId,
+            metier_id: metierId,
+          });
+        }
+      }
+    }
+
+    if (!hardMetierRows.length) {
+      return;
+    }
+
+    try {
+      const { error: linkErr } = await this.supabase
+        .from('cv_skill_metiers')
+        .insert(hardMetierRows);
+      if (linkErr) {
+        const message = String(linkErr?.message ?? '').toLowerCase();
+        if (!message.includes('cv_skill_metiers')) {
+          throw linkErr;
+        }
+        this.logger.warn('cv_skill_metiers table not available yet; hard-skill metier links were not persisted.');
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to persist skill-metier links: ${err?.message ?? err}`);
     }
   }
 
@@ -404,6 +528,41 @@ export class CvSubmissionService {
     return value
       .split('|')
       .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+  }
+
+  private normalizeMetierId(value: unknown): string {
+    return String(value ?? '').trim().toLowerCase();
+  }
+
+  private parseMetierIds(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value
+        .map((entry) => this.normalizeMetierId(entry))
+        .filter((entry) => entry.length > 0);
+    }
+
+    if (typeof value !== 'string') {
+      return [];
+    }
+
+    const raw = value.trim();
+    if (!raw) {
+      return [];
+    }
+
+    if (raw.startsWith('[') && raw.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(raw);
+        return this.parseMetierIds(parsed);
+      } catch {
+        // Fall through to delimiter-based parsing.
+      }
+    }
+
+    return raw
+      .split(/[|,;]+/)
+      .map((part) => this.normalizeMetierId(part))
       .filter((part) => part.length > 0);
   }
 
@@ -520,13 +679,15 @@ export class CvSubmissionService {
     return [];
   }
 
-  private async loadMatiereCompetenceLookup(codeEcues: string[]): Promise<Map<string, any>> {
+  private async loadMatiereCompetenceLookup(codeEcues: string[], metierId?: string): Promise<Map<string, any>> {
     if (!codeEcues.length) return new Map<string, any>();
 
+    const normalizedMetierId = this.normalizeMetierId(metierId);
+
     const attempts = [
-      'code_ecue, competences, comp_types, is_hard, is_hard_skill',
-      'code_ecue, competences, is_hard, is_hard_skill',
-      'code_ecue, competences, is_hard',
+      'code_ecue, competences, comp_types, is_hard, is_hard_skill, metier_ids',
+      'code_ecue, competences, is_hard, is_hard_skill, metier_ids',
+      'code_ecue, competences, is_hard, metier_ids',
     ];
 
     let lastError: any = null;
@@ -547,6 +708,14 @@ export class CvSubmissionService {
       for (const row of rows as any[]) {
         const key = String(row?.code_ecue ?? '').trim();
         if (!key) continue;
+
+        if (normalizedMetierId) {
+          const linkedMetiers = this.parseMetierIds(row?.metier_ids);
+          if (!linkedMetiers.includes(normalizedMetierId)) {
+            continue;
+          }
+        }
+
         lookup.set(key, row);
       }
       return lookup;
@@ -559,8 +728,8 @@ export class CvSubmissionService {
     return new Map<string, any>();
   }
 
-  async extractSkillsFromNotes(authId: string): Promise<ExtractedSkillsResult> {
-    const emptyResult: ExtractedSkillsResult = { hardSkills: [], softSkills: [] };
+  private async buildHardSkillsFromNotes(authId: string, metierId?: string): Promise<ExtractedHardSkill[]> {
+    const normalizedMetierId = this.normalizeMetierId(metierId);
 
     const { data: userRow, error: userErr } = await this.supabase
       .from('user')
@@ -570,26 +739,26 @@ export class CvSubmissionService {
 
     if (userErr || !userRow) {
       this.logger.warn(`extractSkillsFromNotes: no user found for auth_id=${authId}`);
-      return emptyResult;
+      return [];
     }
 
     const studentId = Number(userRow.id);
     if (!Number.isFinite(studentId)) {
       this.logger.warn(`extractSkillsFromNotes: invalid student id for auth_id=${authId}`);
-      return emptyResult;
+      return [];
     }
 
     const notes = await this.loadStudentNotes(studentId);
     if (!notes.length) {
       this.logger.warn(`extractSkillsFromNotes: no notes for student_id=${studentId}`);
-      return emptyResult;
+      return [];
     }
 
     const codeEcues = [...new Set(notes.map((note) => note.codeEcue).filter(Boolean))];
-    const matiereLookup = await this.loadMatiereCompetenceLookup(codeEcues);
+    const matiereLookup = await this.loadMatiereCompetenceLookup(codeEcues, normalizedMetierId);
     if (!matiereLookup.size) {
       this.logger.warn(`extractSkillsFromNotes: no matiere_competence rows for student_id=${studentId}`);
-      return emptyResult;
+      return [];
     }
 
     const hardMap = new Map<string, ExtractedHardSkill & { priority: number }>();
@@ -602,6 +771,7 @@ export class CvSubmissionService {
       if (!competences.length) continue;
 
       const compTypes = this.splitPipeValues(matiere?.comp_types);
+      const rowMetierIds = this.parseMetierIds(matiere?.metier_ids);
       const isHardMatiere = this.toBooleanFlag(matiere?.is_hard);
       const predictedLevel = this.predictLevelFromMoyenne(note.moyenne, isHardMatiere);
       const levelPriority = this.skillLevelPriority(predictedLevel);
@@ -620,11 +790,26 @@ export class CvSubmissionService {
             type: this.classifyHardSkillType(competence, compType),
             nom: competence,
             niveau: predictedLevel,
+            metierIds: rowMetierIds,
             priority: levelPriority,
           };
           const existing = hardMap.get(key);
-          if (!existing || next.priority > existing.priority) {
+          if (!existing) {
             hardMap.set(key, next);
+            continue;
+          }
+
+          const mergedMetierIds = [...new Set([...(existing.metierIds ?? []), ...rowMetierIds])];
+          if (next.priority > existing.priority) {
+            hardMap.set(key, {
+              ...next,
+              metierIds: mergedMetierIds,
+            });
+          } else {
+            hardMap.set(key, {
+              ...existing,
+              metierIds: mergedMetierIds,
+            });
           }
           continue;
         }
@@ -638,12 +823,33 @@ export class CvSubmissionService {
         if (b.priority !== a.priority) return b.priority - a.priority;
         return a.nom.localeCompare(b.nom, 'fr');
       })
-      .map(({ priority: _priority, ...skill }) => skill);
+      .map(({ priority: _priority, ...skill }) => ({
+        ...skill,
+        metierIds: this.parseMetierIds(skill.metierIds),
+      }));
+
+    return hardSkills;
+  }
+
+  private async extractAllHardSkillsFromNotes(authId: string): Promise<ExtractedHardSkill[]> {
+    return this.buildHardSkillsFromNotes(authId);
+  }
+
+  async extractSkillsFromNotes(authId: string, metierId?: string): Promise<ExtractedSkillsResult> {
+    const emptyResult: ExtractedSkillsResult = { hardSkills: [], softSkills: [] };
+    const normalizedMetierId = this.normalizeMetierId(metierId);
+
+    if (!normalizedMetierId) {
+      this.logger.log('extractSkillsFromNotes: metierId is required, skipping generation.');
+      return emptyResult;
+    }
+
+    const hardSkills = await this.buildHardSkillsFromNotes(authId, normalizedMetierId);
 
     return { hardSkills, softSkills: [] };
   }
 
-  async getCvByAuthId(authId: string): Promise<any | null> {
+  async getCvByAuthId(authId: string, metierId?: string): Promise<any | null> {
     const supabase = this.supabase;
 
     const { data: mainRows, error: mainErr } = await supabase
@@ -669,6 +875,7 @@ export class CvSubmissionService {
 
     const result: any = {
       professionalTitle: main.professional_title,
+      metierId: main.metier_id,
       specialization: main.specialization,
       objectif: main.objectif,
       info: {
@@ -698,10 +905,65 @@ export class CvSubmissionService {
       switch (key) {
         case 'formations': result.formations = data; break;
         case 'experiences': result.experiences = data; break;
-        case 'skills':
-          result.hardSkills = data.filter((s: any) => s.category === 'hard');
+        case 'skills': {
+          const allHardSkills = data.filter((s: any) => s.category === 'hard');
+          const selectedMetierId = this.normalizeMetierId(metierId || main.metier_id);
+          let filteredHardSkills = allHardSkills;
+
+          if (selectedMetierId && allHardSkills.length > 0) {
+            const hardSkillIds = allHardSkills
+              .map((s: any) => String(s?.id ?? '').trim())
+              .filter((id: string) => id.length > 0);
+
+            if (hardSkillIds.length > 0) {
+              try {
+                const { data: links, error: linksErr } = await supabase
+                  .from('cv_skill_metiers')
+                  .select('cv_skill_id, metier_id')
+                  .in('cv_skill_id', hardSkillIds);
+
+                if (linksErr) {
+                  const message = String(linksErr?.message ?? '').toLowerCase();
+                  if (!message.includes('cv_skill_metiers')) {
+                    throw linksErr;
+                  }
+                  this.logger.warn('cv_skill_metiers table not available yet; returning unfiltered hard skills.');
+                } else if (Array.isArray(links)) {
+                  const metiersBySkillId = new Map<string, Set<string>>();
+
+                  for (const link of links as any[]) {
+                    const skillId = String(link?.cv_skill_id ?? '').trim();
+                    const linkedMetierId = this.normalizeMetierId(link?.metier_id);
+                    if (!skillId || !linkedMetierId) continue;
+
+                    const set = metiersBySkillId.get(skillId) ?? new Set<string>();
+                    set.add(linkedMetierId);
+                    metiersBySkillId.set(skillId, set);
+                  }
+
+                  filteredHardSkills = allHardSkills.filter((skill: any) => {
+                    const skillId = String(skill?.id ?? '').trim();
+                    if (!skillId) return true;
+
+                    const linkedMetiers = metiersBySkillId.get(skillId);
+                    if (!linkedMetiers || linkedMetiers.size === 0) {
+                      return true;
+                    }
+
+                    return linkedMetiers.has(selectedMetierId);
+                  });
+                }
+              } catch (err: any) {
+                this.logger.warn(`Failed to filter hard skills by metier: ${err?.message ?? err}`);
+              }
+            }
+          }
+
+          result.hardSkills = filteredHardSkills;
+          result.allHardSkills = allHardSkills;
           result.softSkills = data.filter((s: any) => s.category === 'soft');
           break;
+        }
         case 'langues': result.langues = data; break;
         case 'projets': result.projets = data; break;
         case 'certifications': result.certifications = data; break;
@@ -763,8 +1025,47 @@ export class CvSubmissionService {
     if (insertErr) throw insertErr;
   }
 
-  async calculateAtsScore(payload: any): Promise<AtsScoreResult> {
-    const resumeText = this.buildResumeText(payload);
+  private async enrichPayloadForMatching(payload: any, authId?: string): Promise<any> {
+    const basePayload = payload ?? {};
+    if (!authId) {
+      return basePayload;
+    }
+
+    try {
+      const extractedInventory = await this.extractAllHardSkillsFromNotes(authId);
+      if (!extractedInventory.length) {
+        return basePayload;
+      }
+
+      const incomingHard = this.normalizeIncomingHardSkills(basePayload?.hardSkills);
+      const extractedHard = extractedInventory.map((s) => ({
+        type: String(s.type ?? 'Metier T&L').trim() || 'Metier T&L',
+        nom: String(s.nom ?? '').trim(),
+        niveau: this.normalizeSkillLevel(s.niveau),
+        contexte: CvSubmissionService.AUTO_SKILL_CONTEXT,
+        metierIds: this.parseMetierIds(s.metierIds),
+      })).filter((s) => s.nom.length > 0);
+
+      const mergedHard = this.dedupeSkillList([...incomingHard, ...extractedHard]).map((s) => ({
+        type: s.type,
+        nom: s.nom,
+        niveau: s.niveau,
+        contexte: s.contexte ?? null,
+      }));
+
+      return {
+        ...basePayload,
+        hardSkills: mergedHard,
+      };
+    } catch (err: any) {
+      this.logger.warn(`Failed to enrich ATS payload with extracted hard skills: ${err?.message ?? err}`);
+      return basePayload;
+    }
+  }
+
+  async calculateAtsScore(payload: any, authId?: string): Promise<AtsScoreResult> {
+    const payloadForMatching = await this.enrichPayloadForMatching(payload, authId);
+    const resumeText = this.buildResumeText(payloadForMatching);
     const referenceKeywords = await this.loadReferenceKeywordsSafely();
 
     try {
@@ -791,13 +1092,46 @@ export class CvSubmissionService {
         rawResponse,
       };
     } catch (err: any) {
-      this.logger.warn(`Gemini scoring failed, using fallback score: ${err?.message ?? err}`);
+      const errMessage = String(err?.message ?? err ?? 'unknown error');
+      this.logger.warn(`Gemini scoring failed, using fallback score: ${errMessage}`);
+
       const fallback = this.computeFallbackScore(resumeText, referenceKeywords);
       return {
         ...fallback,
-        rawResponse: `FALLBACK_SCORE: ${err?.message ?? 'unknown error'}`,
+        rawResponse: `FALLBACK_SCORE: ${errMessage}`,
       };
     }
+  }
+
+  private getGeminiProviders(): GeminiProviderConfig[] {
+    const providers: GeminiProviderConfig[] = [];
+
+    if (this.geminiPrimaryApiKey) {
+      providers.push({
+        name: 'primary',
+        apiKey: this.geminiPrimaryApiKey,
+        model: this.geminiPrimaryModel,
+      });
+    }
+
+    if (this.geminiSecondaryApiKey && this.geminiSecondaryApiKey !== this.geminiPrimaryApiKey) {
+      providers.push({
+        name: 'secondary',
+        apiKey: this.geminiSecondaryApiKey,
+        model: this.geminiSecondaryModel,
+      });
+    }
+
+    return providers;
+  }
+
+  private disableGeminiProvider(provider: GeminiProviderConfig, reason: string): void {
+    if (this.disabledGeminiProviders.has(provider.name)) {
+      return;
+    }
+
+    this.disabledGeminiProviders.add(provider.name);
+    this.logger.error(`Gemini ${provider.name} provider disabled: ${reason}`);
   }
 
   private async loadReferenceKeywordsSafely(): Promise<string[]> {
@@ -853,11 +1187,35 @@ export class CvSubmissionService {
   }
 
   private async generateGeminiText(prompt: string): Promise<string> {
-    if (!this.geminiApiKey) {
-      throw new Error('GEMINI_API_KEY is not configured in backend environment.');
+    const providers = this.getGeminiProviders();
+    if (!providers.length) {
+      throw new Error('No Gemini API key configured. Set GEMINI_API_KEY_PRIMARY (or GEMINI_API_KEY).');
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.geminiModel}:generateContent?key=${this.geminiApiKey}`;
+    const activeProviders = providers.filter((provider) => !this.disabledGeminiProviders.has(provider.name));
+    if (!activeProviders.length) {
+      throw new Error('All Gemini providers are disabled. Please configure a valid API key.');
+    }
+
+    let lastError: Error | null = null;
+
+    for (const provider of activeProviders) {
+      if (provider.name === 'secondary') {
+        this.logger.warn('Gemini primary provider unavailable; trying secondary provider (plan B).');
+      }
+
+      try {
+        return await this.generateGeminiTextWithProvider(provider, prompt);
+      } catch (err: any) {
+        lastError = err instanceof Error ? err : new Error(String(err ?? 'unknown error'));
+      }
+    }
+
+    throw lastError ?? new Error('Gemini providers failed.');
+  }
+
+  private async generateGeminiTextWithProvider(provider: GeminiProviderConfig, prompt: string): Promise<string> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${provider.model}:generateContent?key=${provider.apiKey}`;
     const maxAttempts = 4;
     let lastError: Error | null = null;
 
@@ -878,13 +1236,27 @@ export class CvSubmissionService {
 
       if (!response.ok) {
         const text = await response.text();
+
+        if (response.status === 403) {
+          const lower = text.toLowerCase();
+          if (lower.includes('reported as leaked') || lower.includes('permission_denied')) {
+            this.disableGeminiProvider(
+              provider,
+              `API key rejected (reported leaked/permission denied) for model ${provider.model}.`,
+            );
+            throw new Error(`Gemini ${provider.name} provider rejected (403 permission denied).`);
+          }
+        }
+
         const transient = response.status === 429 || response.status === 503 || response.status >= 500;
-        lastError = new Error(`Gemini API failed (${response.status}): ${text}`);
+        lastError = new Error(
+          `Gemini API [${provider.name}/${provider.model}] failed (${response.status}): ${text}`,
+        );
 
         if (transient && attempt < maxAttempts) {
           const waitMs = 500 * 2 ** (attempt - 1) + Math.floor(Math.random() * 200);
           this.logger.warn(
-            `Gemini temporary error (${response.status}) on attempt ${attempt}/${maxAttempts}; retrying in ${waitMs}ms.`,
+            `Gemini temporary error [${provider.name}/${provider.model}] (${response.status}) on attempt ${attempt}/${maxAttempts}; retrying in ${waitMs}ms.`,
           );
           await this.sleep(waitMs);
           continue;

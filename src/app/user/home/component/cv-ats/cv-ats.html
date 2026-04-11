@@ -123,10 +123,10 @@
     <div class="form-grid-2">
         <div class="form-group">
             <label>Titre du poste visé <span class="req">*</span></label>
-            <select class="form-control" [(ngModel)]="professionalTitle" (ngModelChange)="onMetierChange($event)">
+            <select class="form-control" [(ngModel)]="selectedMetierId" (ngModelChange)="onMetierChange($event)">
                                     <option value="">Sélectionnez un métier...</option>
-                                    @for (m of metiers; track m) {
-                                        <option [value]="m.nom_metier">{{ m.nom_metier }}</option>
+                                    @for (m of metiers; track m._id) {
+                                        <option [value]="m._id">{{ m.nom_metier }}</option>
                                     }
                                 </select>
         </div>
@@ -350,7 +350,7 @@
                     <textarea class="form-control" [(ngModel)]="s.contexte" placeholder="Exemple concret (1-2 phrases)"></textarea>
                 </div>
             </div>
-                        @if (softSkills.length > 1) {
+            @if (softSkills.length > 1) {
             <button type="button" class="btn-remove" (click)="removeSoftSkill(i)">
                       <i class="fa-solid fa-trash-can"></i> Supprimer
                     </button> }
