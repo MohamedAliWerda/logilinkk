@@ -1067,6 +1067,7 @@ export class CvSubmissionService {
     const payloadForMatching = await this.enrichPayloadForMatching(payload, authId);
     const resumeText = this.buildResumeText(payloadForMatching);
     const referenceKeywords = await this.loadReferenceKeywordsSafely();
+    const qualityScore = this.computeCvQualityScore(payload);
 
     try {
       const prompt = this.buildScorePrompt(resumeText, referenceKeywords);
@@ -1075,8 +1076,8 @@ export class CvSubmissionService {
       const parsedSuccess = this.parseScore(rawResponse, /Application Success rates?[:\s]*([0-9]{1,3})\s*%/i);
 
       if (parsedMatch !== null && parsedSuccess !== null) {
-        const matchScore = this.clampScore(parsedMatch);
-        const successScore = this.clampScore(parsedSuccess);
+        const matchScore = this.clampScore(Math.round(parsedMatch * 0.75 + qualityScore * 0.25));
+        const successScore = this.clampScore(Math.round(parsedSuccess * 0.6 + qualityScore * 0.4));
         return {
           matchScore,
           successScore,
@@ -1086,7 +1087,7 @@ export class CvSubmissionService {
       }
 
       this.logger.warn('Gemini response format mismatch; applying deterministic fallback score.');
-      const fallback = this.computeFallbackScore(resumeText, referenceKeywords);
+      const fallback = this.computeFallbackScore(resumeText, referenceKeywords, qualityScore);
       return {
         ...fallback,
         rawResponse,
@@ -1095,7 +1096,7 @@ export class CvSubmissionService {
       const errMessage = String(err?.message ?? err ?? 'unknown error');
       this.logger.warn(`Gemini scoring failed, using fallback score: ${errMessage}`);
 
-      const fallback = this.computeFallbackScore(resumeText, referenceKeywords);
+      const fallback = this.computeFallbackScore(resumeText, referenceKeywords, qualityScore);
       return {
         ...fallback,
         rawResponse: `FALLBACK_SCORE: ${errMessage}`,
@@ -1159,19 +1160,65 @@ export class CvSubmissionService {
   private computeFallbackScore(
     resumeText: string,
     referenceKeywords: string[],
+    qualityScore: number,
   ): Omit<AtsScoreResult, 'rawResponse'> {
     const resumeTokens = new Set(this.extractKeywords(resumeText));
     const matched = referenceKeywords.filter((k) => resumeTokens.has(k)).length;
-    const matchScore = this.clampScore(
+    const rawMatch = this.clampScore(
       Math.round((matched / Math.max(referenceKeywords.length, 1)) * 100),
     );
-    const successScore = this.clampScore(Math.round(matchScore * 0.9 + 5));
+    const matchScore = this.clampScore(Math.round(rawMatch * 0.65 + qualityScore * 0.35));
+    const successScore = this.clampScore(Math.round(qualityScore * 0.7 + matchScore * 0.3));
 
     return {
       matchScore,
       successScore,
       atsScore: this.clampScore(Math.round((matchScore + successScore) / 2)),
     };
+  }
+
+  private computeCvQualityScore(payload: any): number {
+    const safe = (v: any) => String(v ?? '').trim();
+    const wordCount = (v: any) => safe(v).split(/\s+/).filter(Boolean).length;
+
+    let points = 0;
+
+    if (safe(payload?.professionalTitle)) points += 8;
+    if (safe(payload?.specialization)) points += 4;
+    if (wordCount(payload?.objectif) >= 10) points += 12;
+
+    if (safe(payload?.info?.linkedin)) points += 4;
+    if (safe(payload?.info?.permis)) points += 2;
+
+    const formations = Array.isArray(payload?.formations) ? payload.formations : [];
+    const hasSolidFormation = formations.some((f: any) => safe(f?.diplome) && safe(f?.institution));
+    if (hasSolidFormation) points += 15;
+
+    const experiences = Array.isArray(payload?.experiences) ? payload.experiences : [];
+    const strongExperiences = experiences.filter((e: any) => (
+      safe(e?.poste)
+      && safe(e?.entreprise)
+      && wordCount(e?.description) >= 20
+    )).length;
+    if (strongExperiences >= 1) points += 20;
+    if (strongExperiences >= 2) points += 8;
+
+    const hardSkills = Array.isArray(payload?.hardSkills) ? payload.hardSkills : [];
+    const softSkills = Array.isArray(payload?.softSkills) ? payload.softSkills : [];
+    const hardNamedCount = hardSkills.filter((s: any) => safe(s?.nom)).length;
+    const softContextCount = softSkills.filter((s: any) => safe(s?.nom) && wordCount(s?.contexte) >= 4).length;
+    points += Math.min(12, hardNamedCount * 2);
+    points += Math.min(8, softContextCount * 2);
+
+    const langues = Array.isArray(payload?.langues) ? payload.langues : [];
+    const projets = Array.isArray(payload?.projets) ? payload.projets : [];
+    const certifications = Array.isArray(payload?.certifications) ? payload.certifications : [];
+
+    if (langues.some((l: any) => safe(l?.langue))) points += 4;
+    if (projets.some((p: any) => safe(p?.titre) && wordCount(p?.description) >= 8)) points += 6;
+    if (certifications.some((c: any) => safe(c?.titre))) points += 4;
+
+    return this.clampScore(points);
   }
 
   private clampScore(value: number): number {
