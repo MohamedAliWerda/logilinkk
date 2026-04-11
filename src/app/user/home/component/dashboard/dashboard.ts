@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { CvSubmissionService } from '../cv-ats/cv-submission.service';
 // dashboard does not render the global navbar/sidebar (those are provided by Home)
 
 @Component({
@@ -22,8 +23,13 @@ export class Dashboard {
   stats: { label: string; value: number; icon: SafeHtml }[];
   employabilityScore = 0;
   recommendations: string[] = [];
+  atsScoreFromApi: number | null = null;
 
-  constructor(private router: Router, private sanitizer: DomSanitizer) {
+  constructor(
+    private router: Router,
+    private sanitizer: DomSanitizer,
+    private cvSubmissionService: CvSubmissionService,
+  ) {
     this.studentName = this.resolveStudentName();
 
     const icons = [
@@ -65,6 +71,35 @@ export class Dashboard {
     // compute initial score/stats
     this.employabilityScore = this.getAvgMatchScore();
     this.recomputeStats();
+    void this.loadAtsScore();
+  }
+
+  private scoreFromStorage(): number | null {
+    const raw = localStorage.getItem('latestAtsScore');
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(0, Math.min(100, Math.round(n)));
+  }
+
+  private async loadAtsScore(): Promise<void> {
+    const local = this.scoreFromStorage();
+    if (local !== null) {
+      this.atsScoreFromApi = local;
+      this.recomputeStats();
+    }
+
+    try {
+      const cv = await this.cvSubmissionService.fetchMyCv();
+      if (cv?.atsScore === undefined || cv?.atsScore === null) return;
+
+      const score = Math.max(0, Math.min(100, Math.round(Number(cv.atsScore) || 0)));
+      this.atsScoreFromApi = score;
+      localStorage.setItem('latestAtsScore', String(score));
+      this.recomputeStats();
+    } catch (err) {
+      console.error('Dashboard ATS score fetch failed', err);
+    }
   }
 
   private resolveStudentName(): string {
@@ -209,11 +244,12 @@ export class Dashboard {
   /** Recompute KPI stat values to reflect current data. */
   recomputeStats() {
     // ATS score: average coverage of required skill levels
-    const ats = this.skills && this.skills.length
+    const calculatedAts = this.skills && this.skills.length
       ? Math.round(
           (this.skills.reduce((acc, s) => acc + Math.min(1, s.current / (s.required || 1)), 0) / this.skills.length) * 100
         )
       : 0;
+    const ats = this.atsScoreFromApi ?? calculatedAts;
 
     // employability score: average company match
     this.employabilityScore = this.getAvgMatchScore();

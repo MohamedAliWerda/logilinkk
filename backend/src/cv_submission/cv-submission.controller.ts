@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Post, UseGuards, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Post, UseGuards, Req, Query } from '@nestjs/common';
 import { CvSubmissionService } from './cv-submission.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { getSupabase } from '../config/supabase.client';
@@ -7,40 +7,82 @@ import { getSupabase } from '../config/supabase.client';
 export class CvSubmissionController {
   constructor(private readonly svc: CvSubmissionService) {}
 
-  @UseGuards(JwtAuthGuard)
-  @Post()
-  async create(@Req() req: any, @Body() payload: any) {
-    const user = req.user as { sub?: string } | undefined;
-    let authId = user?.sub;
+  private isTransientNetworkError(err: any): boolean {
+    const text = `${err?.message ?? ''} ${err?.details ?? ''} ${err?.code ?? ''}`.toLowerCase();
+    return [
+      'fetch failed',
+      'etimedout',
+      'econnreset',
+      'enotfound',
+      'eai_again',
+      'socket hang up',
+      'network',
+    ].some((token) => text.includes(token));
+  }
+
+  private async wait(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async withRetry<T>(operation: () => Promise<T>, maxAttempts = 3): Promise<T> {
+    let lastError: any;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await operation();
+      } catch (err: any) {
+        lastError = err;
+        if (!this.isTransientNetworkError(err) || attempt === maxAttempts) {
+          throw err;
+        }
+        const waitMs = 400 * attempt;
+        console.warn(
+          `[cv-submissions] transient network error (attempt ${attempt}/${maxAttempts}), retrying in ${waitMs}ms...`,
+        );
+        await this.wait(waitMs);
+      }
+    }
+    throw lastError;
+  }
+
+  private async resolveAuthId(reqUser: any): Promise<string> {
+    let authId = reqUser?.sub || reqUser?.id || reqUser?.userId;
     if (!authId) {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }
 
-    // If `sub` is not a UUID (e.g., numeric legacy id), resolve to the user's `auth_id` UUID
     const isUuid = (val?: string) => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    if (isUuid(authId)) {
+      return authId;
+    }
 
+    const supabase = getSupabase();
+    const { data: userRow, error: userErr } = await supabase
+      .from('user')
+      .select('auth_id')
+      .eq('id', Number(authId))
+      .maybeSingle();
+
+    if (userErr) {
+      console.error('[cv-submissions] failed to lookup user auth_id', userErr);
+      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    authId = userRow?.auth_id;
+    if (!authId) {
+      console.error('[cv-submissions] user missing auth_id for id', reqUser?.sub ?? reqUser?.id);
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+    }
+
+    return authId;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  async create(@Req() req: any, @Body() payload: any) {
     try {
-      if (!isUuid(authId)) {
-        const supabase = getSupabase();
-        const { data: userRow, error: userErr } = await supabase
-          .from('user')
-          .select('auth_id')
-          .eq('id', Number(authId))
-          .maybeSingle();
+      const authId = await this.resolveAuthId(req.user);
 
-        if (userErr) {
-          console.error('[cv-submissions] failed to lookup user auth_id', userErr);
-          throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
-        authId = userRow?.auth_id;
-        if (!authId) {
-          console.error('[cv-submissions] user missing auth_id for id', user?.sub);
-          throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
-        }
-      }
-
-      await this.svc.upsertCv(authId, payload);
+      await this.withRetry(() => this.svc.upsertCv(authId, payload));
       return { ok: true };
     } catch (err: any) {
       console.error('[cv-submissions] create error:', err?.message ?? err, err);
@@ -48,36 +90,82 @@ export class CvSubmissionController {
       throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
+  @Get('ats-score')
+  @UseGuards(JwtAuthGuard)
+  async getMyAtsScore(@Req() req: any) {
+    try {
+      const authId = await this.resolveAuthId(req.user);
+      const score = await this.svc.getAtsScoreByAuthId(authId);
+      return { found: score !== null, atsScore: score };
+    } catch (err: any) {
+      console.error('[cv-submissions] getMyAtsScore error:', err?.message ?? err);
+      if (err instanceof HttpException) throw err;
+      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('ats-score')
+  async calculateAtsScore(@Req() req: any, @Body() payload: any) {
+    try {
+      const authId = await this.resolveAuthId(req.user);
+      const result = await this.svc.calculateAtsScore(payload, authId);
+      try {
+        await this.svc.updateAtsScore(authId, result.atsScore);
+      } catch (persistErr: any) {
+        const msg = String(persistErr?.message ?? persistErr ?? '');
+        const isAuthFk = msg.includes('cv_submissions_auth_id_fkey') || String(persistErr?.code ?? '') === '23503';
+        if (isAuthFk) {
+          console.warn(
+            '[cv-submissions] ATS score persistence skipped: auth_id from JWT is missing in user.auth_id (common with test/fake tokens).',
+          );
+        } else {
+          console.error('[cv-submissions] ATS score persistence failed:', persistErr?.message ?? persistErr);
+        }
+      }
+      return result;
+    } catch (err: any) {
+      console.error('[cv-submissions] calculateAtsScore error:', err?.message ?? err);
+      if (err instanceof HttpException) throw err;
+      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get('extract-skills')
+  @UseGuards(JwtAuthGuard)
+  async extractSkills(@Req() req: any, @Query('metierId') metierId?: string) {
+    try {
+      const authId = await this.resolveAuthId(req.user);
+      const requestedMetierId = String(metierId ?? '').trim();
+      if (!requestedMetierId) {
+        return {
+          found: false,
+          hardSkills: [],
+          softSkills: [],
+        };
+      }
+
+      const skills = await this.withRetry(() => this.svc.extractSkillsFromNotes(authId, requestedMetierId));
+      return {
+        found: skills.hardSkills.length > 0 || skills.softSkills.length > 0,
+        ...skills,
+      };
+    } catch (err: any) {
+      console.error('[cv-submissions] extractSkills error:', err?.message ?? err);
+      if (err instanceof HttpException) throw err;
+      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
   
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getMyCv(@Req() req: any) {
-    let authId = req.user?.sub || req.user?.id || req.user?.userId;
-
-    const isUuid = (val?: string) => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-
+  async getMyCv(@Req() req: any, @Query('metierId') metierId?: string) {
     try {
-      if (!isUuid(authId)) {
-        const supabase = getSupabase();
-        const { data: userRow, error: userErr } = await supabase
-          .from('user')
-          .select('auth_id')
-          .eq('id', Number(authId))
-          .maybeSingle();
+      const authId = await this.resolveAuthId(req.user);
+      const requestedMetierId = String(metierId ?? '').trim();
 
-        if (userErr) {
-          console.error('[cv-submissions] failed to lookup user auth_id', userErr);
-          throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
-        authId = userRow?.auth_id;
-        if (!authId) {
-          console.error('[cv-submissions] user missing auth_id for id', req.user?.sub);
-          throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
-        }
-      }
-
-      const cv = await this.svc.getCvByAuthId(authId);
+      const cv = await this.svc.getCvByAuthId(authId, requestedMetierId);
       if (!cv) {
         return { found: false };
       }

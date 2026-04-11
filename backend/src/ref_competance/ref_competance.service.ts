@@ -19,9 +19,7 @@ export class RefCompetanceService implements OnModuleDestroy {
   private db: Db | null = null;
 
   constructor(private readonly configService: ConfigService) {
-    this.uri =
-      this.configService.get<string>('MONGO_URI') ??
-      'mongodb+srv://bilel-db:JbBLw3NTQf1jasuH@metier.miwjsw8.mongodb.net/';
+    this.uri = this.configService.get<string>('MONGO_URI') ?? '';
     this.dbName =
       this.configService.get<string>('MONGO_DB_NAME') ??
       'referentiel_competences';
@@ -109,9 +107,26 @@ export class RefCompetanceService implements OnModuleDestroy {
       return this.db;
     }
 
-    this.mongoClient = new MongoClient(this.uri);
-    await this.mongoClient.connect();
-    this.db = this.mongoClient.db(this.dbName);
+    if (!this.uri) {
+      throw new Error('MONGO_URI is not configured');
+    }
+
+    try {
+      this.mongoClient = new MongoClient(this.uri, {
+        serverSelectionTimeoutMS: 10_000,
+        connectTimeoutMS: 10_000,
+      });
+      await this.mongoClient.connect();
+      this.db = this.mongoClient.db(this.dbName);
+    } catch (err: any) {
+      const message = String(err?.message ?? err ?? '');
+      if (message.includes('querySrv ECONNREFUSED')) {
+        this.logger.error(
+          'Mongo SRV lookup failed. Use a direct mongodb:// URI in MONGO_URI with shard hosts, authSource, replicaSet and tls=true.',
+        );
+      }
+      throw err;
+    }
 
     this.logger.log(`Connected to MongoDB database: ${this.dbName}`);
 

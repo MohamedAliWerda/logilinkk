@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { CvSubmissionService } from './cv-submission.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import {
   buildCvAtsPrefill,
   STUDENT_PROFILE_DATA,
@@ -30,6 +31,24 @@ export class CvAts {
     if (v === undefined || v === null) return '';
     return String(v);
   }
+
+  private normalizeMetierId(value: unknown): string {
+    if (value === undefined || value === null) return '';
+
+    if (typeof value === 'string') {
+      return value.trim().toLowerCase();
+    }
+
+    if (typeof value === 'object') {
+      const oid = (value as any)?.$oid;
+      if (typeof oid === 'string') {
+        return oid.trim().toLowerCase();
+      }
+    }
+
+    return String(value).trim().toLowerCase();
+  }
+
   private readonly lockedInfoFields = new Set([
     'prenom',
     'nom',
@@ -47,7 +66,10 @@ export class CvAts {
   formError = '';
   readonly sharedProfileInfo = buildCvAtsPrefill(STUDENT_PROFILE_DATA);
 
-  constructor(private cvSubmissionService: CvSubmissionService) {
+  constructor(
+    private cvSubmissionService: CvSubmissionService,
+    private router: Router,
+  ) {
     this.applyLoggedInUser();
   }
 
@@ -64,14 +86,92 @@ export class CvAts {
     }
   }
 
-  metiers: Array<{ _id: any; nom_metier: string; domaine: string }> = [];
+  metiers: Array<{ _id: string; nom_metier: string; domaine: string }> = [];
+  selectedMetierId = '';
 
   async ngOnInit(): Promise<void> {
     try {
-      this.metiers = await this.cvSubmissionService.fetchMetiers();
+      const rawMetiers = await this.cvSubmissionService.fetchMetiers();
+      this.metiers = (Array.isArray(rawMetiers) ? rawMetiers : [])
+        .map((m: any) => ({
+          _id: this.normalizeMetierId(m?._id),
+          nom_metier: this.asString(m?.nom_metier).trim(),
+          domaine: this.asString(m?.domaine).trim(),
+        }))
+        .filter((m) => m._id.length > 0 && m.nom_metier.length > 0);
+
       this.checkSavedCv();
+      await this.loadExtractedSkills();
     } catch (err) {
       console.error('Failed to load metiers', err);
+    }
+  }
+
+  private async loadExtractedSkills(metierId?: string, forceRegeneration = false): Promise<void> {
+    const requestedMetierId = this.normalizeMetierId(metierId ?? this.selectedMetierId);
+
+    // If CV already exists, restore saved skills.
+    const existingCv = await this.cvSubmissionService.fetchMyCv(requestedMetierId);
+    if (existingCv && !forceRegeneration) {
+      this.professionalTitle = this.asString(existingCv.professionalTitle ?? this.professionalTitle);
+      this.specialization = this.asString(existingCv.specialization ?? this.specialization);
+
+      if (!this.selectedMetierId && this.professionalTitle) {
+        const titleNorm = this.asString(this.professionalTitle).trim().toLowerCase();
+        const matchedMetier = this.metiers.find((m) => this.asString(m.nom_metier).trim().toLowerCase() === titleNorm);
+        if (matchedMetier) {
+          this.selectedMetierId = matchedMetier._id;
+        }
+      }
+    }
+
+    if (!forceRegeneration && (existingCv?.hardSkills?.length || existingCv?.softSkills?.length)) {
+      this.hardSkills = (Array.isArray(existingCv.hardSkills) ? existingCv.hardSkills : []).map((s: any) => ({
+        type: s.skill_type ?? s.type ?? 'Metier T&L',
+        nom: s.nom ?? '',
+        niveau: (s.niveau ?? 'Intermediaire') as Level,
+        _system: true,
+      }));
+
+      this.softSkills = (Array.isArray(existingCv.softSkills) ? existingCv.softSkills : []).map((s: any) => ({
+        nom: s.nom ?? '',
+        niveau: (s.niveau ?? 'Intermediaire') as Level,
+        contexte: s.contexte ?? '',
+      }));
+
+      this.skillsExtracted = this.hardSkills.length > 0;
+      return;
+    }
+
+    if (!requestedMetierId) {
+      this.skillsExtracted = false;
+      return;
+    }
+
+    // First-time CV: fetch auto-generated skills from notes.
+    this.skillsLoading = true;
+    try {
+      const result = await this.cvSubmissionService.fetchExtractedSkills(requestedMetierId);
+      if (result.found && result.hardSkills.length > 0) {
+        this.hardSkills = result.hardSkills.map((s) => ({
+          type: s.type,
+          nom: s.nom,
+          niveau: s.niveau as Level,
+          _system: true,
+        }));
+
+        this.skillsExtracted = this.hardSkills.length > 0;
+      } else {
+        this.hardSkills = [
+          { type: 'Metier T&L', nom: '', niveau: 'Intermediaire' as Level },
+          { type: 'Outil / Logiciel', nom: '', niveau: 'Intermediaire' as Level },
+        ];
+        this.skillsExtracted = false;
+      }
+    } catch (err) {
+      console.error('Failed to extract skills from notes', err);
+    } finally {
+      this.skillsLoading = false;
     }
   }
 
@@ -143,12 +243,21 @@ export class CvAts {
   specialization = '';
   objectif = '';
 
-  onMetierChange(selected: string) {
-    this.professionalTitle = selected || '';
-    const found = this.metiers.find((m) => m.nom_metier === selected || String(m._id) === String(selected));
-    if (found) {
-      this.specialization = found.domaine || '';
+  async onMetierChange(selected: string): Promise<void> {
+    const normalizedMetierId = this.normalizeMetierId(selected);
+    this.selectedMetierId = normalizedMetierId;
+
+    const found = this.metiers.find((m) => m._id === normalizedMetierId);
+    if (!found) {
+      this.professionalTitle = '';
+      this.specialization = '';
+      this.skillsExtracted = false;
+      return;
     }
+
+    this.professionalTitle = found.nom_metier;
+    this.specialization = found.domaine || '';
+    await this.loadExtractedSkills(normalizedMetierId, true);
   }
 
   savePreviewAsHtml(): boolean {
@@ -215,14 +324,17 @@ export class CvAts {
     }
   ];
 
-  hardSkills = [
+  hardSkills: Array<{ type: string; nom: string; niveau: Level; _system?: boolean }> = [
     { type: 'Metier T&L', nom: '', niveau: 'Intermediaire' as Level },
     { type: 'Outil / Logiciel', nom: '', niveau: 'Intermediaire' as Level }
   ];
 
-  softSkills = [
+  softSkills: Array<{ nom: string; niveau: Level; contexte: string }> = [
     { nom: 'Communication', niveau: 'Intermediaire' as Level, contexte: '' }
   ];
+
+  skillsExtracted = false;
+  skillsLoading = false;
 
   langues = [
     { langue: '', niveau: 'B1', certification: '', score: '' }
@@ -261,6 +373,8 @@ export class CvAts {
   atsLoading = false;
   atsError = '';
   atsResult: AtsResult | null = null;
+  getScoreLoading = false;
+  getScoreError = '';
 
   get totalSteps(): number {
     return this.steps.length;
@@ -297,17 +411,24 @@ export class CvAts {
       .join(', ');
   }
 
-  goTo(step: number) {
+  async goTo(step: number): Promise<void> {
     if (step >= 1 && step <= this.totalSteps) {
+      if (step === 5 && this.selectedMetierId) {
+        await this.loadExtractedSkills(this.selectedMetierId, true);
+      }
       this.step = step;
       this.formError = '';
     }
   }
 
-  next() {
+  async next(): Promise<void> {
     if (!this.canGoNext()) {
       this.formError = 'Veuillez remplir les champs obligatoires de cette etape.';
       return;
+    }
+
+    if (this.step === 2 && this.selectedMetierId) {
+      await this.loadExtractedSkills(this.selectedMetierId, true);
     }
 
     this.formError = '';
@@ -385,29 +506,71 @@ export class CvAts {
       }
 
       // CV persistence layer call (after preview)
-      const cleanArray = (arr: any[], predicate: (item: any) => boolean) => (Array.isArray(arr) ? arr.filter(predicate) : []);
-
-      const payload = {
-        professionalTitle: this.asString(this.professionalTitle),
-        specialization: this.asString(this.specialization),
-        objectif: this.asString(this.objectif),
-        atsScore: this.atsScore,
-        consentGiven: this.consentGiven,
-        info: { ...this.info, telephone: this.asString(this.info.telephone) },
-        formations: cleanArray(this.formations, (f) => (this.asString(f?.diplome).trim().length > 0) || (this.asString(f?.institution).trim().length > 0)),
-        experiences: cleanArray(this.experiences, (e) => (this.asString(e?.poste).trim().length > 0) || (this.asString(e?.entreprise).trim().length > 0) || (this.asString(e?.description).trim().length > 0)),
-        hardSkills: cleanArray(this.hardSkills, (s) => this.asString(s?.nom).trim().length > 0),
-        softSkills: cleanArray(this.softSkills, (s) => this.asString(s?.nom).trim().length > 0),
-        langues: cleanArray(this.langues, (l) => this.asString(l?.langue).trim().length > 0),
-        projets: cleanArray(this.projets, (p) => this.asString(p?.titre).trim().length > 0),
-        certifications: cleanArray(this.certifications, (c) => this.asString(c?.titre).trim().length > 0),
-        engagements: cleanArray(this.engagements, (en) => (this.asString(en?.role).trim().length > 0) || (this.asString(en?.type).trim().length > 0)),
-      };
+      const payload = this.buildSubmissionPayload(this.atsScore);
 
       this.cvSubmissionService.upsertCv(payload).catch((err) => console.error('CV save failed:', err));
     } catch (err) {
       console.error('Unexpected error in generate()', err);
       this.formError = 'Erreur inattendue lors de la génération.';
+    }
+  }
+
+  private buildSubmissionPayload(atsScore: number) {
+    const cleanArray = (arr: any[], predicate: (item: any) => boolean) => (Array.isArray(arr) ? arr.filter(predicate) : []);
+
+    return {
+      professionalTitle: this.asString(this.professionalTitle),
+      metierId: this.asString(this.selectedMetierId),
+      specialization: this.asString(this.specialization),
+      objectif: this.asString(this.objectif),
+      atsScore: Math.max(0, Math.min(100, Math.round(Number(atsScore) || 0))),
+      consentGiven: this.consentGiven,
+      info: { ...this.info, telephone: this.asString(this.info.telephone) },
+      formations: cleanArray(this.formations, (f) => (this.asString(f?.diplome).trim().length > 0) || (this.asString(f?.institution).trim().length > 0)),
+      experiences: cleanArray(this.experiences, (e) => (this.asString(e?.poste).trim().length > 0) || (this.asString(e?.entreprise).trim().length > 0) || (this.asString(e?.description).trim().length > 0)),
+      hardSkills: cleanArray(this.hardSkills, (s) => this.asString(s?.nom).trim().length > 0),
+      softSkills: cleanArray(this.softSkills, (s) => this.asString(s?.nom).trim().length > 0),
+      langues: cleanArray(this.langues, (l) => this.asString(l?.langue).trim().length > 0),
+      projets: cleanArray(this.projets, (p) => this.asString(p?.titre).trim().length > 0),
+      certifications: cleanArray(this.certifications, (c) => this.asString(c?.titre).trim().length > 0),
+      engagements: cleanArray(this.engagements, (en) => (this.asString(en?.role).trim().length > 0) || (this.asString(en?.type).trim().length > 0)),
+    };
+  }
+
+  async getYourScoreAndGoDashboard(): Promise<void> {
+    if (this.getScoreLoading) return;
+
+    this.getScoreLoading = true;
+    this.getScoreError = '';
+
+    try {
+      const baseScore = this.atsScore > 0 ? this.atsScore : this.computeCompletenessScore();
+      const scoreResult = await this.cvSubmissionService.calculateAtsScore(
+        this.buildSubmissionPayload(baseScore),
+      );
+
+      this.atsScore = scoreResult.atsScore;
+      this.atsResult = {
+        matchScore: scoreResult.matchScore,
+        overallScore: scoreResult.atsScore,
+        successScore: scoreResult.successScore,
+        missingKeywords: '',
+        profileSummary: 'Score ATS calculé via Gemini avec le référentiel de compétences de la base de données.',
+        suggestions: '',
+      };
+
+      localStorage.setItem('latestAtsScore', String(scoreResult.atsScore));
+      localStorage.setItem('latestAtsMatchScore', String(scoreResult.matchScore));
+      localStorage.setItem('latestAtsSuccessScore', String(scoreResult.successScore));
+
+      await this.cvSubmissionService.upsertCv(this.buildSubmissionPayload(scoreResult.atsScore));
+
+      await this.router.navigate(['/home/dashboard']);
+    } catch (err) {
+      console.error('getYourScoreAndGoDashboard error', err);
+      this.getScoreError = 'Impossible de finaliser votre score ATS et l\'enregistrement du CV pour le moment. Veuillez reessayer.';
+    } finally {
+      this.getScoreLoading = false;
     }
   }
 
@@ -667,10 +830,12 @@ export class CvAts {
   }
 
   addHardSkill() {
+    if (this.skillsExtracted) return;
     this.hardSkills.push({ type: 'Metier T&L', nom: '', niveau: 'Intermediaire' });
   }
 
   removeHardSkill(i: number) {
+    if (this.skillsExtracted) return;
     if (this.hardSkills.length > 1) {
       this.hardSkills.splice(i, 1);
     }
@@ -684,6 +849,10 @@ export class CvAts {
     if (this.softSkills.length > 1) {
       this.softSkills.splice(i, 1);
     }
+  }
+
+  isHardSkillLocked(): boolean {
+    return this.skillsExtracted;
   }
 
   addLangue() {

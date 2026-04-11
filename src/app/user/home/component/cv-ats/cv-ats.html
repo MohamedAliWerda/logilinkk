@@ -121,15 +121,15 @@
         </div>
     </div>
     <div class="form-grid-2">
-                <div class="form-group">
-                        <label>Titre du poste visé <span class="req">*</span></label>
-                        <select class="form-control" [(ngModel)]="professionalTitle" (ngModelChange)="onMetierChange($event)">
+        <div class="form-group">
+            <label>Titre du poste visé <span class="req">*</span></label>
+            <select class="form-control" [(ngModel)]="selectedMetierId" (ngModelChange)="onMetierChange($event)">
                                     <option value="">Sélectionnez un métier...</option>
-                                    @for (m of metiers; track m) {
-                                        <option [value]="m.nom_metier">{{ m.nom_metier }}</option>
+                                    @for (m of metiers; track m._id) {
+                                        <option [value]="m._id">{{ m.nom_metier }}</option>
                                     }
                                 </select>
-                </div>
+        </div>
         <div class="form-group">
             <label>Sous-titre / spécialisation</label>
             <input class="form-control" [(ngModel)]="specialization" placeholder="Spécialisation Logistique Internationale" />
@@ -277,18 +277,27 @@
             <p class="block-sub">Référentiel métier, outils, technologies, méthodes et normes.</p>
         </div>
     </div>
+    @if (skillsLoading) {
+    <div class="skills-loading">
+        <i class="fa-solid fa-spinner fa-spin"></i> Extraction des compétences depuis vos notes...
+    </div>
+    } @if (skillsExtracted) {
+    <div class="skills-info-banner">
+        <i class="fa-solid fa-lock"></i> Compétences techniques extraites automatiquement depuis vos résultats académiques. Vous ne pouvez pas les modifier.
+    </div>
+    }
     <div class="skills-grid">
         @for (h of hardSkills; track $index; let i = $index) {
         <div class="skill-row">
-            <select class="form-control select-md" [(ngModel)]="h.type">
+            <select class="form-control select-md" [(ngModel)]="h.type" [disabled]="isHardSkillLocked()">
                     <option value="Metier T&L">Métier T&L</option>
                     <option value="Outil / Logiciel">Outil / Logiciel</option>
                     <option value="Langage / Tech">Langage / Tech</option>
                     <option value="Methodologie">Méthodologie</option>
                     <option value="Norme / Reglement">Norme / Règlement</option>
                   </select>
-            <input class="form-control" [(ngModel)]="h.nom" placeholder="Ex : WMS, SAP TM, SQL, Lean, Incoterms" />
-            <select class="form-control select-sm" [(ngModel)]="h.niveau">
+            <input class="form-control" [(ngModel)]="h.nom" placeholder="Ex : WMS, SAP TM, SQL, Lean, Incoterms" [readonly]="isHardSkillLocked()" />
+            <select class="form-control select-sm" [(ngModel)]="h.niveau" [disabled]="isHardSkillLocked()">
                     @for (n of niveaux; track n) {
                       <option [value]="n">{{ n }}</option>
                     }
@@ -296,7 +305,7 @@
             <div class="skill-level-bar">
                 <div class="skill-fill" [style.width]="skillWidth(h.niveau)" [style.background]="skillColor(h.niveau)"></div>
             </div>
-            @if (hardSkills.length > 1) {
+            @if (!isHardSkillLocked() && hardSkills.length > 1) {
             <button type="button" class="btn-del-sm" (click)="removeHardSkill(i)">
                       <i class="fa-solid fa-xmark"></i>
                     </button> } @else {
@@ -305,9 +314,10 @@
         </div>
         }
     </div>
+    @if (!isHardSkillLocked()) {
     <button type="button" class="btn-add-entry" (click)="addHardSkill()">
               <i class="fa-solid fa-plus"></i> Ajouter une hard skill
-            </button> }
+            </button> } }
 
     <!-- ─── STEP 6 : Soft Skills ─── -->
     @if (step === 6) {
@@ -627,12 +637,29 @@
               <i class="fa-solid fa-eye"></i> Aperçu ATS
             </span>
         </div>
-                <div style="display:flex;gap:.6rem;align-items:center;">
-                    <button type="button" class="btn-download" (click)="download()">
-                            <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
+        <div class="preview-topbar-actions">
+            <button type="button" class="btn-download" (click)="download()">
+                        <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
                     </button>
-                </div>
+            <button type="button" class="btn-get-score" (click)="getYourScoreAndGoDashboard()" [disabled]="getScoreLoading">
+                @if (!getScoreLoading) {
+                <span><i class="fa-solid fa-chart-bar"></i> Get your score</span>
+                } @else {
+                <span><i class="fa-solid fa-spinner fa-spin"></i> Calcul en cours...</span>
+                }
+            </button>
+        </div>
     </div>
+
+    @if (getScoreLoading) {
+    <div class="score-loading-banner">
+        <i class="fa-solid fa-spinner fa-spin"></i> Analyse ATS en cours avec Gemini. Redirection vers le dashboard apres calcul...
+    </div>
+    } @if (getScoreError) {
+    <div class="form-error">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ getScoreError }}
+    </div>
+    }
 
     <!-- ── CV PAPER (ATS FORMAT) ── -->
     <div class="cv-paper" id="cv-paper">

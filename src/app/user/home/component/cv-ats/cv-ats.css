@@ -1,4 +1,6 @@
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
 }
 
@@ -278,6 +280,7 @@ textarea.form-control {
 .btn-next,
 .btn-generate,
 .btn-download,
+.btn-get-score,
 .btn-back {
     border: none;
     cursor: pointer;
@@ -339,6 +342,37 @@ textarea.form-control {
     height: 30px;
     border-radius: 8px;
     cursor: pointer;
+}
+
+.skills-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: #eff6ff;
+    color: #1e40af;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.skills-info-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    margin-bottom: 0.75rem;
+}
+
+.skills-info-banner.skills-info-soft {
+    background: #ede9fe;
+    color: #5b21b6;
+    border-color: #ddd6fe;
 }
 
 .metadata-grid {
@@ -428,7 +462,8 @@ textarea.form-control {
 
 .btn-next,
 .btn-generate,
-.btn-download {
+.btn-download,
+.btn-get-score {
     background: linear-gradient(135deg, #fb923c, #ea580c);
     color: #fff;
 }
@@ -447,6 +482,38 @@ textarea.form-control {
     display: flex;
     align-items: center;
     gap: 0.6rem;
+}
+
+.preview-topbar-actions {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+.btn-get-score {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-get-score[disabled] {
+    opacity: 0.75;
+    cursor: not-allowed;
+    filter: saturate(0.7);
+}
+
+.score-loading-banner {
+    margin-top: 0.7rem;
+    border: 1px solid #fdba74;
+    background: #fff7ed;
+    color: #9a3412;
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .btn-back {
@@ -484,6 +551,8 @@ textarea.form-control {
 
 
 /* (ATS score section removed) */
+
+
 /* ATS Header */
 
 .ats-header {
