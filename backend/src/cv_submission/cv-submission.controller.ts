@@ -44,6 +44,14 @@ export class CvSubmissionController {
     throw lastError;
   }
 
+  private parseBooleanFlag(value: unknown): boolean {
+    if (value === true || value === 1 || value === '1') return true;
+    if (value === false || value === 0 || value === '0') return false;
+
+    const normalized = String(value ?? '').trim().toLowerCase();
+    return normalized === 'true' || normalized === 'yes' || normalized === 'oui';
+  }
+
   private async resolveAuthId(reqUser: any): Promise<string> {
     let authId = reqUser?.sub || reqUser?.id || reqUser?.userId;
     if (!authId) {
@@ -127,6 +135,47 @@ export class CvSubmissionController {
       return result;
     } catch (err: any) {
       console.error('[cv-submissions] calculateAtsScore error:', err?.message ?? err);
+      if (err instanceof HttpException) throw err;
+      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get('matching-analysis')
+  @UseGuards(JwtAuthGuard)
+  async getMatchingAnalysis(@Req() req: any, @Query('force') force?: string) {
+    try {
+      const authId = await this.resolveAuthId(req.user);
+      return await this.svc.getMatchingAnalysis(authId, this.parseBooleanFlag(force));
+    } catch (err: any) {
+      console.error('[cv-submissions] getMatchingAnalysis error:', err?.message ?? err);
+      if (err instanceof HttpException) throw err;
+      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post('matching-analysis')
+  @UseGuards(JwtAuthGuard)
+  async runMatchingAnalysis(@Req() req: any, @Body() payload?: any) {
+    try {
+      const authId = await this.resolveAuthId(req.user);
+      const hasForce = payload && Object.prototype.hasOwnProperty.call(payload, 'force');
+      const force = hasForce ? this.parseBooleanFlag(payload?.force) : true;
+      return await this.svc.getMatchingAnalysis(authId, force);
+    } catch (err: any) {
+      console.error('[cv-submissions] runMatchingAnalysis error:', err?.message ?? err);
+      if (err instanceof HttpException) throw err;
+      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get('matching-analysis/trace')
+  @UseGuards(JwtAuthGuard)
+  async getMatchingAnalysisTrace(@Req() req: any, @Query('force') force?: string) {
+    try {
+      const authId = await this.resolveAuthId(req.user);
+      return await this.svc.getMatchingAnalysisTrace(authId, this.parseBooleanFlag(force));
+    } catch (err: any) {
+      console.error('[cv-submissions] getMatchingAnalysisTrace error:', err?.message ?? err);
       if (err instanceof HttpException) throw err;
       throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
     }

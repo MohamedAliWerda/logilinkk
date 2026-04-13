@@ -39,6 +39,88 @@ type GeminiProviderConfig = {
   model: string;
 };
 
+type MatchingTopSkill = {
+  skill: string;
+  score: number;
+};
+
+type MatchingMetierRankingEntry = {
+  metier: string;
+  domaine: string;
+  nCompetences: number;
+  matched: number;
+  coveragePct: number;
+  avgScore: number;
+  topSkills: MatchingTopSkill[];
+};
+
+type MatchingGapEntry = {
+  refCompetence: string;
+  refMetier: string;
+  refDomaine: string;
+  refType: string;
+  refMotsCles: string;
+  bestCvSkill: string;
+  bestCvNiveau: string;
+  similarityScore: number;
+  status: 'match' | 'gap';
+};
+
+type MatchingStudentSkillInput = {
+  nom: string;
+  niveau: string;
+  type: string;
+};
+
+type MatchingReferenceCompetenceInput = {
+  domaine: string;
+  metier: string;
+  competence: string;
+  type_competence: string;
+  mots_cles: string;
+};
+
+type MatchingAnalysisSummary = {
+  nSkills: number;
+  nMatches: number;
+  nGaps: number;
+  matchRatePct: number;
+};
+
+type MatchingAnalysisResult = {
+  cvSubmissionId: string;
+  selectedMetierId: string;
+  generatedAt: string;
+  modelName: string;
+  threshold: number;
+  summary: MatchingAnalysisSummary;
+  topMetier: MatchingMetierRankingEntry | null;
+  metierRanking: MatchingMetierRankingEntry[];
+  matches: MatchingGapEntry[];
+  gaps: MatchingGapEntry[];
+  topMetierGaps: MatchingGapEntry[];
+};
+
+type MatchingCacheEntry = {
+  fingerprint: string;
+  result: MatchingAnalysisResult;
+  cachedAt: string;
+};
+
+type LatestCvSubmissionMeta = {
+  id: string;
+  metierId: string;
+  updatedAt: string;
+};
+
+type MatchingAnalysisTraceResult = {
+  analysis: MatchingAnalysisResult;
+  analysisId: string | null;
+  analysisFingerprint: string;
+  metierScores: any[];
+  competenceResults: any[];
+};
+
 @Injectable()
 export class CvSubmissionService {
   private readonly logger = new Logger(CvSubmissionService.name);
@@ -47,7 +129,16 @@ export class CvSubmissionService {
   private readonly geminiSecondaryApiKey: string;
   private readonly geminiPrimaryModel: string;
   private readonly geminiSecondaryModel: string;
+  private readonly matchingPythonServiceUrl: string;
+  private readonly matchingPythonTimeoutMs: number;
+  private readonly matchingThreshold: number;
   private readonly disabledGeminiProviders = new Set<string>();
+  private readonly matchingAnalysisCache = new Map<string, MatchingCacheEntry>();
+  private matchingTableMissingLogged = false;
+  private matchingTraceTableMissingLogged = false;
+  private static readonly DEFAULT_MATCHING_PYTHON_SERVICE_URL = 'http://127.0.0.1:8001';
+  private static readonly MATCHING_ANALYSIS_VERSION = 'v4-traceable-persistence';
+  private static readonly MAX_MATCHING_GAPS = 5000;
   private static readonly AUTO_SKILL_CONTEXT = '__auto_generated_from_notes__';
 
   constructor(
@@ -70,6 +161,25 @@ export class CvSubmissionService {
     this.geminiSecondaryModel =
       this.configService.get<string>('GEMINI_MODEL_SECONDARY')
       ?? 'gemini-2.5-flash-lite';
+
+    this.matchingPythonServiceUrl = (
+      this.configService.get<string>('MATCHING_PYTHON_SERVICE_URL')
+      ?? CvSubmissionService.DEFAULT_MATCHING_PYTHON_SERVICE_URL
+    ).replace(/\/+$/, '');
+
+    const configuredTimeoutMs = Number(
+      this.configService.get<string>('MATCHING_PYTHON_TIMEOUT_MS') ?? '120000',
+    );
+    this.matchingPythonTimeoutMs = Number.isFinite(configuredTimeoutMs)
+      ? Math.max(10_000, Math.floor(configuredTimeoutMs))
+      : 120_000;
+
+    const configuredThreshold = Number(
+      this.configService.get<string>('MATCHING_MODEL_THRESHOLD') ?? '0.72',
+    );
+    this.matchingThreshold = Number.isFinite(configuredThreshold)
+      ? Math.max(0, Math.min(1, configuredThreshold))
+      : 0.72;
   }
 
   private sanitizeDate(value: any): string | null {
@@ -275,6 +385,14 @@ export class CvSubmissionService {
     return order[normalized] ?? 0;
   }
 
+  private matchingNiveauWeight(level: unknown): number {
+    const normalized = this.normalizeSkillLevel(level);
+    if (normalized === 'Avance' || normalized === 'Expert') return 1.0;
+    if (normalized === 'Debutant' || normalized === 'Notions') return 0.2;
+    if (normalized === 'Intermediaire') return 0.5;
+    return 0.5;
+  }
+
   private dedupeSkillList<T extends { nom: string; niveau: string; metierIds?: string[] }>(skills: T[]): T[] {
     const byName = new Map<string, T>();
     for (const item of skills) {
@@ -421,6 +539,19 @@ export class CvSubmissionService {
     const incomingHard = this.dedupeSkillList(this.normalizeIncomingHardSkills(payload?.hardSkills));
     const incomingSoft = this.dedupeSkillList(this.normalizeIncomingSoftSkills(payload?.softSkills));
 
+    const selectedMetierId = this.normalizeMetierId(payload?.metierId);
+    let allowIncomingHard = true;
+    if (selectedMetierId) {
+      const metierHardSkills = await this.buildHardSkillsFromNotes(authId, selectedMetierId);
+      allowIncomingHard = metierHardSkills.length > 0;
+
+      if (!allowIncomingHard && incomingHard.length > 0) {
+        this.logger.warn(
+          `Ignoring manual hard skills for auth_id=${authId} because metier=${selectedMetierId} has no extracted hard skills.`,
+        );
+      }
+    }
+
     const lockedHard = this.dedupeSkillList(
       extractedHard.length > 0
         ? extractedHard
@@ -428,7 +559,7 @@ export class CvSubmissionService {
     );
 
     const finalHard = this.dedupeSkillList(
-      lockedHard.length > 0 ? lockedHard : incomingHard,
+      lockedHard.length > 0 ? lockedHard : (allowIncomingHard ? incomingHard : []),
     );
     const finalSoft = this.dedupeSkillList(incomingSoft);
 
@@ -1023,6 +1154,823 @@ export class CvSubmissionService {
       ]);
 
     if (insertErr) throw insertErr;
+  }
+
+  private createEmptyMatchingAnalysisResult(
+    cvSubmissionId = '',
+    selectedMetierId = '',
+  ): MatchingAnalysisResult {
+    return {
+      cvSubmissionId,
+      selectedMetierId,
+      generatedAt: new Date().toISOString(),
+      modelName: '',
+      threshold: this.matchingThreshold,
+      summary: {
+        nSkills: 0,
+        nMatches: 0,
+        nGaps: 0,
+        matchRatePct: 0,
+      },
+      topMetier: null,
+      metierRanking: [],
+      matches: [],
+      gaps: [],
+      topMetierGaps: [],
+    };
+  }
+
+  private readCaseInsensitiveValue(row: Record<string, unknown>, candidates: string[]): string {
+    const lookup = new Map<string, unknown>();
+    for (const [key, value] of Object.entries(row)) {
+      lookup.set(key.toLowerCase(), value);
+    }
+
+    for (const candidate of candidates) {
+      const value = lookup.get(candidate.toLowerCase());
+      if (value === undefined || value === null) continue;
+
+      const text = String(value).trim();
+      if (text.length > 0) {
+        return text;
+      }
+    }
+
+    return '';
+  }
+
+  private async getLatestCvSubmissionMeta(authId: string): Promise<LatestCvSubmissionMeta | null> {
+    const { data, error } = await this.supabase
+      .from('cv_submissions')
+      .select('id, metier_id, updated_at, created_at')
+      .eq('auth_id', authId)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    if (!row?.id) {
+      return null;
+    }
+
+    return {
+      id: String(row.id),
+      metierId: this.normalizeMetierId(row.metier_id),
+      updatedAt: String(row.updated_at ?? row.created_at ?? ''),
+    };
+  }
+
+  private async loadStudentSkillsForMatching(cvSubmissionId: string): Promise<Array<{
+    nom: string;
+    niveau: string;
+    type: string;
+  }>> {
+    const { data, error } = await this.supabase
+      .from('cv_skills')
+      .select('nom, niveau, skill_type, category')
+      .eq('cv_submission_id', cvSubmissionId)
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+    const hardRows = rows.filter(
+      (row: any) => String(row?.category ?? '').trim().toLowerCase() === 'hard',
+    );
+
+    const sourceRows = hardRows.length > 0 ? hardRows : rows;
+
+    return sourceRows
+      .map((row: any) => ({
+        nom: String(row?.nom ?? '').trim(),
+        niveau: this.normalizeSkillLevel(row?.niveau),
+        type: String(row?.skill_type ?? '').trim(),
+      }))
+      .filter((row) => row.nom.length > 0);
+  }
+
+  private async loadReferenceCompetencesForMatching(): Promise<Array<{
+    domaine: string;
+    metier: string;
+    competence: string;
+    type_competence: string;
+    mots_cles: string;
+  }>> {
+    const { data, error } = await this.supabase
+      .from('liste_competences')
+      .select('*')
+      .limit(5000);
+
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+
+    return rows
+      .map((raw: any) => {
+        const row = (raw ?? {}) as Record<string, unknown>;
+        const competence = this.readCaseInsensitiveValue(row, ['Competence', 'competence']);
+
+        return {
+          domaine: this.readCaseInsensitiveValue(row, ['Domaine', 'domaine']),
+          metier: this.readCaseInsensitiveValue(row, ['Metier', 'metier']),
+          competence,
+          type_competence: this.readCaseInsensitiveValue(row, ['Type_Competence', 'type_competence']),
+          mots_cles: this.readCaseInsensitiveValue(row, ['Mots_Cles', 'mots_cles']),
+        };
+      })
+      .filter((row) => row.competence.length > 0);
+  }
+
+  private normalizeMatchingText(value: unknown): string {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private tokenizeMatchingText(value: unknown): string[] {
+    const normalized = this.normalizeMatchingText(value);
+    if (!normalized) return [];
+    const matches = normalized.match(/[a-z0-9_]{2,}/g);
+    return matches ?? [];
+  }
+
+  private tokenSimilarity(left: string[], right: string[]): number {
+    if (!left.length || !right.length) return 0;
+
+    const leftSet = new Set(left);
+    const rightSet = new Set(right);
+
+    let intersection = 0;
+    for (const token of leftSet) {
+      if (rightSet.has(token)) intersection += 1;
+    }
+
+    if (!intersection) return 0;
+
+    const overlap = intersection / Math.max(rightSet.size, 1);
+    const union = leftSet.size + rightSet.size - intersection;
+    const jaccard = union > 0 ? intersection / union : 0;
+
+    return Number((overlap * 0.7 + jaccard * 0.3).toFixed(4));
+  }
+
+  private computeLocalMatchingFallback(
+    cvSubmissionId: string,
+    selectedMetierId: string,
+    studentSkills: MatchingStudentSkillInput[],
+    referenceCompetences: MatchingReferenceCompetenceInput[],
+  ): MatchingAnalysisResult {
+    const generatedAt = new Date().toISOString();
+    const threshold = this.matchingThreshold;
+
+    const normalizedSkills = studentSkills
+      .map((skill) => ({
+        ...skill,
+        normalizedName: this.normalizeMatchingText(skill.nom),
+        tokens: this.tokenizeMatchingText(skill.nom),
+        niveauWeight: this.matchingNiveauWeight(skill.niveau),
+      }))
+      .filter((skill) => skill.normalizedName.length > 0);
+
+    const matches: MatchingGapEntry[] = [];
+    const gaps: MatchingGapEntry[] = [];
+
+    const groupedByMetier = new Map<string, {
+      domaine: string;
+      entries: Array<{ score: number; rawScore: number; bestSkill: string }>;
+    }>();
+
+    for (const ref of referenceCompetences) {
+      const refCompetence = String(ref.competence ?? '').trim();
+      if (!refCompetence) continue;
+
+      const refTokens = this.tokenizeMatchingText(
+        `${ref.competence} ${ref.mots_cles ?? ''} ${ref.type_competence ?? ''}`,
+      );
+
+      let bestScore = 0;
+      let bestRawScore = 0;
+      let bestSkillName = '';
+      let bestSkillNiveau = '';
+
+      for (const skill of normalizedSkills) {
+        const rawScore = this.tokenSimilarity(skill.tokens, refTokens);
+        const weightedScore = rawScore * skill.niveauWeight;
+        if (weightedScore > bestScore) {
+          bestScore = weightedScore;
+          bestRawScore = rawScore;
+          bestSkillName = skill.nom;
+          bestSkillNiveau = skill.niveau;
+        }
+      }
+
+      const entry: MatchingGapEntry = {
+        refCompetence,
+        refMetier: String(ref.metier ?? '').trim() || 'Metier non defini',
+        refDomaine: String(ref.domaine ?? '').trim() || 'Domaine non defini',
+        refType: String(ref.type_competence ?? '').trim(),
+        refMotsCles: String(ref.mots_cles ?? '').trim(),
+        bestCvSkill: bestSkillName,
+        bestCvNiveau: bestSkillNiveau,
+        similarityScore: Number(bestScore.toFixed(4)),
+        // Match/gap decision stays on semantic score; niveau weight affects prioritization and coverage.
+        status: bestRawScore >= threshold ? 'match' : 'gap',
+      };
+
+      if (entry.status === 'match') {
+        matches.push(entry);
+      } else {
+        gaps.push(entry);
+      }
+
+      const metierKey = entry.refMetier || 'Metier non defini';
+      const bucket = groupedByMetier.get(metierKey) ?? {
+        domaine: entry.refDomaine || 'Domaine non defini',
+        entries: [],
+      };
+      bucket.entries.push({
+        score: entry.similarityScore,
+        rawScore: Number(bestRawScore.toFixed(4)),
+        bestSkill: entry.bestCvSkill,
+      });
+      groupedByMetier.set(metierKey, bucket);
+    }
+
+    const metierRanking: MatchingMetierRankingEntry[] = [];
+    for (const [metier, bucket] of groupedByMetier.entries()) {
+      const nCompetences = bucket.entries.length;
+      const matched = bucket.entries.filter((entry) => entry.rawScore >= threshold).length;
+      const coveragePct = nCompetences > 0
+        ? Number((bucket.entries.reduce((sum, entry) => sum + entry.score, 0) / nCompetences * 100).toFixed(1))
+        : 0;
+
+      const avgScore = nCompetences > 0
+        ? Number((bucket.entries.reduce((sum, entry) => sum + entry.rawScore, 0) / nCompetences).toFixed(4))
+        : 0;
+
+      const topSkillScores = new Map<string, number>();
+      for (const entry of bucket.entries) {
+        if (!entry.bestSkill) continue;
+        const current = topSkillScores.get(entry.bestSkill) ?? 0;
+        if (entry.score > current) {
+          topSkillScores.set(entry.bestSkill, entry.score);
+        }
+      }
+
+      const topSkills = Array.from(topSkillScores.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([skill, score]) => ({
+          skill,
+          score: Number(score.toFixed(4)),
+        }));
+
+      metierRanking.push({
+        metier,
+        domaine: bucket.domaine,
+        nCompetences,
+        matched,
+        coveragePct,
+        avgScore,
+        topSkills,
+      });
+    }
+
+    metierRanking.sort((left, right) => (
+      right.coveragePct - left.coveragePct
+      || right.avgScore - left.avgScore
+      || left.metier.localeCompare(right.metier)
+    ));
+
+    const topMetier = metierRanking.length ? metierRanking[0] : null;
+    const sortedGaps = [...gaps].sort((left, right) => right.similarityScore - left.similarityScore);
+    const topMetierGaps = topMetier
+      ? sortedGaps.filter((gap) => gap.refMetier === topMetier.metier).slice(0, 40)
+      : [];
+
+    const nMatches = matches.length;
+    const nGaps = gaps.length;
+    const total = Math.max(nMatches + nGaps, 1);
+
+    return {
+      cvSubmissionId,
+      selectedMetierId,
+      generatedAt,
+      modelName: 'local-token-fallback',
+      threshold,
+      summary: {
+        nSkills: normalizedSkills.length,
+        nMatches,
+        nGaps,
+        matchRatePct: Number(((nMatches / total) * 100).toFixed(1)),
+      },
+      topMetier,
+      metierRanking,
+      matches,
+      gaps: sortedGaps.slice(0, CvSubmissionService.MAX_MATCHING_GAPS),
+      topMetierGaps,
+    };
+  }
+
+  private normalizeMatchingAnalysisPayload(
+    cvSubmissionId: string,
+    selectedMetierId: string,
+    payload: any,
+  ): MatchingAnalysisResult {
+    const toNumber = (value: unknown, fallback = 0): number => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    };
+
+    const rawSummary = (payload?.summary ?? {}) as Record<string, unknown>;
+    const rawTopMetier = payload?.top_metier ?? payload?.topMetier;
+    const rawMetierRanking = Array.isArray(payload?.metier_ranking)
+      ? payload.metier_ranking
+      : (Array.isArray(payload?.metierRanking) ? payload.metierRanking : []);
+    const rawMatches = Array.isArray(payload?.matches) ? payload.matches : [];
+    const rawGaps = Array.isArray(payload?.gaps) ? payload.gaps : [];
+    const rawTopMetierGaps = Array.isArray(payload?.top_metier_gaps)
+      ? payload.top_metier_gaps
+      : (Array.isArray(payload?.topMetierGaps) ? payload.topMetierGaps : []);
+
+    const mapTopSkills = (skills: unknown): MatchingTopSkill[] => {
+      if (!Array.isArray(skills)) return [];
+      return skills
+        .map((raw) => {
+          const row = (raw ?? {}) as Record<string, unknown>;
+          return {
+            skill: String(row.skill ?? '').trim(),
+            score: Number(toNumber(row.score, 0).toFixed(4)),
+          };
+        })
+        .filter((entry) => entry.skill.length > 0);
+    };
+
+    const mapRankingEntry = (raw: unknown): MatchingMetierRankingEntry => {
+      const row = (raw ?? {}) as Record<string, unknown>;
+      return {
+        metier: String(row.metier ?? '').trim(),
+        domaine: String(row.domaine ?? '').trim(),
+        nCompetences: Math.max(0, Math.round(toNumber(row.n_competences ?? row.nCompetences, 0))),
+        matched: Math.max(0, Math.round(toNumber(row.matched, 0))),
+        coveragePct: Number(toNumber(row.coverage_pct ?? row.coveragePct, 0).toFixed(1)),
+        avgScore: Number(toNumber(row.avg_score ?? row.avgScore, 0).toFixed(4)),
+        topSkills: mapTopSkills(row.top_skills ?? row.topSkills),
+      };
+    };
+
+    const mapGapEntry = (raw: unknown): MatchingGapEntry => {
+      const row = (raw ?? {}) as Record<string, unknown>;
+      return {
+        refCompetence: String(row.ref_competence ?? row.refCompetence ?? '').trim(),
+        refMetier: String(row.ref_metier ?? row.refMetier ?? '').trim(),
+        refDomaine: String(row.ref_domaine ?? row.refDomaine ?? '').trim(),
+        refType: String(row.ref_type ?? row.refType ?? '').trim(),
+        refMotsCles: String(row.ref_mots_cles ?? row.refMotsCles ?? '').trim(),
+        bestCvSkill: String(row.best_cv_skill ?? row.bestCvSkill ?? '').trim(),
+        bestCvNiveau: String(row.best_cv_niveau ?? row.bestCvNiveau ?? '').trim(),
+        similarityScore: Number(toNumber(row.similarity_score ?? row.similarityScore, 0).toFixed(4)),
+        status: String(row.status ?? '').trim().toLowerCase() === 'match' ? 'match' : 'gap',
+      };
+    };
+
+    const metierRanking = rawMetierRanking.map((entry: unknown) => mapRankingEntry(entry));
+    const topMetier = rawTopMetier ? mapRankingEntry(rawTopMetier) : null;
+
+    return {
+      cvSubmissionId,
+      selectedMetierId,
+      generatedAt: String(payload?.generatedAt ?? payload?.generated_at ?? new Date().toISOString()).trim(),
+      modelName: String(payload?.model_name ?? payload?.modelName ?? '').trim(),
+      threshold: Number(toNumber(payload?.threshold, this.matchingThreshold).toFixed(4)),
+      summary: {
+        nSkills: Math.max(0, Math.round(toNumber(rawSummary.n_skills ?? rawSummary.nSkills, 0))),
+        nMatches: Math.max(0, Math.round(toNumber(rawSummary.n_matches ?? rawSummary.nMatches, 0))),
+        nGaps: Math.max(0, Math.round(toNumber(rawSummary.n_gaps ?? rawSummary.nGaps, 0))),
+        matchRatePct: Number(toNumber(rawSummary.match_rate_pct ?? rawSummary.matchRatePct, 0).toFixed(1)),
+      },
+      topMetier,
+      metierRanking,
+      matches: rawMatches.map((entry: unknown) => mapGapEntry(entry)),
+      gaps: rawGaps.map((entry: unknown) => mapGapEntry(entry)),
+      topMetierGaps: rawTopMetierGaps.map((entry: unknown) => mapGapEntry(entry)),
+    };
+  }
+
+  private isMissingMatchingTableError(error: any): boolean {
+    const message = String(error?.message ?? '').toLowerCase();
+    return (
+      message.includes('cv_matching_analysis')
+      || message.includes('cv_matching_metier_scores')
+      || message.includes('cv_matching_competence_results')
+    );
+  }
+
+  private logMissingMatchingTableOnce(): void {
+    if (this.matchingTableMissingLogged) return;
+    this.matchingTableMissingLogged = true;
+    this.logger.warn('Matching persistence tables are not available yet; using transient matching cache only.');
+  }
+
+  private logMissingMatchingTraceTableOnce(): void {
+    if (this.matchingTraceTableMissingLogged) return;
+    this.matchingTraceTableMissingLogged = true;
+    this.logger.warn('Matching trace tables are not available yet; normalized metier/competence rows will be skipped.');
+  }
+
+  private async insertRowsInChunks(
+    tableName: string,
+    rows: any[],
+    chunkSize = 500,
+  ): Promise<void> {
+    if (!Array.isArray(rows) || rows.length === 0) return;
+
+    for (let i = 0; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
+      const { error } = await this.supabase
+        .from(tableName)
+        .insert(chunk);
+
+      if (error) throw error;
+    }
+  }
+
+  private buildMatchingTraceRows(
+    analysisId: string,
+    authId: string,
+    cvSubmissionId: string,
+    result: MatchingAnalysisResult,
+  ): { metierRows: any[]; competenceRows: any[] } {
+    const metierRankByName = new Map<string, number>();
+
+    const metierRows = (result.metierRanking ?? []).map((entry, index) => {
+      const metierName = String(entry?.metier ?? '').trim() || 'Metier non defini';
+      const normalizedMetier = this.normalizeMatchingText(metierName);
+      const rankPosition = index + 1;
+
+      if (normalizedMetier) {
+        metierRankByName.set(normalizedMetier, rankPosition);
+      }
+
+      return {
+        analysis_id: analysisId,
+        cv_submission_id: cvSubmissionId,
+        auth_id: authId,
+        rank_position: rankPosition,
+        metier_name: metierName,
+        domaine_name: String(entry?.domaine ?? '').trim() || null,
+        n_competences: Math.max(0, Math.round(Number(entry?.nCompetences ?? 0))),
+        matched_competences: Math.max(0, Math.round(Number(entry?.matched ?? 0))),
+        coverage_pct: Number(entry?.coveragePct ?? 0),
+        avg_score: Number(entry?.avgScore ?? 0),
+        top_skills: Array.isArray(entry?.topSkills) ? entry.topSkills : [],
+      };
+    });
+
+    const topMetierNormalized = this.normalizeMatchingText(result.topMetier?.metier ?? '');
+
+    const mapCompetenceRow = (entry: MatchingGapEntry, sourceBucket: 'matches' | 'gaps') => {
+      const metierName = String(entry?.refMetier ?? '').trim() || 'Metier non defini';
+      const normalizedMetier = this.normalizeMatchingText(metierName);
+      const metierRank = normalizedMetier
+        ? (metierRankByName.get(normalizedMetier) ?? null)
+        : null;
+
+      return {
+        analysis_id: analysisId,
+        cv_submission_id: cvSubmissionId,
+        auth_id: authId,
+        metier_name: metierName,
+        domaine_name: String(entry?.refDomaine ?? '').trim() || null,
+        metier_rank: metierRank,
+        is_top_metier: !!topMetierNormalized && normalizedMetier === topMetierNormalized,
+        status: entry?.status === 'match' ? 'match' : 'gap',
+        source_bucket: sourceBucket,
+        competence_name: String(entry?.refCompetence ?? '').trim(),
+        competence_type: String(entry?.refType ?? '').trim() || null,
+        keywords: String(entry?.refMotsCles ?? '').trim() || null,
+        best_cv_skill: String(entry?.bestCvSkill ?? '').trim() || null,
+        best_cv_level: String(entry?.bestCvNiveau ?? '').trim() || null,
+        similarity_score: Number(entry?.similarityScore ?? 0),
+      };
+    };
+
+    const competenceRows = [
+      ...(result.matches ?? []).map((entry) => mapCompetenceRow(entry, 'matches')),
+      ...(result.gaps ?? []).map((entry) => mapCompetenceRow(entry, 'gaps')),
+    ].filter((row) => row.competence_name.length > 0);
+
+    return {
+      metierRows,
+      competenceRows,
+    };
+  }
+
+  private async persistMatchingTraceRows(
+    analysisId: string,
+    authId: string,
+    latest: LatestCvSubmissionMeta,
+    result: MatchingAnalysisResult,
+  ): Promise<void> {
+    const { metierRows, competenceRows } = this.buildMatchingTraceRows(
+      analysisId,
+      authId,
+      latest.id,
+      result,
+    );
+
+    const { error: deleteCompetenceErr } = await this.supabase
+      .from('cv_matching_competence_results')
+      .delete()
+      .eq('analysis_id', analysisId);
+
+    if (deleteCompetenceErr) throw deleteCompetenceErr;
+
+    const { error: deleteMetierErr } = await this.supabase
+      .from('cv_matching_metier_scores')
+      .delete()
+      .eq('analysis_id', analysisId);
+
+    if (deleteMetierErr) throw deleteMetierErr;
+
+    await this.insertRowsInChunks('cv_matching_metier_scores', metierRows, 250);
+    await this.insertRowsInChunks('cv_matching_competence_results', competenceRows, 500);
+  }
+
+  private async loadPersistedMatchingAnalysis(
+    authId: string,
+    latest: LatestCvSubmissionMeta,
+    fingerprint: string,
+  ): Promise<MatchingAnalysisResult | null> {
+    const { data, error } = await this.supabase
+      .from('cv_matching_analysis')
+      .select('analysis_fingerprint, metier_id, analysis_result')
+      .eq('auth_id', authId)
+      .eq('cv_submission_id', latest.id)
+      .limit(1);
+
+    if (error) {
+      if (this.isMissingMatchingTableError(error)) {
+        this.logMissingMatchingTableOnce();
+        return null;
+      }
+      this.logger.warn(`Unable to read persisted matching analysis: ${error?.message ?? error}`);
+      return null;
+    }
+
+    const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    if (!row) return null;
+
+    const persistedFingerprint = String((row as any)?.analysis_fingerprint ?? '').trim();
+    if (!persistedFingerprint || persistedFingerprint !== fingerprint) {
+      return null;
+    }
+
+    const persistedPayload = (row as any)?.analysis_result;
+    const persistedMetierId = this.normalizeMetierId((row as any)?.metier_id) || latest.metierId;
+    return this.normalizeMatchingAnalysisPayload(latest.id, persistedMetierId, persistedPayload);
+  }
+
+  private async persistMatchingAnalysis(
+    authId: string,
+    latest: LatestCvSubmissionMeta,
+    fingerprint: string,
+    result: MatchingAnalysisResult,
+  ): Promise<void> {
+    const row = {
+      auth_id: authId,
+      cv_submission_id: latest.id,
+      metier_id: latest.metierId || null,
+      analysis_fingerprint: fingerprint,
+      model_name: result.modelName || null,
+      match_threshold: result.threshold,
+      analysis_result: result,
+      generated_at: result.generatedAt || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await this.supabase
+      .from('cv_matching_analysis')
+      .upsert([row], { onConflict: 'cv_submission_id' })
+      .select('id')
+      .single();
+
+    if (error) {
+      if (this.isMissingMatchingTableError(error)) {
+        this.logMissingMatchingTableOnce();
+        return;
+      }
+      this.logger.warn(`Unable to persist matching analysis: ${error?.message ?? error}`);
+      return;
+    }
+
+    const analysisId = String((data as any)?.id ?? '').trim();
+    if (!analysisId) {
+      this.logger.warn('Matching analysis persisted without id; normalized trace rows were skipped.');
+      return;
+    }
+
+    try {
+      await this.persistMatchingTraceRows(analysisId, authId, latest, result);
+    } catch (err: any) {
+      if (this.isMissingMatchingTableError(err)) {
+        this.logMissingMatchingTraceTableOnce();
+        return;
+      }
+      this.logger.warn(`Unable to persist matching trace rows: ${err?.message ?? err}`);
+    }
+  }
+
+  private async callMatchingPythonService(payload: unknown): Promise<any> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.matchingPythonTimeoutMs);
+
+    try {
+      const response = await fetch(`${this.matchingPythonServiceUrl}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Python matching service failed (${response.status}): ${text}`);
+      }
+
+      return await response.json();
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        throw new Error(
+          `Timed out after ${this.matchingPythonTimeoutMs}ms while calling ${this.matchingPythonServiceUrl}/analyze`,
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async getMatchingAnalysis(authId: string, force = false): Promise<MatchingAnalysisResult> {
+    const latest = await this.getLatestCvSubmissionMeta(authId);
+    if (!latest) {
+      return this.createEmptyMatchingAnalysisResult();
+    }
+
+    const fingerprint = `${CvSubmissionService.MATCHING_ANALYSIS_VERSION}:${latest.id}:${latest.updatedAt}`;
+    const cached = this.matchingAnalysisCache.get(authId);
+    if (!force && cached && cached.fingerprint === fingerprint) {
+      return cached.result;
+    }
+
+    if (!force) {
+      const persisted = await this.loadPersistedMatchingAnalysis(authId, latest, fingerprint);
+      if (persisted) {
+        this.matchingAnalysisCache.set(authId, {
+          fingerprint,
+          result: persisted,
+          cachedAt: new Date().toISOString(),
+        });
+        return persisted;
+      }
+    }
+
+    const [studentSkills, referenceCompetences] = await Promise.all([
+      this.loadStudentSkillsForMatching(latest.id),
+      this.loadReferenceCompetencesForMatching(),
+    ]);
+
+    if (referenceCompetences.length === 0) {
+      this.logger.warn('Matching analysis skipped: liste_competences is empty.');
+      return this.createEmptyMatchingAnalysisResult(latest.id, latest.metierId);
+    }
+
+    const pythonPayload = {
+      cv_submission_id: latest.id,
+      match_threshold: this.matchingThreshold,
+      student_skills: studentSkills,
+      reference_competences: referenceCompetences,
+    };
+
+    let normalized: MatchingAnalysisResult;
+    try {
+      const rawResult = await this.callMatchingPythonService(pythonPayload);
+      normalized = this.normalizeMatchingAnalysisPayload(
+        latest.id,
+        latest.metierId,
+        rawResult,
+      );
+    } catch (err: any) {
+      this.logger.warn(`Python matching service unavailable, using local fallback: ${err?.message ?? err}`);
+      normalized = this.computeLocalMatchingFallback(
+        latest.id,
+        latest.metierId,
+        studentSkills,
+        referenceCompetences,
+      );
+    }
+
+    await this.persistMatchingAnalysis(authId, latest, fingerprint, normalized);
+
+    this.matchingAnalysisCache.set(authId, {
+      fingerprint,
+      result: normalized,
+      cachedAt: new Date().toISOString(),
+    });
+
+    return normalized;
+  }
+
+  async getMatchingAnalysisTrace(authId: string, force = false): Promise<MatchingAnalysisTraceResult> {
+    const analysis = await this.getMatchingAnalysis(authId, force);
+    if (!analysis.cvSubmissionId) {
+      return {
+        analysis,
+        analysisId: null,
+        analysisFingerprint: '',
+        metierScores: [],
+        competenceResults: [],
+      };
+    }
+
+    const { data: analysisRow, error: analysisErr } = await this.supabase
+      .from('cv_matching_analysis')
+      .select('id, analysis_fingerprint')
+      .eq('auth_id', authId)
+      .eq('cv_submission_id', analysis.cvSubmissionId)
+      .maybeSingle();
+
+    if (analysisErr) {
+      if (this.isMissingMatchingTableError(analysisErr)) {
+        this.logMissingMatchingTableOnce();
+      } else {
+        this.logger.warn(`Unable to read matching trace root row: ${analysisErr?.message ?? analysisErr}`);
+      }
+
+      return {
+        analysis,
+        analysisId: null,
+        analysisFingerprint: '',
+        metierScores: [],
+        competenceResults: [],
+      };
+    }
+
+    const analysisId = String((analysisRow as any)?.id ?? '').trim();
+    const analysisFingerprint = String((analysisRow as any)?.analysis_fingerprint ?? '').trim();
+
+    if (!analysisId) {
+      return {
+        analysis,
+        analysisId: null,
+        analysisFingerprint,
+        metierScores: [],
+        competenceResults: [],
+      };
+    }
+
+    const [{ data: metierScores, error: metierErr }, { data: competenceResults, error: competenceErr }] = await Promise.all([
+      this.supabase
+        .from('cv_matching_metier_scores')
+        .select('*')
+        .eq('analysis_id', analysisId)
+        .order('rank_position', { ascending: true }),
+      this.supabase
+        .from('cv_matching_competence_results')
+        .select('*')
+        .eq('analysis_id', analysisId)
+        .order('similarity_score', { ascending: false }),
+    ]);
+
+    if (metierErr) {
+      if (this.isMissingMatchingTableError(metierErr)) {
+        this.logMissingMatchingTraceTableOnce();
+      } else {
+        this.logger.warn(`Unable to read matching metier trace rows: ${metierErr?.message ?? metierErr}`);
+      }
+    }
+
+    if (competenceErr) {
+      if (this.isMissingMatchingTableError(competenceErr)) {
+        this.logMissingMatchingTraceTableOnce();
+      } else {
+        this.logger.warn(`Unable to read matching competence trace rows: ${competenceErr?.message ?? competenceErr}`);
+      }
+    }
+
+    return {
+      analysis,
+      analysisId,
+      analysisFingerprint,
+      metierScores: Array.isArray(metierScores) ? metierScores : [],
+      competenceResults: Array.isArray(competenceResults) ? competenceResults : [],
+    };
   }
 
   private async enrichPayloadForMatching(payload: any, authId?: string): Promise<any> {

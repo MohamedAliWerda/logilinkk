@@ -1,54 +1,164 @@
 <div class="dashboard-content score-section">
     <section class="matching-section">
         <div class="matching-head">
-            <div class="page-header global-panel-banner">
+            <div class="page-header global-panel-banner recommendation-header">
                 <div>
-                    <h1 class="page-title">Mise en relation avec les entreprises</h1>
-                    <p class="page-sub">Entreprises correspondant à vos compétences et votre profil</p>
+                    <h1 class="page-title">Matching Métier & Gap Analysis</h1>
+                    <p class="page-sub">Analyse générée automatiquement à partir de vos hard skills et du référentiel compétences.</p>
                 </div>
-                <!-- search removed -->
             </div>
         </div>
 
-        <div class="matching-grid">
-            <article class="matching-card" *ngFor="let c of filteredMatchingCompanies">
-                <div class="matching-card-top">
-                    <div class="company-head">
-                        <span class="company-square-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 21h18"></path>
-                  <path d="M5 21V7l8-4v18"></path>
-                  <path d="M19 21V11l-6-4"></path>
-                </svg>
-              </span>
-                        <div>
-                            <h3>{{ c.name }}</h3>
-                            <p class="company-location">{{ c.location }}</p>
-                        </div>
-                    </div>
-                    <div class="score-box">
-                        <span class="score-value">★ {{ c.score }}%</span>
-                        <span class="score-label">match</span>
-                    </div>
-                </div>
+        @if (loading && !analysis) {
+        <div class="state-banner loading">
+            <i class="fa-solid fa-spinner fa-spin"></i> Chargement de l'analyse matching/gap...
+        </div>
+        } @if (!loading && errorMessage && !analysis) {
+        <div class="state-banner error">
+            <i class="fa-solid fa-circle-exclamation"></i> {{ errorMessage }}
+        </div>
+        } @if (analysis; as a) {
+        <div class="summary-grid">
+            <article class="summary-card highlighted">
+                <span class="summary-label">Métier le plus compatible</span>
+                <h3>{{ a.topMetier?.metier || 'Non déterminé' }}</h3>
+                <p>{{ a.topMetier?.domaine || 'Domaine non disponible' }}</p>
+                <div class="summary-value">{{ a.topMetier?.coveragePct ?? 0 }}%</div>
+            </article>
 
-                <p class="company-desc">{{ c.description }}</p>
+            <article class="summary-card">
+                <span class="summary-label">Compétences analysées</span>
+                <div class="summary-value">{{ a.summary.nSkills }}</div>
+            </article>
 
-                <div class="tag-row">
-                    <span class="tag-chip" *ngFor="let t of c.tags">{{ t }}</span>
-                </div>
+            <article class="summary-card">
+                <span class="summary-label">Matches</span>
+                <div class="summary-value">{{ a.summary.nMatches }}</div>
+            </article>
 
-                <div class="matching-divider"></div>
-
-                <div class="meta-row">
-                    <span>{{ c.sector }}</span>
-                    <span>{{ c.employees }}</span>
-                    <span class="stage-chip">{{ c.stage }}</span>
-                </div>
-
-                <button class="detail-btn">Voir le détail</button>
+            <article class="summary-card">
+                <span class="summary-label">Gaps</span>
+                <div class="summary-value">{{ a.summary.nGaps }}</div>
             </article>
         </div>
+
+        <h2 class="section-title">Top métiers compatibles</h2>
+        @if (topMetiers.length > 0) {
+        <div class="matching-grid">
+            <article class="matching-card metier-card" *ngFor="let m of topMetiers; trackBy: trackByMetier">
+                <div class="metier-head">
+                    <h3>{{ m.metier }}</h3>
+                    <span class="coverage-chip">{{ m.coveragePct }}%</span>
+                </div>
+                <p class="metier-domain">{{ m.domaine }}</p>
+
+                <div class="progress-track">
+                    <div class="progress-fill" [style.width.%]="coveragePercent(m.coveragePct)"></div>
+                </div>
+
+                <div class="metier-meta">
+                    <span>{{ m.matched }}/{{ m.nCompetences }} compétences couvertes</span>
+                </div>
+
+                @if (m.topSkills.length > 0) {
+                <div class="tag-row">
+                    <span class="tag-chip" *ngFor="let skill of m.topSkills">{{ skill.skill }} ({{ scorePercent(skill.score) }})</span>
+                </div>
+                }
+            </article>
+        </div>
+        } @else {
+        <div class="state-banner info">Aucun métier compatible disponible pour le moment.</div>
+        }
+
+        <h2 class="section-title">Gaps prioritaires - Métier visé</h2>
+        @if (displayedTargetMetierGaps.length > 0) {
+        <div class="gaps-table-wrap">
+            <table class="gaps-table">
+                <thead>
+                    <tr>
+                        <th>Compétence manquante</th>
+                        <th>Métier</th>
+                        <th>Domaine</th>
+                        <th>Similarité</th>
+                        <th>Criticité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let g of displayedTargetMetierGaps; trackBy: trackByGap">
+                        <td>{{ g.refCompetence }}</td>
+                        <td>{{ g.refMetier }}</td>
+                        <td>{{ g.refDomaine }}</td>
+                        <td>{{ scorePercent(g.similarityScore) }}</td>
+                        <td>
+                            <span class="severity-chip">{{ gapSeverity(g.similarityScore) }}</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        } @else {
+        <div class="state-banner info">{{ targetMetierEmptyMessage }}</div>
+        }
+
+        <h2 class="section-title">Gaps prioritaires - Top 3 métiers compatibles</h2>
+        @if (displayedTopThreeMetierGaps.length > 0) {
+        <div class="gaps-table-wrap">
+            <table class="gaps-table">
+                <thead>
+                    <tr>
+                        <th>Compétence manquante</th>
+                        <th>Métier</th>
+                        <th>Domaine</th>
+                        <th>Similarité</th>
+                        <th>Criticité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let g of displayedTopThreeMetierGaps; trackBy: trackByGap">
+                        <td>{{ g.refCompetence }}</td>
+                        <td>{{ g.refMetier }}</td>
+                        <td>{{ g.refDomaine }}</td>
+                        <td>{{ scorePercent(g.similarityScore) }}</td>
+                        <td>
+                            <span class="severity-chip">{{ gapSeverity(g.similarityScore) }}</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        } @else {
+        <div class="state-banner info">Aucun gap prioritaire trouvé pour les 3 métiers les plus compatibles.</div>
+        }
+
+        <h2 class="section-title">Tous les gaps</h2>
+        @if (displayedGaps.length > 0) {
+        <div class="gaps-table-wrap">
+            <table class="gaps-table">
+                <thead>
+                    <tr>
+                        <th>Compétence manquante</th>
+                        <th>Métier</th>
+                        <th>Domaine</th>
+                        <th>Similarité</th>
+                        <th>Criticité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let g of displayedGaps; trackBy: trackByGap">
+                        <td>{{ g.refCompetence }}</td>
+                        <td>{{ g.refMetier }}</td>
+                        <td>{{ g.refDomaine }}</td>
+                        <td>{{ scorePercent(g.similarityScore) }}</td>
+                        <td>
+                            <span class="severity-chip">{{ gapSeverity(g.similarityScore) }}</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        } @else {
+        <div class="state-banner info">Aucun gap affichable pour ce profil.</div>
+        } }
     </section>
 </div>

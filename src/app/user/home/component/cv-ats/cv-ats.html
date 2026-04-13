@@ -285,7 +285,11 @@
     <div class="skills-info-banner">
         <i class="fa-solid fa-lock"></i> Compétences techniques extraites automatiquement depuis vos résultats académiques. Vous ne pouvez pas les modifier.
     </div>
-    }
+    } @if (hardSkillsClosed) {
+    <div class="skills-info-banner">
+        <i class="fa-solid fa-lock"></i> Aucune compétence technique n'est disponible pour ce métier. La section hard skills est fermée.
+    </div>
+    } @if (!hardSkillsClosed) {
     <div class="skills-grid">
         @for (h of hardSkills; track $index; let i = $index) {
         <div class="skill-row">
@@ -317,7 +321,7 @@
     @if (!isHardSkillLocked()) {
     <button type="button" class="btn-add-entry" (click)="addHardSkill()">
               <i class="fa-solid fa-plus"></i> Ajouter une hard skill
-            </button> } }
+                        </button> } } }
 
     <!-- ─── STEP 6 : Soft Skills ─── -->
     @if (step === 6) {

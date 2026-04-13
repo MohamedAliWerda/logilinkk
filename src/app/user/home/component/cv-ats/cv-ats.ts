@@ -109,6 +109,7 @@ export class CvAts {
 
   private async loadExtractedSkills(metierId?: string, forceRegeneration = false): Promise<void> {
     const requestedMetierId = this.normalizeMetierId(metierId ?? this.selectedMetierId);
+    this.hardSkillsClosed = false;
 
     // If CV already exists, restore saved skills.
     const existingCv = await this.cvSubmissionService.fetchMyCv(requestedMetierId);
@@ -140,11 +141,13 @@ export class CvAts {
       }));
 
       this.skillsExtracted = this.hardSkills.length > 0;
+      this.hardSkillsClosed = requestedMetierId.length > 0 && this.hardSkills.length === 0;
       return;
     }
 
     if (!requestedMetierId) {
       this.skillsExtracted = false;
+      this.hardSkillsClosed = false;
       return;
     }
 
@@ -161,12 +164,11 @@ export class CvAts {
         }));
 
         this.skillsExtracted = this.hardSkills.length > 0;
+        this.hardSkillsClosed = false;
       } else {
-        this.hardSkills = [
-          { type: 'Metier T&L', nom: '', niveau: 'Intermediaire' as Level },
-          { type: 'Outil / Logiciel', nom: '', niveau: 'Intermediaire' as Level },
-        ];
+        this.hardSkills = [];
         this.skillsExtracted = false;
+        this.hardSkillsClosed = true;
       }
     } catch (err) {
       console.error('Failed to extract skills from notes', err);
@@ -251,7 +253,9 @@ export class CvAts {
     if (!found) {
       this.professionalTitle = '';
       this.specialization = '';
+      this.hardSkills = [];
       this.skillsExtracted = false;
+      this.hardSkillsClosed = false;
       return;
     }
 
@@ -334,6 +338,7 @@ export class CvAts {
   ];
 
   skillsExtracted = false;
+  hardSkillsClosed = false;
   skillsLoading = false;
 
   langues = [
@@ -564,6 +569,12 @@ export class CvAts {
       localStorage.setItem('latestAtsSuccessScore', String(scoreResult.successScore));
 
       await this.cvSubmissionService.upsertCv(this.buildSubmissionPayload(scoreResult.atsScore));
+
+      try {
+        await this.cvSubmissionService.runMatchingAnalysis(true);
+      } catch (matchingErr) {
+        console.warn('Matching analysis failed after CV generation:', matchingErr);
+      }
 
       await this.router.navigate(['/home/dashboard']);
     } catch (err) {
@@ -830,12 +841,12 @@ export class CvAts {
   }
 
   addHardSkill() {
-    if (this.skillsExtracted) return;
+    if (this.isHardSkillLocked()) return;
     this.hardSkills.push({ type: 'Metier T&L', nom: '', niveau: 'Intermediaire' });
   }
 
   removeHardSkill(i: number) {
-    if (this.skillsExtracted) return;
+    if (this.isHardSkillLocked()) return;
     if (this.hardSkills.length > 1) {
       this.hardSkills.splice(i, 1);
     }
@@ -852,7 +863,7 @@ export class CvAts {
   }
 
   isHardSkillLocked(): boolean {
-    return this.skillsExtracted;
+    return this.skillsExtracted || this.hardSkillsClosed;
   }
 
   addLangue() {
