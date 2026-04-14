@@ -155,6 +155,8 @@ export class CvSubmissionService {
   private matchingTraceTableMissingLogged = false;
   private static readonly DEFAULT_MATCHING_PYTHON_SERVICE_URL = 'http://127.0.0.1:8001';
   private static readonly DEFAULT_EMPLOYABILITY_TIMEOUT_MS = 120_000;
+  private static readonly WINDOWS_PYTHON_FALLBACKS = ['py', 'python', 'python3'];
+  private static readonly POSIX_PYTHON_FALLBACKS = ['python3', 'python'];
   private static readonly MATCHING_ANALYSIS_VERSION = 'v4-traceable-persistence';
   private static readonly MAX_MATCHING_GAPS = 5000;
   private static readonly AUTO_SKILL_CONTEXT = '__auto_generated_from_notes__';
@@ -199,10 +201,13 @@ export class CvSubmissionService {
       ? Math.max(0, Math.min(1, configuredThreshold))
       : 0.72;
 
-    this.employabilityPythonExecutable =
+    const configuredEmployabilityPythonExecutable =
       this.configService.get<string>('EMPLOYABILITY_PYTHON_EXECUTABLE')
       ?? this.configService.get<string>('PYTHON_EXECUTABLE')
-      ?? 'python';
+      ?? '';
+    this.employabilityPythonExecutable = this.resolveEmployabilityPythonExecutable(
+      configuredEmployabilityPythonExecutable,
+    );
 
     const backendCwd = process.cwd();
     const repoRootGuess = resolve(backendCwd, '..');
@@ -230,6 +235,32 @@ export class CvSubmissionService {
     this.employabilityTimeoutMs = Number.isFinite(configuredEmployabilityTimeout)
       ? Math.max(10_000, Math.floor(configuredEmployabilityTimeout))
       : CvSubmissionService.DEFAULT_EMPLOYABILITY_TIMEOUT_MS;
+  }
+
+  private resolveEmployabilityPythonExecutable(configuredExecutable: string): string {
+    const normalizedExecutable = String(configuredExecutable ?? '').trim();
+    const fallbackCandidates = process.platform === 'win32'
+      ? CvSubmissionService.WINDOWS_PYTHON_FALLBACKS
+      : CvSubmissionService.POSIX_PYTHON_FALLBACKS;
+    const fallbackExecutable = fallbackCandidates[0];
+
+    if (normalizedExecutable === '') {
+      return fallbackExecutable;
+    }
+
+    const looksLikeFilePath =
+      normalizedExecutable.includes('/')
+      || normalizedExecutable.includes('\\')
+      || /\.exe$/i.test(normalizedExecutable);
+
+    if (looksLikeFilePath && !existsSync(normalizedExecutable)) {
+      this.logger.warn(
+        `Configured EMPLOYABILITY_PYTHON_EXECUTABLE not found (${normalizedExecutable}). Falling back to "${fallbackExecutable}".`,
+      );
+      return fallbackExecutable;
+    }
+
+    return normalizedExecutable;
   }
 
   private async resolveStudentIdByAuthId(authId: string): Promise<string | null> {
