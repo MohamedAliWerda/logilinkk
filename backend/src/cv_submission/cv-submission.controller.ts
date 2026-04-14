@@ -113,6 +113,20 @@ export class CvSubmissionController {
     }
   }
 
+  @Get('employability-score')
+  @UseGuards(JwtAuthGuard)
+  async getMyEmployabilityScore(@Req() req: any) {
+    try {
+      const authId = await this.resolveAuthId(req.user);
+      const score = await this.svc.getEmployabilityScoreByAuthId(authId);
+      return { found: score !== null, scoreFinal: score };
+    } catch (err: any) {
+      console.error('[cv-submissions] getMyEmployabilityScore error:', err?.message ?? err);
+      if (err instanceof HttpException) throw err;
+      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('ats-score')
   async calculateAtsScore(@Req() req: any, @Body() payload: any) {

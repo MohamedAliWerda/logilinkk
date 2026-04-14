@@ -32,6 +32,11 @@ export interface AtsScoreResponse {
   rawResponse?: string;
 }
 
+export interface EmployabilityScoreResponse {
+  found: boolean;
+  scoreFinal: number | null;
+}
+
 export interface MatchingTopSkill {
   skill: string;
   score: number;
@@ -225,11 +230,16 @@ export class CvSubmissionService {
   }
 
   private async getAuthToken(): Promise<string | null> {
+    const localToken = localStorage.getItem('token');
+    if (localToken && localToken.trim().length > 0) {
+      return localToken;
+    }
+
     try {
       const sessionRes = await this.supabase.auth.getSession();
       let token = sessionRes?.data?.session?.access_token;
       if (!token) {
-        token = localStorage.getItem('token') ?? undefined;
+        token = undefined;
       }
       return token ?? null;
     } catch {
@@ -304,6 +314,37 @@ export class CvSubmissionService {
       successScore: clamp(data?.successScore),
       atsScore: clamp(data?.atsScore),
       rawResponse: typeof data?.rawResponse === 'string' ? data.rawResponse : undefined,
+    };
+  }
+
+  async fetchMyEmployabilityScore(): Promise<EmployabilityScoreResponse> {
+    const token = await this.getAuthToken();
+    if (!token) {
+      throw new Error('Utilisateur non authentifie.');
+    }
+
+    const resp = await fetch(`${environment.apiUrl}/cv-submissions/employability-score`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Employability score API failed (${resp.status}): ${text}`);
+    }
+
+    const json = await resp.json();
+    const data = json?.data ?? json;
+    const raw = data?.scoreFinal;
+    const score = raw === null || raw === undefined
+      ? null
+      : Math.max(0, Math.min(100, Number((Number(raw) || 0).toFixed(2))));
+
+    return {
+      found: Boolean(data?.found) && score !== null,
+      scoreFinal: score,
     };
   }
 

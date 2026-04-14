@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { ChangeDetectorRef } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CvSubmissionService } from '../cv-ats/cv-submission.service';
 // dashboard does not render the global navbar/sidebar (those are provided by Home)
@@ -24,11 +25,13 @@ export class Dashboard {
   employabilityScore = 0;
   recommendations: string[] = [];
   atsScoreFromApi: number | null = null;
+  employabilityScoreFromApi: number | null = null;
 
   constructor(
     private router: Router,
     private sanitizer: DomSanitizer,
     private cvSubmissionService: CvSubmissionService,
+    private cdr: ChangeDetectorRef,
   ) {
     this.studentName = this.resolveStudentName();
 
@@ -72,6 +75,7 @@ export class Dashboard {
     this.employabilityScore = this.getAvgMatchScore();
     this.recomputeStats();
     void this.loadAtsScore();
+    void this.loadEmployabilityScore();
   }
 
   private scoreFromStorage(): number | null {
@@ -97,8 +101,25 @@ export class Dashboard {
       this.atsScoreFromApi = score;
       localStorage.setItem('latestAtsScore', String(score));
       this.recomputeStats();
+      this.cdr.detectChanges();
     } catch (err) {
       console.error('Dashboard ATS score fetch failed', err);
+    }
+  }
+
+  private async loadEmployabilityScore(): Promise<void> {
+    try {
+      const result = await this.cvSubmissionService.fetchMyEmployabilityScore();
+      this.employabilityScoreFromApi = (result.found && result.scoreFinal !== null)
+        ? result.scoreFinal
+        : 0;
+      this.recomputeStats();
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('Dashboard employability score fetch failed', err);
+      this.employabilityScoreFromApi = 0;
+      this.recomputeStats();
+      this.cdr.detectChanges();
     }
   }
 
@@ -251,8 +272,8 @@ export class Dashboard {
       : 0;
     const ats = this.atsScoreFromApi ?? calculatedAts;
 
-    // employability score: average company match
-    this.employabilityScore = this.getAvgMatchScore();
+    // employability score: backend persisted score only (no local fallback)
+    this.employabilityScore = this.employabilityScoreFromApi ?? 0;
 
     // métiers compatibles: number of matching companies
     const metiers = this.matchingCompanies ? this.matchingCompanies.length : 0;
@@ -263,7 +284,7 @@ export class Dashboard {
     // assign into stats array in consistent order
     if (this.stats && this.stats.length >= 4) {
       this.stats[0].value = ats;
-      this.stats[1].value = Math.round(this.employabilityScore);
+      this.stats[1].value = Number(this.employabilityScore.toFixed(2));
       this.stats[2].value = metiers;
       this.stats[3].value = nbreGaps;
     }

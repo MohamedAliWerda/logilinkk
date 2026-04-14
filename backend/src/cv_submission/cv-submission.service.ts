@@ -146,6 +146,7 @@ export class CvSubmissionService {
   private readonly employabilityScriptPath: string;
   private readonly employabilityXlsxPath: string;
   private readonly employabilityCsvPath: string;
+  private readonly employabilityScoreTableName: string;
   private readonly employabilityTimeoutMs: number;
   private readonly matchingThreshold: number;
   private readonly disabledGeminiProviders = new Set<string>();
@@ -217,6 +218,10 @@ export class CvSubmissionService {
     this.employabilityCsvPath =
       this.configService.get<string>('EMPLOYABILITY_OUTPUT_CSV_PATH')
       ?? resolve(repoRootGuess, 'employabilite_service', 'logilink_scores.csv');
+
+    this.employabilityScoreTableName =
+      this.configService.get<string>('EMPLOYABILITY_SCORE_TABLE')
+      ?? 'score_employabilite';
 
     const configuredEmployabilityTimeout = Number(
       this.configService.get<string>('EMPLOYABILITY_TIMEOUT_MS')
@@ -1306,6 +1311,58 @@ export class CvSubmissionService {
     }
 
     return this.clampScore(Number(row.ats_score));
+  }
+
+  async getEmployabilityScoreByAuthId(authId: string): Promise<number | null> {
+    const studentId = await this.resolveStudentIdByAuthId(authId);
+    if (!studentId) {
+      return null;
+    }
+
+    const studentIdAsNumber = Number(studentId);
+    const candidateStudentKeys: Array<string | number> = [studentId];
+    if (Number.isFinite(studentIdAsNumber)) {
+      candidateStudentKeys.push(studentIdAsNumber);
+    }
+
+    const candidateTables = [
+      this.employabilityScoreTableName,
+      'score_employabilité',
+      'score_employabilite',
+    ].filter((value, index, arr) => value && arr.indexOf(value) === index);
+
+    for (const tableName of candidateTables) {
+      for (const studentKey of candidateStudentKeys) {
+        const { data, error } = await this.supabase
+          .from(tableName)
+          .select('score_final')
+          .eq('etudiant', studentKey)
+          .limit(1);
+
+        if (error) {
+          const message = String((error as any)?.message ?? '').toLowerCase();
+          const code = String((error as any)?.code ?? '').toUpperCase();
+          const tableMissing = code === 'PGRST205' || message.includes('could not find the table');
+          if (tableMissing) {
+            break;
+          }
+          throw error;
+        }
+
+        const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+        if (!row || row.score_final === undefined || row.score_final === null) {
+          continue;
+        }
+
+        const numericScore = Number(row.score_final);
+        if (!Number.isFinite(numericScore)) {
+          continue;
+        }
+        return Math.max(0, Math.min(100, Number(numericScore.toFixed(2))));
+      }
+    }
+
+    return null;
   }
 
   async updateAtsScore(authId: string, atsScore: number): Promise<void> {
