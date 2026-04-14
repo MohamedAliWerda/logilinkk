@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getSupabase } from '../config/supabase.client';
 import { RefCompetanceService } from '../ref_competance/ref_competance.service';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { spawn } from 'node:child_process';
 
 type AtsScoreResult = {
   matchScore: number;
@@ -121,6 +124,14 @@ type MatchingAnalysisTraceResult = {
   competenceResults: any[];
 };
 
+type EmployabilityComputationResult = {
+  ok: boolean;
+  studentId: string;
+  scoreFinal: number | null;
+  outputPath: string;
+  error?: string;
+};
+
 @Injectable()
 export class CvSubmissionService {
   private readonly logger = new Logger(CvSubmissionService.name);
@@ -131,12 +142,18 @@ export class CvSubmissionService {
   private readonly geminiSecondaryModel: string;
   private readonly matchingPythonServiceUrl: string;
   private readonly matchingPythonTimeoutMs: number;
+  private readonly employabilityPythonExecutable: string;
+  private readonly employabilityScriptPath: string;
+  private readonly employabilityXlsxPath: string;
+  private readonly employabilityCsvPath: string;
+  private readonly employabilityTimeoutMs: number;
   private readonly matchingThreshold: number;
   private readonly disabledGeminiProviders = new Set<string>();
   private readonly matchingAnalysisCache = new Map<string, MatchingCacheEntry>();
   private matchingTableMissingLogged = false;
   private matchingTraceTableMissingLogged = false;
   private static readonly DEFAULT_MATCHING_PYTHON_SERVICE_URL = 'http://127.0.0.1:8001';
+  private static readonly DEFAULT_EMPLOYABILITY_TIMEOUT_MS = 120_000;
   private static readonly MATCHING_ANALYSIS_VERSION = 'v4-traceable-persistence';
   private static readonly MAX_MATCHING_GAPS = 5000;
   private static readonly AUTO_SKILL_CONTEXT = '__auto_generated_from_notes__';
@@ -180,6 +197,176 @@ export class CvSubmissionService {
     this.matchingThreshold = Number.isFinite(configuredThreshold)
       ? Math.max(0, Math.min(1, configuredThreshold))
       : 0.72;
+
+    this.employabilityPythonExecutable =
+      this.configService.get<string>('EMPLOYABILITY_PYTHON_EXECUTABLE')
+      ?? this.configService.get<string>('PYTHON_EXECUTABLE')
+      ?? 'python';
+
+    const backendCwd = process.cwd();
+    const repoRootGuess = resolve(backendCwd, '..');
+
+    this.employabilityScriptPath =
+      this.configService.get<string>('EMPLOYABILITY_SCORE_SCRIPT_PATH')
+      ?? resolve(repoRootGuess, 'employabilite_service', 'score.py');
+
+    this.employabilityXlsxPath =
+      this.configService.get<string>('EMPLOYABILITY_MATRIX_XLSX_PATH')
+      ?? resolve(repoRootGuess, 'employabilite_service', 'matrice_coverture.xlsx');
+
+    this.employabilityCsvPath =
+      this.configService.get<string>('EMPLOYABILITY_OUTPUT_CSV_PATH')
+      ?? resolve(repoRootGuess, 'employabilite_service', 'logilink_scores.csv');
+
+    const configuredEmployabilityTimeout = Number(
+      this.configService.get<string>('EMPLOYABILITY_TIMEOUT_MS')
+      ?? String(CvSubmissionService.DEFAULT_EMPLOYABILITY_TIMEOUT_MS),
+    );
+    this.employabilityTimeoutMs = Number.isFinite(configuredEmployabilityTimeout)
+      ? Math.max(10_000, Math.floor(configuredEmployabilityTimeout))
+      : CvSubmissionService.DEFAULT_EMPLOYABILITY_TIMEOUT_MS;
+  }
+
+  private async resolveStudentIdByAuthId(authId: string): Promise<string | null> {
+    const { data: userRow, error } = await this.supabase
+      .from('user')
+      .select('id')
+      .eq('auth_id', authId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!userRow || userRow.id === undefined || userRow.id === null) {
+      return null;
+    }
+
+    return String(userRow.id).trim() || null;
+  }
+
+  private parseEmployabilityResult(stdout: string): EmployabilityComputationResult | null {
+    const marker = 'RESULT_JSON:';
+    const line = stdout
+      .split(/\r?\n/)
+      .map((entry) => entry.trim())
+      .find((entry) => entry.startsWith(marker));
+
+    if (!line) return null;
+
+    const rawJson = line.slice(marker.length);
+    try {
+      const parsed = JSON.parse(rawJson) as Record<string, any>;
+      return {
+        ok: Boolean(parsed?.ok),
+        studentId: String(parsed?.studentId ?? '').trim(),
+        scoreFinal: parsed?.scoreFinal === null || parsed?.scoreFinal === undefined
+          ? null
+          : Number(parsed?.scoreFinal),
+        outputPath: String(parsed?.outputPath ?? this.employabilityCsvPath),
+        error: parsed?.error ? String(parsed.error) : undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async runEmployabilityScoringForAuthId(authId: string): Promise<EmployabilityComputationResult> {
+    const studentId = await this.resolveStudentIdByAuthId(authId);
+    if (!studentId) {
+      return {
+        ok: false,
+        studentId: '',
+        scoreFinal: null,
+        outputPath: this.employabilityCsvPath,
+        error: 'Student not found for current authenticated user.',
+      };
+    }
+
+    if (!existsSync(this.employabilityScriptPath)) {
+      return {
+        ok: false,
+        studentId,
+        scoreFinal: null,
+        outputPath: this.employabilityCsvPath,
+        error: `Employability script not found at ${this.employabilityScriptPath}`,
+      };
+    }
+
+    if (!existsSync(this.employabilityXlsxPath)) {
+      return {
+        ok: false,
+        studentId,
+        scoreFinal: null,
+        outputPath: this.employabilityCsvPath,
+        error: `Employability matrix file not found at ${this.employabilityXlsxPath}`,
+      };
+    }
+
+    return await new Promise<EmployabilityComputationResult>((resolvePromise, rejectPromise) => {
+      const args = [
+        this.employabilityScriptPath,
+        '--student-id',
+        studentId,
+        '--xlsx-path',
+        this.employabilityXlsxPath,
+        '--output-path',
+        this.employabilityCsvPath,
+        '--json',
+      ];
+
+      const child = spawn(this.employabilityPythonExecutable, args, {
+        cwd: process.cwd(),
+        env: process.env,
+        windowsHide: true,
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      const timeout = setTimeout(() => {
+        child.kill();
+        rejectPromise(
+          new Error(`Employability scoring timed out after ${this.employabilityTimeoutMs}ms`),
+        );
+      }, this.employabilityTimeoutMs);
+
+      child.stdout.on('data', (chunk: Buffer | string) => {
+        stdout += chunk.toString();
+      });
+
+      child.stderr.on('data', (chunk: Buffer | string) => {
+        stderr += chunk.toString();
+      });
+
+      child.on('error', (err) => {
+        clearTimeout(timeout);
+        rejectPromise(err);
+      });
+
+      child.on('close', (code) => {
+        clearTimeout(timeout);
+        const parsed = this.parseEmployabilityResult(stdout);
+
+        if (code !== 0) {
+          const details = stderr.trim() || stdout.trim() || `exit code ${code}`;
+          rejectPromise(new Error(`Employability scoring process failed: ${details}`));
+          return;
+        }
+
+        if (parsed) {
+          resolvePromise(parsed);
+          return;
+        }
+
+        resolvePromise({
+          ok: true,
+          studentId,
+          scoreFinal: null,
+          outputPath: this.employabilityCsvPath,
+        });
+      });
+    });
   }
 
   private sanitizeDate(value: any): string | null {

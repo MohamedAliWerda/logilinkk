@@ -119,6 +119,18 @@ export class CvSubmissionController {
     try {
       const authId = await this.resolveAuthId(req.user);
       const result = await this.svc.calculateAtsScore(payload, authId);
+      let employability: any = null;
+
+      try {
+        employability = await this.svc.runEmployabilityScoringForAuthId(authId);
+      } catch (employabilityErr: any) {
+        console.error('[cv-submissions] employability scoring failed:', employabilityErr?.message ?? employabilityErr);
+        employability = {
+          ok: false,
+          error: String(employabilityErr?.message ?? 'Employability scoring failed'),
+        };
+      }
+
       try {
         await this.svc.updateAtsScore(authId, result.atsScore);
       } catch (persistErr: any) {
@@ -132,7 +144,10 @@ export class CvSubmissionController {
           console.error('[cv-submissions] ATS score persistence failed:', persistErr?.message ?? persistErr);
         }
       }
-      return result;
+      return {
+        ...result,
+        employability,
+      };
     } catch (err: any) {
       console.error('[cv-submissions] calculateAtsScore error:', err?.message ?? err);
       if (err instanceof HttpException) throw err;
