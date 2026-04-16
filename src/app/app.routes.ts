@@ -76,6 +76,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'validation-ia',
+        loadComponent: () =>
+          import('./admin/home_admin/comonent_admin/rag_recommendation_admin').then(
+            (module) => module.RagRecommendationAdmin
+          ),
+      },
+      {
         path: 'etud',
         loadComponent: () =>
           import('./admin/home_admin/comonent_admin/etud_admin/etud_admin').then(

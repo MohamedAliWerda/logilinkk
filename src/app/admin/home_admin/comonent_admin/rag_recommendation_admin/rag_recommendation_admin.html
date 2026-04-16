@@ -1,0 +1,152 @@
+<section class="rag-page" aria-labelledby="rag-title">
+  <header class="rag-header">
+    <h1 id="rag-title">Validation des recommandations IA (LLM + RAG)</h1>
+    <p>
+      L admin peut verifier, modifier, confirmer ou supprimer les certifications suggerees
+      apres la generation automatique.
+    </p>
+  </header>
+
+  <section class="stats-grid" aria-label="Statistiques de validation">
+    <article class="stat-card">
+      <span class="stat-label">Etudiants</span>
+      <strong class="stat-value">{{ totalStudents }}</strong>
+    </article>
+
+    <article class="stat-card stat-card-critical">
+      <span class="stat-label">Critiques</span>
+      <strong class="stat-value">{{ criticalCount }}</strong>
+    </article>
+
+    <article class="stat-card stat-card-high">
+      <span class="stat-label">Hauts</span>
+      <strong class="stat-value">{{ highCount }}</strong>
+    </article>
+
+    <article class="stat-card stat-card-confirmed">
+      <span class="stat-label">Certifications validees</span>
+      <strong class="stat-value">{{ validatedCount }}</strong>
+    </article>
+  </section>
+
+  <nav class="filter-tabs" aria-label="Filtrer par criticite">
+    <button type="button" [class.active]="selectedLevel === 'ALL'" (click)="setLevel('ALL')">Tous les gaps</button>
+    <button type="button" [class.active]="selectedLevel === 'CRITIQUE'" (click)="setLevel('CRITIQUE')">CRITIQUE</button>
+    <button type="button" [class.active]="selectedLevel === 'HAUTE'" (click)="setLevel('HAUTE')">HAUTE</button>
+    <button type="button" [class.active]="selectedLevel === 'MOYENNE'" (click)="setLevel('MOYENNE')">MOYENNE</button>
+  </nav>
+
+  @if (loading) {
+    <div class="feedback loading">Chargement des recommandations...</div>
+  }
+
+  @if (errorMessage) {
+    <div class="feedback error">{{ errorMessage }}</div>
+  }
+
+  @if (successMessage) {
+    <div class="feedback success">{{ successMessage }}</div>
+  }
+
+  <div class="recommendations-list">
+    @for (item of filteredRecommendations; track trackByRecommendation($index, item)) {
+      <article class="recommendation-card">
+        <header class="card-head">
+          <div class="left-head">
+            <span [class]="levelClass(item.level)">{{ item.level }}</span>
+            <span class="gap-label">{{ item.category }} - {{ item.gapLabel }}</span>
+          </div>
+
+          <div class="right-head">
+            <span class="ratio">{{ item.concernRate }}%</span>
+            <span class="students">{{ item.studentsImpacted }}/{{ item.totalStudents }} etudiants</span>
+            <span [class]="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
+          </div>
+        </header>
+
+        <h2>{{ item.gapTitle }}</h2>
+        <p class="meta">
+          Metier: {{ item.metier }} - Mots-cles:
+          @for (key of item.keywords; track key; let last = $last) {
+            <span>{{ key }}{{ last ? '' : ', ' }}</span>
+          }
+        </p>
+
+        <div class="cert-block">
+          <h3>Certification recommandee</h3>
+          <p class="cert-line">
+            <strong>{{ item.certification.title }}</strong> - {{ item.certification.provider }}
+          </p>
+          <p class="cert-meta">{{ item.certification.duration }} - {{ item.certification.pricing }}</p>
+          @if (item.certification.description) {
+            <p class="cert-description">{{ item.certification.description }}</p>
+          }
+        </div>
+
+        <div class="llm-box">
+          <h4>Recommandation LLM + RAG</h4>
+          <p>{{ item.llmRecommendation }}</p>
+        </div>
+
+        <footer class="card-actions">
+          <button type="button" class="btn ghost" (click)="startEdit(item)">Modifier</button>
+          <button type="button" class="btn success" (click)="confirm(item)">Confirmer</button>
+          <button type="button" class="btn danger" (click)="delete(item)">Supprimer</button>
+        </footer>
+      </article>
+    } @empty {
+      <article class="empty-state">Aucune recommandation pour ce filtre.</article>
+    }
+  </div>
+
+  <div class="modal-overlay" *ngIf="showEditModal" (click)="closeEditModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header-text">
+          <h2 class="modal-title">Modifier la certification recommandee</h2>
+          <p class="modal-subtitle">Ajustez les informations avant de valider la recommandation IA.</p>
+        </div>
+        <button class="close-btn" type="button" (click)="closeEditModal()">x</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-field full-width">
+            <label>Titre</label>
+            <input type="text" [(ngModel)]="editCertification.title" placeholder="Nom complet" />
+          </div>
+
+          <div class="form-field full-width">
+            <label>Description</label>
+            <textarea [(ngModel)]="editCertification.description" rows="3" placeholder="Description de la certification..."></textarea>
+          </div>
+
+          <div class="form-field">
+            <label>Plateforme</label>
+            <input type="text" [(ngModel)]="editCertification.provider" placeholder="Coursera, Udemy..." />
+          </div>
+
+          <div class="form-field">
+            <label>Duree</label>
+            <input type="text" [(ngModel)]="editCertification.duration" placeholder="Ex: 20h" />
+          </div>
+
+          <div class="form-field">
+            <label>Tarification</label>
+            <input type="text" [(ngModel)]="editCertification.pricing" placeholder="Gratuit, Payant..." />
+          </div>
+
+          <div class="form-field">
+            <label>URL</label>
+            <input type="text" [(ngModel)]="editCertification.url" placeholder="Lien optionnel" />
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="closeEditModal()">Annuler</button>
+        <button type="button" class="btn-primary" (click)="saveEdit()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</section>

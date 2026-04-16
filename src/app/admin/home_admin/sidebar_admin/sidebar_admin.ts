@@ -74,6 +74,12 @@ export class SidebarAdmin implements OnInit, OnDestroy {
       exact: false,
     },
     {
+      key: 'validation-ia',
+      label: 'Validation IA',
+      route: '/admin/validation-ia',
+      exact: false,
+    },
+    {
       key: 'users',
       label: 'Référentiel Compétences',
       route: '/admin/formations',
