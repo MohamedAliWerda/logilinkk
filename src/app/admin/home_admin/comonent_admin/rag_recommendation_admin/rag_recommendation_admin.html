@@ -23,18 +23,57 @@
       <strong class="stat-value">{{ highCount }}</strong>
     </article>
 
+    <article class="stat-card stat-card-medium">
+      <span class="stat-label">Moyennes</span>
+      <strong class="stat-value">{{ mediumCount }}</strong>
+    </article>
+
     <article class="stat-card stat-card-confirmed">
       <span class="stat-label">Certifications validees</span>
       <strong class="stat-value">{{ validatedCount }}</strong>
     </article>
   </section>
 
-  <nav class="filter-tabs" aria-label="Filtrer par criticite">
-    <button type="button" [class.active]="selectedLevel === 'ALL'" (click)="setLevel('ALL')">Tous les gaps</button>
-    <button type="button" [class.active]="selectedLevel === 'CRITIQUE'" (click)="setLevel('CRITIQUE')">CRITIQUE</button>
-    <button type="button" [class.active]="selectedLevel === 'HAUTE'" (click)="setLevel('HAUTE')">HAUTE</button>
-    <button type="button" [class.active]="selectedLevel === 'MOYENNE'" (click)="setLevel('MOYENNE')">MOYENNE</button>
-  </nav>
+  <section class="toolbar-row" aria-label="Filtres recommandations">
+    <nav class="filter-tabs" aria-label="Filtrer par criticite">
+      <button type="button" [class.active]="selectedLevel === 'ALL'" (click)="setLevel('ALL')">Tous les gaps</button>
+      <button type="button" [class.active]="selectedLevel === 'CRITIQUE'" (click)="setLevel('CRITIQUE')">CRITIQUE</button>
+      <button type="button" [class.active]="selectedLevel === 'HAUTE'" (click)="setLevel('HAUTE')">HAUTE</button>
+      <button type="button" [class.active]="selectedLevel === 'MOYENNE'" (click)="setLevel('MOYENNE')">MOYENNE</button>
+    </nav>
+
+    <div class="controls-row">
+      <div class="search-box">
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Rechercher (gap, metier, certification...)"
+          aria-label="Rechercher une recommandation"
+        />
+      </div>
+
+      <div class="sort-box">
+        <label for="priority-sort">Priorite</label>
+        <select
+          id="priority-sort"
+          [ngModel]="prioritySort"
+          (ngModelChange)="setPrioritySort($event)"
+        >
+          <option value="PRIORITY_HIGH_TO_LOW">Eleve vers faible</option>
+          <option value="PRIORITY_LOW_TO_HIGH">Faible vers eleve</option>
+        </select>
+      </div>
+
+      <button
+        type="button"
+        class="generate-btn"
+        [disabled]="generating"
+        (click)="generateAllRecommendations()"
+      >
+        {{ generating ? 'Generation...' : 'Generer toutes' }}
+      </button>
+    </div>
+  </section>
 
   @if (loading) {
     <div class="feedback loading">Chargement des recommandations...</div>
@@ -83,10 +122,12 @@
           }
         </div>
 
+        @if (showLlmRecommendations) {
         <div class="llm-box">
           <h4>Recommandation LLM + RAG</h4>
           <p>{{ item.llmRecommendation }}</p>
         </div>
+        }
 
         <footer class="card-actions">
           <button type="button" class="btn ghost" (click)="startEdit(item)">Modifier</button>

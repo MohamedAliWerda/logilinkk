@@ -91,6 +91,62 @@
         </table>
     </div>
 
+    <div class="table-panel alumni-panel">
+        <div class="table-panel-header alumni-header">
+            <div>
+                <h3 class="table-panel-title">Anciens étudiants employés</h3>
+                <p class="alumni-subtitle">Suivi des profils en emploi et collecte de feedback.</p>
+            </div>
+
+            <div class="alumni-actions-right">
+                <div class="search-box alumni-search-box">
+                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+                    <input type="text" [(ngModel)]="alumniSearchTerm" placeholder="Rechercher un ancien étudiant..." />
+                </div>
+
+                <a class="bulk-email-link" [href]="buildBulkAlumniEmailLink()">Envoyer email a tous</a>
+            </div>
+        </div>
+
+        <table class="dashboard-styled-table alumni-table">
+            <thead>
+                <tr>
+                    <th>ID Alumni</th>
+                    <th>Nom</th>
+                    <th class="text-center">Filière</th>
+                    <th>Entreprise</th>
+                    <th>Poste</th>
+                    <th class="text-center">Depuis</th>
+                    <th class="text-right">Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (a of filteredEmployedAlumni; track trackByAlumniId($index, a)) {
+                <tr>
+                    <td class="col-id">{{ a.id }}</td>
+                    <td class="col-name">{{ a.fullName }}</td>
+                    <td class="text-center">
+                        <span class="filiere-pill" [attr.data-filiere]="a.filiere">{{ a.filiere }}</span>
+                    </td>
+                    <td>{{ a.company }}</td>
+                    <td>{{ a.jobTitle }}</td>
+                    <td class="text-center">{{ a.employedSince | date:'dd/MM/yyyy' }}</td>
+                    <td class="col-actions">
+                        <a class="email-link" [href]="buildAlumniEmailLink(a)">Envoyer email</a>
+                    </td>
+                </tr>
+                } @empty {
+                <tr>
+                    <td colspan="7" class="empty-msg">Aucun ancien étudiant employé trouvé</td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
     <!-- PROFILE MODAL -->
     @if (showProfileModal && selectedStudent) {
     <div class="modal-overlay" (click)="closeProfileModal()">

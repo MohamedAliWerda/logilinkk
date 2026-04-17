@@ -56,6 +56,18 @@ export class RagRecommendationApiService {
       );
   }
 
+  generateRecommendations(): Observable<RecommendationItem[]> {
+    return this.http
+      .post<ApiResponse<RecommendationItem[]>>(
+        `${this.apiBaseUrl}/admin/recommendations/ai-certifications/generate`,
+        {},
+      )
+      .pipe(
+        map((response) => response?.data ?? []),
+        catchError(() => of([])),
+      );
+  }
+
   updateCertification(
     id: string,
     certification: CertificationPayload,

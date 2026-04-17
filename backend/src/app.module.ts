@@ -4,6 +4,7 @@ import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
 import { RefCompetanceModule } from './ref_competance/ref_competance.module';
 import { CvSubmissionModule } from './cv_submission/cv-submission.module';
+import { AdminRecommendationsModule } from './admin/recommendations/admin-recommendations.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { CvSubmissionModule } from './cv_submission/cv-submission.module';
     ProfileModule,
     RefCompetanceModule,
     CvSubmissionModule,
+    AdminRecommendationsModule,
   ],
 })
 export class AppModule {}

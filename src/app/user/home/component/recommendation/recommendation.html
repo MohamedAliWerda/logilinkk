@@ -7,6 +7,9 @@
             </div>
         </div>
 
+        <p *ngIf="loadingRecommendations" class="meta">Chargement des recommandations confirmees...</p>
+        <p *ngIf="recommendationError" class="meta">{{ recommendationError }}</p>
+
         <!-- section formations -->
         <div>
             <div class="recommended-group">

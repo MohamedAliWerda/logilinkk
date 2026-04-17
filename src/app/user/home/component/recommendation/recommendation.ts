@@ -1,5 +1,7 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../../../environments/environment';
 
 type Formation = {
   priority: string;
@@ -21,6 +23,27 @@ type Stage = {
   applied?: boolean;
 };
 
+type ApiResponse<T> = {
+  success?: boolean;
+  message?: string;
+  data?: T;
+};
+
+type StudentRecommendation = {
+  id: string;
+  level: 'CRITIQUE' | 'HAUTE' | 'MOYENNE';
+  gapTitle: string;
+  metier: string;
+  llmRecommendation: string;
+  certification: {
+    title: string;
+    provider: string;
+    duration: string;
+    pricing: string;
+    description?: string;
+  };
+};
+
 @Component({
   selector: 'app-recommendation',
   imports: [CommonModule],
@@ -29,7 +52,7 @@ type Stage = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Recommendation {
-  readonly targetJobFormations: Formation[] = [
+  targetJobFormations: Formation[] = [
     {
       priority: 'Priorité haute',
       tone: 'high',
@@ -48,7 +71,7 @@ export class Recommendation {
     },
   ];
 
-  readonly generalFormations: Formation[] = [
+  generalFormations: Formation[] = [
     {
       priority: 'Priorité moyenne',
       tone: 'medium',
@@ -90,8 +113,89 @@ export class Recommendation {
     },
   ];
 
+  loadingRecommendations = false;
+  recommendationError = '';
+
+  constructor(private readonly http: HttpClient) {}
+
+  ngOnInit(): void {
+    this.loadConfirmedRecommendations();
+  }
+
   applyStage(stage: Stage) {
     stage.applied = true;
+  }
+
+  private loadConfirmedRecommendations(): void {
+    const authId = this.getCurrentAuthId();
+    if (!authId) {
+      return;
+    }
+
+    this.loadingRecommendations = true;
+    this.recommendationError = '';
+
+    this.http
+      .get<ApiResponse<StudentRecommendation[]>>(
+        `${environment.apiUrl}/admin/recommendations/students/${authId}/confirmed`,
+      )
+      .subscribe({
+        next: (response) => {
+          const rows = response?.data ?? [];
+          if (rows.length > 0) {
+            const mapped = rows.map((row) => this.mapRecommendationToFormation(row));
+            this.targetJobFormations = mapped.slice(0, 4);
+            this.generalFormations = mapped.slice(4);
+          }
+
+          this.loadingRecommendations = false;
+        },
+        error: () => {
+          this.loadingRecommendations = false;
+          this.recommendationError =
+            'Impossible de charger les recommandations confirmees.';
+        },
+      });
+  }
+
+  private mapRecommendationToFormation(row: StudentRecommendation): Formation {
+    return {
+      priority: this.getPriorityLabel(row.level),
+      tone: this.getTone(row.level),
+      title: row.certification.title,
+      source: row.certification.provider,
+      duration: row.certification.duration,
+      description:
+        row.certification.description?.trim() ||
+        `Gap cible: ${row.gapTitle} (${row.metier})`,
+    };
+  }
+
+  private getPriorityLabel(level: StudentRecommendation['level']): string {
+    if (level === 'CRITIQUE') return 'Priorite haute';
+    if (level === 'HAUTE') return 'Priorite moyenne';
+    return 'Optionnelle';
+  }
+
+  private getTone(level: StudentRecommendation['level']): Formation['tone'] {
+    if (level === 'CRITIQUE') return 'high';
+    if (level === 'HAUTE') return 'medium';
+    return 'optional';
+  }
+
+  private getCurrentAuthId(): string | null {
+    const rawUser = localStorage.getItem('user');
+    if (!rawUser) {
+      return null;
+    }
+
+    try {
+      const user = JSON.parse(rawUser) as { id?: string };
+      const id = String(user?.id ?? '').trim();
+      return id.length > 0 ? id : null;
+    } catch {
+      return null;
+    }
   }
 }
 

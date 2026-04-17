@@ -207,6 +207,75 @@
     text-decoration: underline;
 }
 
+.alumni-panel {
+    margin-top: 0.2rem;
+}
+
+.alumni-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.alumni-actions-right {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 0.55rem;
+}
+
+.alumni-subtitle {
+    margin: 0.25rem 0 0;
+    font-size: 0.87rem;
+    color: #7b8091;
+}
+
+.bulk-email-link {
+    display: inline-block;
+    margin-top: 0;
+    padding: 0.42rem 0.78rem;
+    border-radius: 8px;
+    border: 1px solid rgba(224, 120, 0, 0.35);
+    color: #fff;
+    background: #e07800;
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.bulk-email-link:hover {
+    background: #c86a00;
+}
+
+.alumni-search-box {
+    max-width: 320px;
+    min-width: 260px;
+}
+
+.email-link {
+    display: inline-block;
+    padding: 0.38rem 0.68rem;
+    border-radius: 8px;
+    border: 1px solid rgba(224, 120, 0, 0.35);
+    color: #e07800;
+    background: #fff7eb;
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.email-link:hover {
+    background: #ffe9cc;
+}
+
+.empty-msg {
+    text-align: center;
+    color: #8a8f9e;
+    padding: 1.2rem 0;
+    font-style: italic;
+}
+
 
 /* ─── PILLS (Dashboard Style) ────────────────────────── */
 
@@ -389,5 +458,20 @@
     }
     .table-panel {
         padding: 1.2rem;
+    }
+    .alumni-header {
+        flex-direction: column;
+    }
+    .alumni-actions-right {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .alumni-search-box {
+        min-width: 100%;
+        max-width: 100%;
+    }
+    .bulk-email-link {
+        width: fit-content;
     }
 }

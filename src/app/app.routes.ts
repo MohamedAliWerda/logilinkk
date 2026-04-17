@@ -50,35 +50,35 @@ export const routes: Routes = [
       {
         path: 'matrice',
         loadComponent: () =>
-          import('./admin/home_admin/comonent_admin/matrice_admin').then(
+          import('./admin/home_admin/comonent_admin/matrice_admin/matrice_admin').then(
             (module) => module.MatriceAdmin
           ),
       },
       {
         path: 'score',
         loadComponent: () =>
-          import('./admin/home_admin/comonent_admin/score_admin').then(
+          import('./admin/home_admin/comonent_admin/score_admin/score_admin').then(
             (module) => module.ScoreAdmin
           ),
       },
       {
         path: 'metier',
         loadComponent: () =>
-          import('./admin/home_admin/comonent_admin/metier_admin').then(
+          import('./admin/home_admin/comonent_admin/metier_admin/metier_admin').then(
             (module) => module.MetierAdmin
           ),
       },
       {
         path: 'gaps',
         loadComponent: () =>
-          import('./admin/home_admin/comonent_admin/gaps_admin').then(
+          import('./admin/home_admin/comonent_admin/gaps_admin/gaps_admin').then(
             (module) => module.GapsAdmin
           ),
       },
       {
         path: 'validation-ia',
         loadComponent: () =>
-          import('./admin/home_admin/comonent_admin/rag_recommendation_admin').then(
+          import('./admin/home_admin/comonent_admin/rag_recommendation_admin/rag_recommendation_admin').then(
             (module) => module.RagRecommendationAdmin
           ),
       },
