@@ -4,7 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { ChangeDetectorRef } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { CvSubmissionService } from '../cv-ats/cv-submission.service';
+import {
+  CvSubmissionService,
+  MatchingAnalysisResponse,
+  MatchingAnalysisTraceResponse,
+} from '../cv-ats/cv-submission.service';
 // dashboard does not render the global navbar/sidebar (those are provided by Home)
 
 @Component({
@@ -26,6 +30,14 @@ export class Dashboard {
   recommendations: string[] = [];
   atsScoreFromApi: number | null = null;
   employabilityScoreFromApi: number | null = null;
+  private matchingAnalysis: MatchingAnalysisResponse | null = null;
+  private matchingTrace: MatchingAnalysisTraceResponse | null = null;
+  private targetMetierLabel = '';
+  private compatibleMetiersCount = 0;
+  private targetMetierGapsCount = 0;
+  private readonly matchStatusThreshold = 0.6;
+  private metierLookupLoaded = false;
+  private readonly metierLabelById = new Map<string, string>();
 
   constructor(
     private router: Router,
@@ -76,6 +88,335 @@ export class Dashboard {
     this.recomputeStats();
     void this.loadAtsScore();
     void this.loadEmployabilityScore();
+    void this.loadMatchingStats();
+  }
+
+  private async loadMatchingStats(): Promise<void> {
+    const cachedTrace = this.cvSubmissionService.getCachedMatchingAnalysisTrace();
+    if (cachedTrace) {
+      this.matchingTrace = cachedTrace;
+      this.matchingAnalysis = cachedTrace.analysis;
+      await this.refreshMatchingKpis();
+      this.cdr.detectChanges();
+    } else {
+      const cached = this.cvSubmissionService.getCachedMatchingAnalysis();
+      if (cached) {
+        this.matchingAnalysis = cached;
+        await this.refreshMatchingKpis();
+        this.cdr.detectChanges();
+      }
+    }
+
+    try {
+      const freshTrace = await this.cvSubmissionService.fetchMatchingAnalysisTrace(false);
+      if (freshTrace) {
+        this.matchingTrace = freshTrace;
+        this.matchingAnalysis = freshTrace.analysis;
+      } else {
+        const fresh = await this.cvSubmissionService.fetchMatchingAnalysis(false);
+        if (fresh) {
+          this.matchingAnalysis = fresh;
+        }
+      }
+
+      await this.refreshMatchingKpis();
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('Dashboard matching stats fetch failed', err);
+    }
+  }
+
+  private async refreshMatchingKpis(): Promise<void> {
+    await this.resolveTargetMetierLabel();
+    this.compatibleMetiersCount = this.countCompatibleMetiers();
+    this.targetMetierGapsCount = this.countTargetMetierGaps();
+    this.recomputeStats();
+  }
+
+  private normalizeMetierId(value: unknown): string {
+    if (value === undefined || value === null) return '';
+
+    if (typeof value === 'string') {
+      return value.trim().toLowerCase();
+    }
+
+    if (typeof value === 'object') {
+      const oid = (value as any)?.$oid;
+      if (typeof oid === 'string') {
+        return oid.trim().toLowerCase();
+      }
+
+      const toHexString = (value as any)?.toHexString;
+      if (typeof toHexString === 'function') {
+        try {
+          const hex = String(toHexString.call(value)).trim().toLowerCase();
+          if (hex) return hex;
+        } catch {
+          // ignore invalid object-id transforms
+        }
+      }
+    }
+
+    return String(value).trim().toLowerCase();
+  }
+
+  private normalizeMetierLabel(value: unknown): string {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private tokenizeMetierLabel(value: string): string[] {
+    const normalized = this.normalizeMetierLabel(value);
+    if (!normalized) return [];
+    return normalized.split(' ').filter((token) => token.length > 1);
+  }
+
+  private isLikelyMetierIdentifier(value: string): boolean {
+    return /^metier_[a-z0-9_-]+$/i.test(value) || /^[a-f0-9]{24}$/i.test(value);
+  }
+
+  private metierMatchesRef(refMetier: string, targetNormalized: string): boolean {
+    const refNormalized = this.normalizeMetierLabel(refMetier);
+    if (!refNormalized || !targetNormalized) return false;
+
+    if (
+      refNormalized === targetNormalized
+      || refNormalized.includes(targetNormalized)
+      || targetNormalized.includes(refNormalized)
+    ) {
+      return true;
+    }
+
+    const refTokens = this.tokenizeMetierLabel(refNormalized);
+    const targetTokens = this.tokenizeMetierLabel(targetNormalized);
+    if (!refTokens.length || !targetTokens.length) return false;
+
+    const targetSet = new Set(targetTokens);
+    let overlap = 0;
+    for (const token of refTokens) {
+      if (targetSet.has(token)) overlap += 1;
+    }
+
+    return overlap >= 2;
+  }
+
+  private async loadMetierLookupIfNeeded(): Promise<void> {
+    if (this.metierLookupLoaded) return;
+    this.metierLookupLoaded = true;
+
+    try {
+      const metiers = await this.cvSubmissionService.fetchMetiers();
+      for (const metier of metiers) {
+        const id = this.normalizeMetierId(metier?._id);
+        const label = String(metier?.nom_metier ?? metier?.nom ?? '').trim();
+
+        if (id && label) {
+          this.metierLabelById.set(id, label);
+        }
+      }
+    } catch (err) {
+      console.warn('Dashboard metier lookup fetch failed', err);
+    }
+  }
+
+  private async resolveTargetMetierLabel(): Promise<void> {
+    const selectedMetierId = this.normalizeMetierId(this.matchingAnalysis?.selectedMetierId);
+
+    if (!selectedMetierId) {
+      this.targetMetierLabel = '';
+      return;
+    }
+
+    await this.loadMetierLookupIfNeeded();
+
+    let nextLabel = this.metierLabelById.get(selectedMetierId) ?? '';
+
+    if (!nextLabel) {
+      try {
+        const cv = await this.cvSubmissionService.fetchMyCv(selectedMetierId);
+        const profileTitle = String(cv?.professionalTitle ?? '').trim();
+        if (profileTitle.length > 0) {
+          nextLabel = profileTitle;
+        }
+      } catch {
+        // ignore profile lookup failures and continue with local fallback
+      }
+
+      if (!nextLabel) {
+        nextLabel = this.isLikelyMetierIdentifier(selectedMetierId)
+          ? ''
+          : selectedMetierId;
+      }
+    }
+
+    this.targetMetierLabel = nextLabel;
+  }
+
+  private countCompatibleMetiers(): number {
+    const traceMatchedScoresByMetier = this.collectTraceMatchedScoresByMetier();
+    const analysisMatchedScoresByMetier = this.collectAnalysisMatchedScoresByMetier();
+
+    const traceRows = this.matchingTrace?.metierScores ?? [];
+    if (traceRows.length > 0) {
+      return traceRows.filter((entry) => {
+        const fallbackMatchedScores = this.collectFallbackMatchedScores(entry.topSkills);
+        const matchedScores = this.resolveMetierMatchedScores(
+          entry.metierName,
+          fallbackMatchedScores,
+          traceMatchedScoresByMetier,
+          analysisMatchedScoresByMetier,
+        );
+
+        const coveragePct = this.computeCoveragePctFromMatchedSimilarity(
+          matchedScores,
+          entry.nCompetences,
+          entry.coveragePct,
+        );
+
+        return coveragePct >= 50;
+      }).length;
+    }
+
+    const ranking = this.matchingAnalysis?.metierRanking ?? [];
+    return ranking.filter((entry) => {
+      const fallbackMatchedScores = this.collectFallbackMatchedScores(entry.topSkills);
+      const matchedScores = this.resolveMetierMatchedScores(
+        entry.metier,
+        fallbackMatchedScores,
+        traceMatchedScoresByMetier,
+        analysisMatchedScoresByMetier,
+      );
+
+      const coveragePct = this.computeCoveragePctFromMatchedSimilarity(
+        matchedScores,
+        entry.nCompetences,
+        entry.coveragePct,
+      );
+
+      return coveragePct >= 50;
+    }).length;
+  }
+
+  private collectFallbackMatchedScores(
+    topSkills: Array<{ score: number }> | null | undefined,
+  ): number[] {
+    const scores: number[] = [];
+
+    for (const skill of topSkills ?? []) {
+      const score = Number(skill?.score);
+      if (!Number.isFinite(score) || score < this.matchStatusThreshold) continue;
+      scores.push(score);
+    }
+
+    return scores;
+  }
+
+  private collectTraceMatchedScoresByMetier(): Map<string, number[]> {
+    const grouped = new Map<string, number[]>();
+
+    for (const entry of this.matchingTrace?.competenceResults ?? []) {
+      if (entry.status !== 'match') continue;
+
+      const metierKey = this.normalizeMetierLabel(entry.metierName);
+      const score = Number(entry.similarityScore);
+      if (!metierKey || !Number.isFinite(score)) continue;
+
+      const bucket = grouped.get(metierKey) ?? [];
+      bucket.push(score);
+      grouped.set(metierKey, bucket);
+    }
+
+    return grouped;
+  }
+
+  private collectAnalysisMatchedScoresByMetier(): Map<string, number[]> {
+    const grouped = new Map<string, number[]>();
+
+    for (const entry of this.matchingAnalysis?.matches ?? []) {
+      const metierKey = this.normalizeMetierLabel(entry.refMetier);
+      const score = Number(entry.similarityScore);
+      if (!metierKey || !Number.isFinite(score)) continue;
+
+      const bucket = grouped.get(metierKey) ?? [];
+      bucket.push(score);
+      grouped.set(metierKey, bucket);
+    }
+
+    return grouped;
+  }
+
+  private resolveMetierMatchedScores(
+    metierName: string,
+    fallbackScores: number[],
+    traceMap: Map<string, number[]>,
+    analysisMap: Map<string, number[]>,
+  ): number[] {
+    const normalizedMetier = this.normalizeMetierLabel(metierName);
+    if (!normalizedMetier) return fallbackScores;
+
+    const fromTrace = traceMap.get(normalizedMetier) ?? [];
+    if (fromTrace.length > 0) return fromTrace;
+
+    const fromAnalysis = analysisMap.get(normalizedMetier) ?? [];
+    if (fromAnalysis.length > 0) return fromAnalysis;
+
+    return fallbackScores;
+  }
+
+  private computeCoveragePctFromMatchedSimilarity(
+    matchedScores: number[],
+    nCompetences: number,
+    fallbackPct: number,
+  ): number {
+    const totalCompetences = Number(nCompetences);
+
+    if (Number.isFinite(totalCompetences) && totalCompetences > 0) {
+      const similaritySum = matchedScores.reduce((sum, score) => {
+        const value = Number(score);
+        if (!Number.isFinite(value)) return sum;
+        return sum + Math.max(0, Math.min(1, value));
+      }, 0);
+
+      return Number(Math.max(0, Math.min(100, (similaritySum / totalCompetences) * 100)).toFixed(1));
+    }
+
+    const fallback = Number(fallbackPct);
+    if (!Number.isFinite(fallback)) return 0;
+    return Number(Math.max(0, Math.min(100, fallback)).toFixed(1));
+  }
+
+  private getGapRowsSource(): Array<{ refMetier: string }> {
+    const traceRows = this.matchingTrace?.competenceResults ?? [];
+    if (traceRows.length > 0) {
+      return traceRows
+        .filter((row) => row.status === 'gap')
+        .map((row) => ({
+          refMetier: row.metierName,
+        }));
+    }
+
+    const allGaps = this.matchingAnalysis?.gaps ?? [];
+    const source = allGaps.length > 0
+      ? allGaps
+      : (this.matchingAnalysis?.topMetierGaps ?? []);
+
+    return source.map((entry) => ({
+      refMetier: entry.refMetier,
+    }));
+  }
+
+  private countTargetMetierGaps(): number {
+    const targetNormalized = this.normalizeMetierLabel(this.targetMetierLabel);
+    if (!targetNormalized) return 0;
+
+    return this.getGapRowsSource()
+      .filter((gap) => this.metierMatchesRef(gap.refMetier, targetNormalized))
+      .length;
   }
 
   private scoreFromStorage(): number | null {
@@ -275,11 +616,11 @@ export class Dashboard {
     // employability score: backend persisted score only (no local fallback)
     this.employabilityScore = this.employabilityScoreFromApi ?? 0;
 
-    // métiers compatibles: number of matching companies
-    const metiers = this.matchingCompanies ? this.matchingCompanies.length : 0;
+    // métiers compatibles: count of metiers with matching score >= 50
+    const metiers = this.compatibleMetiersCount;
 
-    // nbre de gaps: count of skills with a positive gap
-    const nbreGaps = this.skills ? this.skills.filter(s => (s.required - s.current) > 0).length : 0;
+    // nbre de gaps: count of gaps for the selected target metier only
+    const nbreGaps = this.targetMetierGapsCount;
 
     // assign into stats array in consistent order
     if (this.stats && this.stats.length >= 4) {

@@ -24,6 +24,7 @@ logging.basicConfig(level=logging.INFO)
 DEFAULT_MODEL_NAME = os.getenv("BERT_MODEL_NAME", "paraphrase-multilingual-MiniLM-L12-v2")
 FALLBACK_MODEL_NAME = "lexical-hash-embedding"
 DEFAULT_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.72"))
+STATUS_MATCH_THRESHOLD = 0.60
 DEFAULT_NIVEAU_WEIGHT = 0.50
 NIVEAU_WEIGHTS = {
     "avance": 1.00,
@@ -194,6 +195,7 @@ def _build_similarity_matrix(
 
 def _analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
     threshold = payload.match_threshold
+    status_threshold = STATUS_MATCH_THRESHOLD
 
     student_skills = [s for s in payload.student_skills if _normalize_text(s.nom)]
     if not payload.reference_competences:
@@ -260,8 +262,8 @@ def _analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
             niveau_weight=round(best_weight, 2),
             raw_similarity_score=round(best_raw_score, 4),
             similarity_score=round(best_weighted_score, 4),
-            # Match/gap decision stays on semantic score; niveau weight affects prioritization and coverage.
-            status="match" if best_raw_score >= threshold else "gap",
+            # Match/gap decision uses a fixed 60% raw similarity cut-off.
+            status="match" if best_raw_score >= status_threshold else "gap",
         )
 
         if entry.status == "match":
@@ -287,7 +289,7 @@ def _analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
 
         max_per_ref_raw = sim_met_raw.max(axis=0) if n_comp > 0 else np.array([])
         max_per_ref_weighted = sim_met_weighted.max(axis=0) if n_comp > 0 else np.array([])
-        matched_count = int((max_per_ref_raw >= threshold).sum()) if max_per_ref_raw.size else 0
+        matched_count = int((max_per_ref_raw >= status_threshold).sum()) if max_per_ref_raw.size else 0
 
         # Coverage percentage is level-aware so students with same skills but lower niveaux diverge.
         coverage_pct = round(float(max_per_ref_weighted.mean()) * 100, 1) if max_per_ref_weighted.size else 0.0

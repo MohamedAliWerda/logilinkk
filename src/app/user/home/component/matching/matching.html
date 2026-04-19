@@ -21,9 +21,9 @@
         <div class="summary-grid">
             <article class="summary-card highlighted">
                 <span class="summary-label">Métier le plus compatible</span>
-                <h3>{{ a.topMetier?.metier || 'Non déterminé' }}</h3>
-                <p>{{ a.topMetier?.domaine || 'Domaine non disponible' }}</p>
-                <div class="summary-value">{{ a.topMetier?.coveragePct ?? 0 }}%</div>
+                <h3>{{ topMetierSummary?.metier || 'Non déterminé' }}</h3>
+                <p>{{ topMetierSummary?.domaine || 'Domaine non disponible' }}</p>
+                <div class="summary-value">{{ topMetierSummaryCoveragePct }}%</div>
             </article>
 
             <article class="summary-card">
@@ -48,12 +48,12 @@
             <article class="matching-card metier-card" *ngFor="let m of topMetiers; trackBy: trackByMetier">
                 <div class="metier-head">
                     <h3>{{ m.metier }}</h3>
-                    <span class="coverage-chip">{{ m.coveragePct }}%</span>
+                    <span class="coverage-chip">{{ metierCoveragePct(m) }}%</span>
                 </div>
                 <p class="metier-domain">{{ m.domaine }}</p>
 
                 <div class="progress-track">
-                    <div class="progress-fill" [style.width.%]="coveragePercent(m.coveragePct)"></div>
+                    <div class="progress-fill" [style.width.%]="coveragePercent(metierCoveragePct(m))"></div>
                 </div>
 
                 <div class="metier-meta">
@@ -72,7 +72,15 @@
         }
 
         <h2 class="section-title">Gaps prioritaires - Métier visé</h2>
-        @if (displayedTargetMetierGaps.length > 0) {
+        @if (targetMetierCoveragePct !== null) {
+        <div class="target-match-banner" aria-live="polite">
+            <div class="target-match-copy">
+                <span class="target-match-kicker">Métier visé</span>
+                <p class="target-match-label">Taux de matching actuel</p>
+            </div>
+            <span class="target-match-chip">{{ targetMetierCoveragePct }}%</span>
+        </div>
+        } @if (displayedTargetMetierGaps.length > 0) {
         <div class="gaps-table-wrap">
             <table class="gaps-table">
                 <thead>
@@ -80,7 +88,6 @@
                         <th>Compétence manquante</th>
                         <th>Métier</th>
                         <th>Domaine</th>
-                        <th>Similarité</th>
                         <th>Criticité</th>
                     </tr>
                 </thead>
@@ -89,7 +96,6 @@
                         <td>{{ g.refCompetence }}</td>
                         <td>{{ g.refMetier }}</td>
                         <td>{{ g.refDomaine }}</td>
-                        <td>{{ scorePercent(g.similarityScore) }}</td>
                         <td>
                             <span class="severity-chip">{{ gapSeverity(g.similarityScore) }}</span>
                         </td>
@@ -110,7 +116,6 @@
                         <th>Compétence manquante</th>
                         <th>Métier</th>
                         <th>Domaine</th>
-                        <th>Similarité</th>
                         <th>Criticité</th>
                     </tr>
                 </thead>
@@ -119,7 +124,6 @@
                         <td>{{ g.refCompetence }}</td>
                         <td>{{ g.refMetier }}</td>
                         <td>{{ g.refDomaine }}</td>
-                        <td>{{ scorePercent(g.similarityScore) }}</td>
                         <td>
                             <span class="severity-chip">{{ gapSeverity(g.similarityScore) }}</span>
                         </td>
@@ -133,6 +137,20 @@
 
         <h2 class="section-title">Tous les gaps</h2>
         @if (displayedGaps.length > 0) {
+        <div class="gaps-filter-card">
+            <div class="gaps-filter-copy">
+                <span class="gaps-filter-kicker">Affichage des gaps</span>
+                <label class="gaps-filter-label" for="all-gaps-metier-filter">Filtrer par métier</label>
+            </div>
+            <select id="all-gaps-metier-filter" class="gaps-filter-select" [value]="allGapsMetierFilter" (change)="onAllGapsMetierFilterChange($event)">
+                <option value="">Tous les métiers</option>
+                @for (metierName of allGapsMetierOptions; track metierName) {
+                <option [value]="metierName">{{ metierName }}</option>
+                }
+            </select>
+        </div>
+
+        @if (filteredAllGaps.length > 0) {
         <div class="gaps-table-wrap">
             <table class="gaps-table">
                 <thead>
@@ -140,16 +158,14 @@
                         <th>Compétence manquante</th>
                         <th>Métier</th>
                         <th>Domaine</th>
-                        <th>Similarité</th>
                         <th>Criticité</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let g of displayedGaps; trackBy: trackByGap">
+                    <tr *ngFor="let g of filteredAllGaps; trackBy: trackByGap">
                         <td>{{ g.refCompetence }}</td>
                         <td>{{ g.refMetier }}</td>
                         <td>{{ g.refDomaine }}</td>
-                        <td>{{ scorePercent(g.similarityScore) }}</td>
                         <td>
                             <span class="severity-chip">{{ gapSeverity(g.similarityScore) }}</span>
                         </td>
@@ -158,6 +174,8 @@
             </table>
         </div>
         } @else {
+        <div class="state-banner info">Aucun gap trouvé pour le métier sélectionné.</div>
+        } } @else {
         <div class="state-banner info">Aucun gap affichable pour ce profil.</div>
         } }
     </section>

@@ -158,6 +158,7 @@ export class CvSubmissionService {
   private static readonly WINDOWS_PYTHON_FALLBACKS = ['py', 'python', 'python3'];
   private static readonly POSIX_PYTHON_FALLBACKS = ['python3', 'python'];
   private static readonly MATCHING_ANALYSIS_VERSION = 'v4-traceable-persistence';
+  private static readonly MATCH_STATUS_THRESHOLD = 0.60;
   private static readonly MAX_MATCHING_GAPS = 5000;
   private static readonly AUTO_SKILL_CONTEXT = '__auto_generated_from_notes__';
 
@@ -1601,6 +1602,7 @@ export class CvSubmissionService {
   ): MatchingAnalysisResult {
     const generatedAt = new Date().toISOString();
     const threshold = this.matchingThreshold;
+    const statusThreshold = CvSubmissionService.MATCH_STATUS_THRESHOLD;
 
     const normalizedSkills = studentSkills
       .map((skill) => ({
@@ -1652,8 +1654,8 @@ export class CvSubmissionService {
         bestCvSkill: bestSkillName,
         bestCvNiveau: bestSkillNiveau,
         similarityScore: Number(bestScore.toFixed(4)),
-        // Match/gap decision stays on semantic score; niveau weight affects prioritization and coverage.
-        status: bestRawScore >= threshold ? 'match' : 'gap',
+        // Match/gap decision uses a fixed 60% raw similarity cut-off.
+        status: bestRawScore >= statusThreshold ? 'match' : 'gap',
       };
 
       if (entry.status === 'match') {
@@ -1678,7 +1680,7 @@ export class CvSubmissionService {
     const metierRanking: MatchingMetierRankingEntry[] = [];
     for (const [metier, bucket] of groupedByMetier.entries()) {
       const nCompetences = bucket.entries.length;
-      const matched = bucket.entries.filter((entry) => entry.rawScore >= threshold).length;
+      const matched = bucket.entries.filter((entry) => entry.rawScore >= statusThreshold).length;
       const coveragePct = nCompetences > 0
         ? Number((bucket.entries.reduce((sum, entry) => sum + entry.score, 0) / nCompetences * 100).toFixed(1))
         : 0;

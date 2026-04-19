@@ -39,6 +39,8 @@ export class Matching implements OnInit {
   analysis: MatchingAnalysisResponse | null = null;
   trace: MatchingAnalysisTraceResponse | null = null;
   targetMetierLabel = '';
+  allGapsMetierFilter = '';
+  private readonly matchStatusThreshold = 0.6;
   private metierLookupLoaded = false;
   private readonly metierLabelById = new Map<string, string>();
 
@@ -129,16 +131,46 @@ export class Matching implements OnInit {
     return Math.max(0, Math.min(100, n));
   }
 
+  metierCoveragePct(item: Pick<DisplayMetierCard, 'coveragePct'> | null | undefined): number {
+    if (!item) return 0;
+    return Number(this.coveragePercent(item.coveragePct).toFixed(1));
+  }
+
+  onAllGapsMetierFilterChange(event: Event): void {
+    const target = event.target as HTMLSelectElement | null;
+    this.allGapsMetierFilter = String(target?.value ?? '');
+  }
+
   gapSeverity(score: number): string {
-    if (score >= 0.65) return 'Faible';
-    if (score >= 0.5) return 'Moyen';
+    if (score >= 0.5) return 'Faible';
+    if (score >= 0.3) return 'Moyen';
     return 'Critique';
   }
 
   gapSeverityClass(score: number): string {
-    if (score >= 0.65) return 'severity-low';
-    if (score >= 0.5) return 'severity-medium';
+    if (score >= 0.5) return 'severity-low';
+    if (score >= 0.3) return 'severity-medium';
     return 'severity-high';
+  }
+
+  private computeCoveragePctFromMatchedSimilarity(
+    matchedCompetences: Array<{ skill: string; score: number }>,
+    nCompetences: number,
+    fallbackPct: number,
+  ): number {
+    const totalCompetences = Number(nCompetences);
+
+    if (Number.isFinite(totalCompetences) && totalCompetences > 0) {
+      const similaritySum = matchedCompetences.reduce((sum, competence) => {
+        const score = Number(competence?.score);
+        if (!Number.isFinite(score)) return sum;
+        return sum + Math.max(0, Math.min(1, score));
+      }, 0);
+
+      return Number(this.coveragePercent((similaritySum / totalCompetences) * 100).toFixed(1));
+    }
+
+    return Number(this.coveragePercent(fallbackPct).toFixed(1));
   }
 
   private normalizeMetierId(value: unknown): string {
@@ -271,29 +303,169 @@ export class Matching implements OnInit {
   }
 
   private getMetierCardsSource(): DisplayMetierCard[] {
+    const traceMatchedCompetenceMap = this.collectTraceMatchedMetierCompetences();
+    const analysisMatchedCompetenceMap = this.collectAnalysisMatchedMetierCompetences();
     const traceRows = this.trace?.metierScores ?? [];
     if (traceRows.length > 0) {
-      return traceRows.map((row) => ({
-        metier: row.metierName,
-        domaine: row.domaineName,
-        coveragePct: row.coveragePct,
-        matched: row.matchedCompetences,
-        nCompetences: row.nCompetences,
-        avgScore: row.avgScore,
-        topSkills: row.topSkills,
-      }));
+      return traceRows.map((row) => {
+        const matchedCompetences = this.resolveMetierMatchedCompetences(
+          row.metierName,
+          row.topSkills,
+          traceMatchedCompetenceMap,
+          analysisMatchedCompetenceMap,
+        );
+
+        return {
+          metier: row.metierName,
+          domaine: row.domaineName,
+          coveragePct: this.computeCoveragePctFromMatchedSimilarity(
+            matchedCompetences,
+            row.nCompetences,
+            row.coveragePct,
+          ),
+          matched: matchedCompetences.length,
+          nCompetences: row.nCompetences,
+          avgScore: row.avgScore,
+          topSkills: matchedCompetences,
+        };
+      });
     }
 
     const ranking = this.analysis?.metierRanking ?? [];
-    return ranking.map((entry: MatchingMetierRankingEntry) => ({
-      metier: entry.metier,
-      domaine: entry.domaine,
-      coveragePct: entry.coveragePct,
-      matched: entry.matched,
-      nCompetences: entry.nCompetences,
-      avgScore: entry.avgScore,
-      topSkills: entry.topSkills,
+    return ranking.map((entry: MatchingMetierRankingEntry) => {
+      const matchedCompetences = this.resolveMetierMatchedCompetences(
+        entry.metier,
+        entry.topSkills,
+        traceMatchedCompetenceMap,
+        analysisMatchedCompetenceMap,
+      );
+
+      return {
+        metier: entry.metier,
+        domaine: entry.domaine,
+        coveragePct: this.computeCoveragePctFromMatchedSimilarity(
+          matchedCompetences,
+          entry.nCompetences,
+          entry.coveragePct,
+        ),
+        matched: matchedCompetences.length,
+        nCompetences: entry.nCompetences,
+        avgScore: entry.avgScore,
+        topSkills: matchedCompetences,
+      };
+    });
+  }
+
+  private buildMetierCompetenceMap(
+    rows: Array<{ metier: string; competence: string; score: number }>,
+  ): Map<string, Array<{ skill: string; score: number }>> {
+    const grouped = new Map<string, Map<string, number>>();
+
+    for (const row of rows) {
+      const metierKey = this.normalizeMetierLabel(row.metier);
+      const competence = String(row.competence ?? '').trim();
+      const score = Number(row.score);
+      if (!metierKey || !competence || !Number.isFinite(score)) continue;
+
+      const bucket = grouped.get(metierKey) ?? new Map<string, number>();
+      const current = bucket.get(competence) ?? -1;
+      if (score > current) {
+        bucket.set(competence, score);
+      }
+      grouped.set(metierKey, bucket);
+    }
+
+    const result = new Map<string, Array<{ skill: string; score: number }>>();
+    for (const [metierKey, competenceScores] of grouped.entries()) {
+      const ordered = Array.from(competenceScores.entries())
+        .sort((left, right) => (
+          right[1] - left[1]
+          || left[0].localeCompare(right[0], 'fr', { sensitivity: 'base' })
+        ))
+        .map(([skill, score]) => ({ skill, score: Number(score.toFixed(4)) }));
+      result.set(metierKey, ordered);
+    }
+
+    return result;
+  }
+
+  private collectTraceMetierCompetences(): Map<string, Array<{ skill: string; score: number }>> {
+    const rows = (this.trace?.competenceResults ?? []).map((entry) => ({
+      metier: entry.metierName,
+      competence: entry.competenceName,
+      score: entry.similarityScore,
     }));
+    return this.buildMetierCompetenceMap(rows);
+  }
+
+  private collectAnalysisMetierCompetences(): Map<string, Array<{ skill: string; score: number }>> {
+    const rows = [
+      ...(this.analysis?.matches ?? []),
+      ...(this.analysis?.gaps ?? []),
+    ].map((entry) => ({
+      metier: entry.refMetier,
+      competence: entry.refCompetence,
+      score: entry.similarityScore,
+    }));
+    return this.buildMetierCompetenceMap(rows);
+  }
+
+  private resolveMetierCompetences(
+    metierName: string,
+    fallback: Array<{ skill: string; score: number }>,
+    traceMap: Map<string, Array<{ skill: string; score: number }>>,
+    analysisMap: Map<string, Array<{ skill: string; score: number }>>,
+  ): Array<{ skill: string; score: number }> {
+    const normalizedMetier = this.normalizeMetierLabel(metierName);
+    if (!normalizedMetier) return fallback;
+
+    const fromTrace = traceMap.get(normalizedMetier) ?? [];
+    if (fromTrace.length > 0) return fromTrace;
+
+    const fromAnalysis = analysisMap.get(normalizedMetier) ?? [];
+    if (fromAnalysis.length > 0) return fromAnalysis;
+
+    return fallback;
+  }
+
+  private collectTraceMatchedMetierCompetences(): Map<string, Array<{ skill: string; score: number }>> {
+    const rows = (this.trace?.competenceResults ?? [])
+      .filter((entry) => entry.status === 'match')
+      .map((entry) => ({
+        metier: entry.metierName,
+        competence: entry.competenceName,
+        score: entry.similarityScore,
+      }));
+    return this.buildMetierCompetenceMap(rows);
+  }
+
+  private collectAnalysisMatchedMetierCompetences(): Map<string, Array<{ skill: string; score: number }>> {
+    const rows = (this.analysis?.matches ?? []).map((entry) => ({
+      metier: entry.refMetier,
+      competence: entry.refCompetence,
+      score: entry.similarityScore,
+    }));
+    return this.buildMetierCompetenceMap(rows);
+  }
+
+  private resolveMetierMatchedCompetences(
+    metierName: string,
+    fallback: Array<{ skill: string; score: number }>,
+    traceMap: Map<string, Array<{ skill: string; score: number }>>,
+    analysisMap: Map<string, Array<{ skill: string; score: number }>>,
+  ): Array<{ skill: string; score: number }> {
+    const normalizedMetier = this.normalizeMetierLabel(metierName);
+    if (!normalizedMetier) {
+      return fallback.filter((skill) => Number(skill?.score) >= this.matchStatusThreshold);
+    }
+
+    const fromTrace = traceMap.get(normalizedMetier) ?? [];
+    if (fromTrace.length > 0) return fromTrace;
+
+    const fromAnalysis = analysisMap.get(normalizedMetier) ?? [];
+    if (fromAnalysis.length > 0) return fromAnalysis;
+
+    return fallback.filter((skill) => Number(skill?.score) >= this.matchStatusThreshold);
   }
 
   private getGapRowsSource(): DisplayGapRow[] {
@@ -322,16 +494,86 @@ export class Matching implements OnInit {
     }));
   }
 
+  private gapCriticityOrder(score: number): number {
+    if (score < 0.3) return 0; // Critique
+    if (score < 0.5) return 1; // Moyen
+    return 2; // Faible
+  }
+
+  private sortGapsByCriticity(rows: DisplayGapRow[]): DisplayGapRow[] {
+    return [...rows].sort((left, right) => (
+      this.gapCriticityOrder(left.similarityScore) - this.gapCriticityOrder(right.similarityScore)
+      || left.similarityScore - right.similarityScore
+      || left.refMetier.localeCompare(right.refMetier, 'fr', { sensitivity: 'base' })
+      || left.refCompetence.localeCompare(right.refCompetence, 'fr', { sensitivity: 'base' })
+    ));
+  }
+
   get displayedMetiers(): DisplayMetierCard[] {
-    return this.getMetierCardsSource().slice(0, 6);
+    return [...this.getMetierCardsSource()]
+      .sort((left, right) => (
+        right.coveragePct - left.coveragePct
+        || right.avgScore - left.avgScore
+        || left.metier.localeCompare(right.metier, 'fr', { sensitivity: 'base' })
+      ))
+      .slice(0, 6);
   }
 
   get topMetiers(): DisplayMetierCard[] {
     return this.displayedMetiers;
   }
 
+  get topMetierSummary(): Pick<DisplayMetierCard, 'metier' | 'domaine' | 'coveragePct'> | null {
+    const [topMetier] = this.topMetiers;
+    if (topMetier) {
+      return topMetier;
+    }
+
+    return this.analysis?.topMetier ?? null;
+  }
+
+  get topMetierSummaryCoveragePct(): number {
+    return this.metierCoveragePct(this.topMetierSummary);
+  }
+
   get displayedGaps(): DisplayGapRow[] {
-    return this.getGapRowsSource();
+    return this.sortGapsByCriticity(this.getGapRowsSource());
+  }
+
+  get targetMetierCoveragePct(): number | null {
+    const targetNormalized = this.normalizeMetierLabel(this.targetMetierLabel);
+    if (!targetNormalized) return null;
+
+    const targetCard = this.getMetierCardsSource()
+      .find((item) => this.metierMatchesRef(item.metier, targetNormalized));
+
+    if (!targetCard) return null;
+    return this.metierCoveragePct(targetCard);
+  }
+
+  get allGapsMetierOptions(): string[] {
+    const seen = new Set<string>();
+    const options: string[] = [];
+
+    for (const gap of this.displayedGaps) {
+      const label = String(gap?.refMetier ?? '').trim();
+      const normalized = this.normalizeMetierLabel(label);
+      if (!normalized || seen.has(normalized)) continue;
+
+      seen.add(normalized);
+      options.push(label);
+    }
+
+    return options.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+  }
+
+  get filteredAllGaps(): DisplayGapRow[] {
+    const source = this.displayedGaps;
+    const targetNormalized = this.normalizeMetierLabel(this.allGapsMetierFilter);
+
+    if (!targetNormalized) return source;
+
+    return source.filter((gap) => this.metierMatchesRef(gap.refMetier, targetNormalized));
   }
 
   get topThreeMatchingMetiers(): string[] {
