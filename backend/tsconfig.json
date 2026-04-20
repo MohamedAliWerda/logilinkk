@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "module": "Node16",
-    "declaration": true,
+    "module": "CommonJS",
+    "declaration": false,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
@@ -12,7 +12,7 @@
     "outDir": "./dist",
     "incremental": true,
     "strict": true,
-    "moduleResolution": "node16",
+    "moduleResolution": "node",
     "skipLibCheck": true
   },
   "include": ["src/**/*"],

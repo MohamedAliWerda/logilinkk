@@ -1,0 +1,12 @@
+fastapi>=0.115
+uvicorn>=0.34
+numpy>=2.3
+pydantic>=2.10
+qdrant-client>=1.11
+sentence-transformers>=3.4.1; python_version < "3.14"
+torch>=2.6.0; python_version < "3.14"
+supabase>=2.9
+groq>=0.9
+pandas>=2.2
+openpyxl>=3.1
+python-dotenv>=1.0

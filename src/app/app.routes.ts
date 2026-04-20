@@ -76,6 +76,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'recommendations-ai',
+        loadComponent: () =>
+          import('./admin/home_admin/comonent_admin/recommendation_ai_admin').then(
+            (module) => module.RecommendationAiAdmin
+          ),
+      },
+      {
         path: 'etud',
         loadComponent: () =>
           import('./admin/home_admin/comonent_admin/etud_admin/etud_admin').then(

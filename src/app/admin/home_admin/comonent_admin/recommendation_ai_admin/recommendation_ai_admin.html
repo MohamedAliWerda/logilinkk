@@ -1,0 +1,135 @@
+<section class="validation-page">
+  <header class="hero-banner">
+    <h2>Validation des recommandations IA</h2>
+    <p>
+      L admin peut verifier, modifier, confirmer ou supprimer les certifications suggerees apres la generation automatique.
+    </p>
+  </header>
+
+  <section class="kpi-grid">
+    <article class="kpi-card neutral">
+      <span>Etudiants</span>
+      <strong>{{ studentsCount }}</strong>
+    </article>
+
+    <article class="kpi-card critical">
+      <span>Critiques</span>
+      <strong>{{ criticalCount }}</strong>
+    </article>
+
+    <article class="kpi-card high">
+      <span>Hauts</span>
+      <strong>{{ highCount }}</strong>
+    </article>
+
+    <article class="kpi-card medium">
+      <span>Moyennes</span>
+      <strong>{{ mediumCount }}</strong>
+    </article>
+
+    <article class="kpi-card valid">
+      <span>Certifications validees</span>
+      <strong>{{ validatedCount }}</strong>
+    </article>
+  </section>
+
+  <section class="toolbar">
+    <div class="chip-group">
+      <button
+        *ngFor="let tab of priorityTabs"
+        type="button"
+        class="chip"
+        [class.active]="activePriorityTab === tab"
+        (click)="setPriorityTab(tab)">
+        {{ tabLabel(tab) }}
+      </button>
+    </div>
+
+    <input
+      type="text"
+      class="search-input"
+      placeholder="Rechercher (gap, metier, certification...)"
+      [(ngModel)]="searchTerm" />
+
+    <select class="sort-select" [(ngModel)]="sortMode">
+      <option value="high_to_low">Eleve vers faible</option>
+      <option value="low_to_high">Faible vers eleve</option>
+    </select>
+
+    <button class="generate-btn" [disabled]="generating" (click)="generateRecommendations()">
+      {{ generating ? 'Generation...' : 'Generer toutes' }}
+    </button>
+  </section>
+
+  <section class="status-line" *ngIf="infoMessage || errorMessage">
+    <span class="message success" *ngIf="infoMessage">{{ infoMessage }}</span>
+    <span class="message error" *ngIf="errorMessage">{{ errorMessage }}</span>
+  </section>
+
+  <section class="cards" *ngIf="!loading; else loadingState">
+    <article class="rec-card" *ngFor="let row of filteredRecommendations; trackBy: trackById">
+      <div class="card-head">
+        <div class="head-left">
+          <span class="priority-badge" [attr.data-priority]="row.priority">{{ row.priority | uppercase }}</span>
+          <span class="context-label">{{ row.metier_name || 'Metier non defini' }} - {{ row.competence_type || 'Technique' }}</span>
+        </div>
+
+        <div class="head-right">
+          <span class="impact-rate">{{ row.pct_gap | number:'1.0-0' }}%</span>
+          <span class="impact-count">{{ row.n_gap }}/{{ cardTotalStudents(row) }} etudiants</span>
+          <span class="status-pill">{{ getStatusLabel(row.status) }}</span>
+        </div>
+      </div>
+
+      <h3>{{ row.competence_name }}</h3>
+
+      <p class="meta-line">
+        Metier: {{ row.metier_name || 'Metier non defini' }} - Mots-cles:
+        <span *ngFor="let keyword of keywordList(row)" class="keyword-chip">{{ keyword }}</span>
+      </p>
+
+      <div class="cert-box">
+        <h4>CERTIFICATION RECOMMANDEE</h4>
+
+        <ng-container *ngIf="!isEditing(row.id); else editMode">
+          <p class="cert-title">{{ row.recommended_certification || 'A definir' }}</p>
+          <p class="cert-sub">8h a 16h - A definir</p>
+          <p class="cert-desc">{{ recommendationSummary(row) }}</p>
+        </ng-container>
+
+        <ng-template #editMode>
+          <label class="edit-label" for="cert-{{ row.id }}">Certification</label>
+          <textarea id="cert-{{ row.id }}" rows="2" [(ngModel)]="row.recommended_certification"></textarea>
+
+          <label class="edit-label" for="rec-{{ row.id }}">Recommandation</label>
+          <textarea id="rec-{{ row.id }}" rows="3" [(ngModel)]="row.recommendation_text"></textarea>
+        </ng-template>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="action-btn edit" (click)="toggleEdit(row.id)">
+          {{ isEditing(row.id) ? 'Annuler' : 'Modifier' }}
+        </button>
+
+        <button
+          *ngIf="isEditing(row.id)"
+          type="button"
+          class="action-btn save"
+          (click)="saveRecommendation(row)">
+          Enregistrer
+        </button>
+
+        <button type="button" class="action-btn confirm" (click)="setStatus(row, 'accepted')">Confirmer</button>
+        <button type="button" class="action-btn delete" (click)="deleteRecommendation(row)">Supprimer</button>
+      </div>
+    </article>
+
+    <div class="empty-state" *ngIf="filteredRecommendations.length === 0">
+      Aucune recommandation a afficher pour ce filtre.
+    </div>
+  </section>
+
+  <ng-template #loadingState>
+    <div class="loading">Chargement des recommandations...</div>
+  </ng-template>
+</section>
