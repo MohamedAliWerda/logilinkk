@@ -82,6 +82,13 @@ export const routes: Routes = [
             (module) => module.EtudAdmin
           ),
       },
+      {
+        path: 'validation',
+        loadComponent: () =>
+          import('./admin/home_admin/comonent_admin/validation_admin/validation_admin').then(
+            (module) => module.ValidationAdmin
+          ),
+      },
       { path: 'settings', component: SettingsAdmin },
     ],
   },

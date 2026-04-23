@@ -1,63 +1,153 @@
 <div class="dashboard-content score-section">
     <section class="recommendation-main">
-        <div class="page-header global-panel-banner recommendation-header">
+        <header class="page-header global-panel-banner recommendation-header">
             <div>
-                <h1 class="page-title">Recommandations personnalisées</h1>
-                <p class="page-sub">Explorez vos recommandations Formations et Stages</p>
+                <h1 class="page-title">Recommandations validées</h1>
+                <p class="page-sub">
+                    Vos recommandations approuvées par l'administration, classées par priorité.
+                </p>
             </div>
-        </div>
+            <button type="button" class="refresh-btn" (click)="refresh()" [disabled]="loading()">
+                Rafraîchir
+            </button>
+        </header>
 
-        <!-- section formations -->
-        <div>
-            <div class="recommended-group">
-                <div class="recommendation-block">
-                    <h3>Formations métier ciblé</h3>
-                    <div class="card-grid">
-                        <article class="recommendation-card" *ngFor="let formation of targetJobFormations">
-                            <div class="card-top">
-                                <span class="priority-badge {{ formation.tone }}">{{ formation.priority }}</span>
-                                <span class="tag-pill">Métier visé</span>
-                            </div>
-                            <h3>{{ formation.title }}</h3>
-                            <p class="meta">{{ formation.source }} • {{ formation.duration }}</p>
-                            <p class="desc">{{ formation.description }}</p>
-                        </article>
-                    </div>
+        <section class="summary-row" aria-label="Resume des recommandations">
+            <article class="summary-card total">
+                <span class="summary-label">Total affiché</span>
+                <strong>{{ totalRecommendations() }}</strong>
+            </article>
+            <article class="summary-card critique">
+                <span class="summary-label">Critique</span>
+                <strong>{{ critiqueRecommendations().length }}</strong>
+            </article>
+            <article class="summary-card haute">
+                <span class="summary-label">Haute</span>
+                <strong>{{ hauteRecommendations().length }}</strong>
+            </article>
+            <article class="summary-card moyenne">
+                <span class="summary-label">Moyenne</span>
+                <strong>{{ moyenneRecommendations().length }}</strong>
+            </article>
+        </section>
+
+        @if (loading()) {
+            <div class="state-box">Chargement des recommandations...</div>
+        }
+
+        @if (!loading() && loadError()) {
+            <div class="state-box error">{{ loadError() }}</div>
+        }
+
+        @if (!loading() && !loadError() && totalRecommendations() === 0) {
+            <div class="state-box">Aucune recommandation validée disponible pour le moment.</div>
+        }
+
+        @if (!loading() && !loadError() && totalRecommendations() > 0) {
+            <div class="level-block">
+                <div class="block-head">
+                    <h2>Recommandations critiques</h2>
+                    <span class="count-chip">{{ critiqueRecommendations().length }}</span>
                 </div>
-
-                <div class="recommendation-block">
-                    <h3>Autres formations</h3>
+                @if (critiqueRecommendations().length === 0) {
+                    <p class="empty-level">Aucune recommandation critique.</p>
+                } @else {
                     <div class="card-grid">
-                        <article class="recommendation-card" *ngFor="let formation of generalFormations">
-                            <div class="card-top">
-                                <span class="priority-badge {{ formation.tone }}">{{ formation.priority }}</span>
-                                <span class="tag-pill">Polyvalent</span>
-                            </div>
-                            <h3>{{ formation.title }}</h3>
-                            <p class="meta">{{ formation.source }} • {{ formation.duration }}</p>
-                            <p class="desc">{{ formation.description }}</p>
-                        </article>
+                        @for (reco of critiqueRecommendations(); track reco.id) {
+                            <article class="recommendation-card">
+                                <div class="card-top">
+                                    <span class="priority-badge tone-critique">
+                                        {{ levelLabel('CRITIQUE') }}
+                                    </span>
+                                </div>
+                                <h3>{{ recommendationTitle(reco) }}</h3>
+                                <p class="meta">{{ recommendationContext(reco) }}</p>
+                                <p class="desc">{{ reco.cert_description || reco.llm_recommendation || 'Recommandation pedagogique validee.' }}</p>
+                                @if (keywordsText(reco)) {
+                                    <p class="keywords">Mots-clés: {{ keywordsText(reco) }}</p>
+                                }
+                                <div class="footer-row">
+                                    <span class="provider">{{ reco.cert_provider || 'Fournisseur non precise' }}</span>
+                                    <span class="rate">{{ concernRate(reco) }}%</span>
+                                </div>
+                                @if (reco.cert_url) {
+                                    <a class="cert-link" [href]="reco.cert_url" target="_blank" rel="noopener">Voir la certification</a>
+                                }
+                            </article>
+                        }
                     </div>
-                </div>
+                }
             </div>
-        </div>
 
-        <!-- section stages (sous les formations) -->
-        <div class="recommendation-block">
-            <h2 class="section-title">Stages recommandés</h2>
-            <div class="stage-grid">
-                <article class="stage-card" *ngFor="let stage of recommendedStages">
-                    <div class="stage-top">
-                        <h2>{{ stage.title }}</h2>
-                        <span class="stage-score">★ {{ stage.match }}%</span>
+            <div class="level-block">
+                <div class="block-head">
+                    <h2>Recommandations hautes</h2>
+                    <span class="count-chip">{{ hauteRecommendations().length }}</span>
+                </div>
+                @if (hauteRecommendations().length === 0) {
+                    <p class="empty-level">Aucune recommandation haute.</p>
+                } @else {
+                    <div class="card-grid">
+                        @for (reco of hauteRecommendations(); track reco.id) {
+                            <article class="recommendation-card">
+                                <div class="card-top">
+                                    <span class="priority-badge tone-haute">
+                                        {{ levelLabel('HAUTE') }}
+                                    </span>
+                                </div>
+                                <h3>{{ recommendationTitle(reco) }}</h3>
+                                <p class="meta">{{ recommendationContext(reco) }}</p>
+                                <p class="desc">{{ reco.cert_description || reco.llm_recommendation || 'Recommandation pedagogique validee.' }}</p>
+                                @if (keywordsText(reco)) {
+                                    <p class="keywords">Mots-clés: {{ keywordsText(reco) }}</p>
+                                }
+                                <div class="footer-row">
+                                    <span class="provider">{{ reco.cert_provider || 'Fournisseur non precise' }}</span>
+                                    <span class="rate">{{ concernRate(reco) }}%</span>
+                                </div>
+                                @if (reco.cert_url) {
+                                    <a class="cert-link" [href]="reco.cert_url" target="_blank" rel="noopener">Voir la certification</a>
+                                }
+                            </article>
+                        }
                     </div>
-                    <p>{{ stage.company }}</p>
-                    <p class="meta">{{ stage.location }} • {{ stage.duration }} • Limite: {{ stage.deadline }}</p>
-                    <div class="tag-row">
-                        <span class="tag-chip" *ngFor="let tag of stage.tags">{{ tag }}</span>
-                    </div>
-                </article>
+                }
             </div>
-        </div>
+
+            <div class="level-block">
+                <div class="block-head">
+                    <h2>Recommandations moyennes</h2>
+                    <span class="count-chip">{{ moyenneRecommendations().length }}</span>
+                </div>
+                @if (moyenneRecommendations().length === 0) {
+                    <p class="empty-level">Aucune recommandation moyenne.</p>
+                } @else {
+                    <div class="card-grid">
+                        @for (reco of moyenneRecommendations(); track reco.id) {
+                            <article class="recommendation-card">
+                                <div class="card-top">
+                                    <span class="priority-badge tone-moyenne">
+                                        {{ levelLabel('MOYENNE') }}
+                                    </span>
+                                </div>
+                                <h3>{{ recommendationTitle(reco) }}</h3>
+                                <p class="meta">{{ recommendationContext(reco) }}</p>
+                                <p class="desc">{{ reco.cert_description || reco.llm_recommendation || 'Recommandation pedagogique validee.' }}</p>
+                                @if (keywordsText(reco)) {
+                                    <p class="keywords">Mots-clés: {{ keywordsText(reco) }}</p>
+                                }
+                                <div class="footer-row">
+                                    <span class="provider">{{ reco.cert_provider || 'Fournisseur non precise' }}</span>
+                                    <span class="rate">{{ concernRate(reco) }}%</span>
+                                </div>
+                                @if (reco.cert_url) {
+                                    <a class="cert-link" [href]="reco.cert_url" target="_blank" rel="noopener">Voir la certification</a>
+                                }
+                            </article>
+                        }
+                    </div>
+                }
+            </div>
+        }
     </section>
 </div>

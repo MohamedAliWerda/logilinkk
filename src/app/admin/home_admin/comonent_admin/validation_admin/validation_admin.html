@@ -1,0 +1,228 @@
+<main class="val-main">
+  <header class="val-header">
+    <div>
+      <h1>Validation de recommandation</h1>
+      <p>
+        Generez les recommandations de formation, puis validez, modifiez ou rejetez chaque ligne
+        avant publication.
+      </p>
+    </div>
+
+    <div class="val-header-actions">
+      <button
+        type="button"
+        class="btn-primary"
+        [disabled]="generating"
+        (click)="generate()"
+      >
+        <span *ngIf="!generating">Generer les recommandations</span>
+        <span *ngIf="generating">Generation en cours…</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Job status banner -->
+  <div class="job-banner" *ngIf="currentJob">
+    <div class="job-banner-text">
+      <strong>Job {{ currentJob.id }}</strong>
+      <span class="job-status-{{ currentJob.status }}">{{ currentJob.status }}</span>
+      <span *ngIf="currentJob.stats as s" class="job-stats">
+        <ng-container *ngIf="s['total'] != null">
+          {{ s['done'] ?? 0 }} / {{ s['total'] }} traitees
+        </ng-container>
+        <ng-container *ngIf="s['n_students'] != null"> · {{ s['n_students'] }} etudiants</ng-container>
+        <ng-container *ngIf="s['elapsed_sec'] != null"> · {{ s['elapsed_sec'] }}s</ng-container>
+      </span>
+    </div>
+    <div *ngIf="currentJob.error" class="job-error">{{ currentJob.error }}</div>
+  </div>
+
+  <!-- Stats row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-label">Total</span>
+      <span class="stat-value">{{ stats.total }}</span>
+    </div>
+    <div class="stat-card lvl-critique">
+      <span class="stat-label">Critique</span>
+      <span class="stat-value">{{ stats.critique }}</span>
+    </div>
+    <div class="stat-card lvl-haute">
+      <span class="stat-label">Haute</span>
+      <span class="stat-value">{{ stats.haute }}</span>
+    </div>
+    <div class="stat-card lvl-moyenne">
+      <span class="stat-label">Moyenne</span>
+      <span class="stat-value">{{ stats.moyenne }}</span>
+    </div>
+    <div class="stat-card lvl-faible">
+      <span class="stat-label">Faible</span>
+      <span class="stat-value">{{ stats.faible }}</span>
+    </div>
+  </div>
+
+  <!-- Filter tabs -->
+  <div class="filter-tabs">
+    <button
+      type="button"
+      *ngFor="let f of ['pending','approved','edited','rejected','all']"
+      [class.active]="statusFilter === f"
+      (click)="setFilter($any(f))"
+    >
+      {{
+        f === 'pending' ? 'En attente' :
+        f === 'approved' ? 'Approuvees' :
+        f === 'edited' ? 'Modifiees' :
+        f === 'rejected' ? 'Rejetees' :
+        'Toutes'
+      }}
+    </button>
+    <button type="button" class="btn-ghost" (click)="refresh()">Rafraichir</button>
+  </div>
+
+  <!-- Errors -->
+  <div class="alert alert-error" *ngIf="loadError">{{ loadError }}</div>
+  <div class="alert alert-error" *ngIf="actionError">{{ actionError }}</div>
+
+  <!-- Loading -->
+  <div class="empty" *ngIf="loading">Chargement…</div>
+
+  <!-- List -->
+  <div class="reco-list" *ngIf="!loading && recommendations.length > 0">
+    <article
+      class="reco-card"
+      *ngFor="let reco of recommendations; trackBy: trackById"
+    >
+      <header class="reco-card-head">
+        <div class="reco-title">
+          <span class="badge level-badge" [ngClass]="levelClass(reco.level)">{{ reco.level }}</span>
+          <span class="badge category-badge">{{ reco.category }}</span>
+          <span class="badge status-badge" [ngClass]="statusClass(reco.status)">{{ reco.status }}</span>
+          <h3>{{ reco.gap_title || reco.competence_name }}</h3>
+        </div>
+        <div class="reco-metrics">
+          <span class="metric"><strong>{{ reco.concern_rate ?? 0 }}%</strong> concernes</span>
+          <span class="metric">{{ reco.students_impacted ?? 0 }} / {{ reco.cohort_size ?? 0 }} etudiants</span>
+          <span class="metric">Metier: {{ reco.metier }}</span>
+        </div>
+      </header>
+
+      <section class="reco-body" *ngIf="editingId !== reco.id">
+        <div class="reco-gap">
+          <strong>{{ reco.competence_name }}</strong>
+          <span *ngIf="keywordsLabel(reco.keywords)"> — {{ keywordsLabel(reco.keywords) }}</span>
+          <span *ngIf="reco.domaine"> · {{ reco.domaine }}</span>
+        </div>
+
+        <p class="reco-llm" *ngIf="reco.llm_recommendation">{{ reco.llm_recommendation }}</p>
+
+        <div class="cert-block">
+          <div class="cert-title">
+            Certification: <strong>{{ reco.cert_title || 'N/A' }}</strong>
+            <span *ngIf="reco.cert_provider"> · {{ reco.cert_provider }}</span>
+          </div>
+          <div class="cert-meta">
+            <span *ngIf="reco.cert_duration">{{ reco.cert_duration }}</span>
+            <span *ngIf="reco.cert_pricing"> · {{ reco.cert_pricing }}</span>
+            <a *ngIf="reco.cert_url" [href]="reco.cert_url" target="_blank" rel="noopener">lien</a>
+          </div>
+          <p *ngIf="reco.cert_description" class="cert-desc">{{ reco.cert_description }}</p>
+        </div>
+      </section>
+
+      <!-- Edit form -->
+      <section class="reco-edit" *ngIf="editingId === reco.id">
+        <div class="form-grid">
+          <label>
+            Titre certification
+            <input type="text" [(ngModel)]="editDraft.cert_title" />
+          </label>
+          <label>
+            Fournisseur
+            <input type="text" [(ngModel)]="editDraft.cert_provider" />
+          </label>
+          <label>
+            Duree
+            <input type="text" [(ngModel)]="editDraft.cert_duration" />
+          </label>
+          <label>
+            Tarif
+            <input type="text" [(ngModel)]="editDraft.cert_pricing" />
+          </label>
+          <label class="span-2">
+            URL
+            <input type="text" [(ngModel)]="editDraft.cert_url" />
+          </label>
+          <label class="span-2">
+            Description certification
+            <textarea rows="2" [(ngModel)]="editDraft.cert_description"></textarea>
+          </label>
+          <label class="span-2">
+            Recommandation pedagogique
+            <textarea rows="4" [(ngModel)]="editDraft.llm_recommendation"></textarea>
+          </label>
+          <label>
+            Libelle gap
+            <input type="text" [(ngModel)]="editDraft.gap_label" />
+          </label>
+          <label>
+            Titre gap
+            <input type="text" [(ngModel)]="editDraft.gap_title" />
+          </label>
+          <label>
+            Niveau
+            <select [(ngModel)]="editDraft.level">
+              <option value="CRITIQUE">CRITIQUE</option>
+              <option value="HAUTE">HAUTE</option>
+              <option value="MOYENNE">MOYENNE</option>
+              <option value="FAIBLE">FAIBLE</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <!-- Reject prompt -->
+      <section class="reco-reject" *ngIf="rejectPromptId === reco.id">
+        <label>
+          Motif du rejet (optionnel)
+          <textarea rows="2" [(ngModel)]="rejectComment"></textarea>
+        </label>
+        <div class="reco-actions">
+          <button type="button" class="btn-danger" (click)="confirmReject()">Confirmer le rejet</button>
+          <button type="button" class="btn-ghost" (click)="cancelReject()">Annuler</button>
+        </div>
+      </section>
+
+      <footer class="reco-actions" *ngIf="rejectPromptId !== reco.id">
+        <ng-container *ngIf="editingId === reco.id; else readActions">
+          <button type="button" class="btn-primary" (click)="saveEdit(reco.id)">Enregistrer</button>
+          <button type="button" class="btn-ghost" (click)="cancelEdit()">Annuler</button>
+        </ng-container>
+        <ng-template #readActions>
+          <button
+            type="button"
+            class="btn-primary"
+            [disabled]="reco.status === 'approved'"
+            (click)="approve(reco.id)"
+          >
+            Approuver
+          </button>
+          <button type="button" class="btn-ghost" (click)="startEdit(reco)">Modifier</button>
+          <button
+            type="button"
+            class="btn-danger-outline"
+            [disabled]="reco.status === 'rejected'"
+            (click)="openReject(reco.id)"
+          >
+            Rejeter
+          </button>
+        </ng-template>
+      </footer>
+    </article>
+  </div>
+
+  <div class="empty" *ngIf="!loading && recommendations.length === 0 && !loadError">
+    Aucune recommandation pour ce filtre. Cliquez sur
+    <strong>Generer les recommandations</strong> pour lancer le modele.
+  </div>
+</main>

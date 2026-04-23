@@ -86,6 +86,12 @@ export class SidebarAdmin implements OnInit, OnDestroy {
       exact: false,
     },
     {
+      key: 'validation',
+      label: 'Validation Recommandations',
+      route: '/admin/validation',
+      exact: false,
+    },
+    {
       key: 'settings',
       label: 'Paramètres',
       route: '/admin/settings',

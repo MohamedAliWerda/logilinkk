@@ -1,25 +1,15 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RecommendationService, StudentRecommendation } from './recommendation.service';
 
-type Formation = {
-  priority: string;
-  tone: 'high' | 'medium' | 'optional';
-  title: string;
-  source: string;
-  duration: string;
-  description: string;
-};
-
-type Stage = {
-  title: string;
-  company: string;
-  location: string;
-  duration: string;
-  deadline: string;
-  tags: string[];
-  match: number;
-  applied?: boolean;
-};
+type DisplayLevel = 'CRITIQUE' | 'HAUTE' | 'MOYENNE';
 
 @Component({
   selector: 'app-recommendation',
@@ -28,70 +18,99 @@ type Stage = {
   styleUrl: './recommendation.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Recommendation {
-  readonly targetJobFormations: Formation[] = [
-    {
-      priority: 'Priorité haute',
-      tone: 'high',
-      title: 'SAP ERP - Module MM',
-      source: 'SAP Learning Hub',
-      duration: '4 semaines',
-      description: 'Compétence requise par 85% des entreprises matchées',
-    },
-    {
-      priority: 'Priorité haute',
-      tone: 'high',
-      title: 'Power BI pour la logistique',
-      source: 'Coursera',
-      duration: '3 semaines',
-      description: 'Gap identifié dans Data Analytics',
-    },
-  ];
+export class Recommendation implements OnInit {
+  private readonly recommendationService = inject(RecommendationService);
 
-  readonly generalFormations: Formation[] = [
-    {
-      priority: 'Priorité moyenne',
-      tone: 'medium',
-      title: 'Lean Six Sigma - Green Belt',
-      source: 'edX',
-      duration: '6 semaines',
-      description: 'Amélioration continue dans la supply chain',
-    },
-    {
-      priority: 'Optionnelle',
-      tone: 'optional',
-      title: 'Management interculturel',
-      source: 'OpenClassrooms',
-      duration: '2 semaines',
-      description: "Soft skill valorisée à l'international",
-    },
-    {
-      priority: 'Priorité moyenne',
-      tone: 'medium',
-      title: 'Commerce international avancé',
-      source: 'ISGI',
-      duration: 'Semestre 6',
-      description: 'Prérequis pour spécialisation TI',
-    },
-  ];
+  readonly loading = signal(false);
+  readonly loadError = signal('');
+  readonly approvedRecommendations = signal<StudentRecommendation[]>([]);
 
-  readonly recommendedStages: Stage[] = [
-    {
-      title: 'Stage - Assistant Supply Chain', company: 'Sotrapil', location: 'Casablanca', duration: '3 mois', deadline: '15 Avril 2026',
-      tags: ['SAP', 'Excel', 'Planification'], match: 92, applied: false,
-    },
-    {
-      title: 'Stage - Analyste Logistique', company: 'STAM', location: 'Tanger', duration: '4 mois', deadline: '30 Mars 2026',
-      tags: ['Power BI', 'Python', 'Reporting'], match: 87, applied: false,
-    },
-    {
-      title: 'Stage - Coordinateur Transport', company: 'Marsa Maroc', location: 'Agadir', duration: '6 mois', deadline: '20 Mai 2026',
-      tags: ['Transport', 'Opérations', 'Logistique'], match: 84, applied: false,
-    },
-  ];
+  readonly critiqueRecommendations = computed(() => this.byLevel('CRITIQUE'));
+  readonly hauteRecommendations = computed(() => this.byLevel('HAUTE'));
+  readonly moyenneRecommendations = computed(() => this.byLevel('MOYENNE'));
 
-  applyStage(stage: Stage) {
-    stage.applied = true;
+  readonly totalRecommendations = computed(
+    () =>
+      this.critiqueRecommendations().length
+      + this.hauteRecommendations().length
+      + this.moyenneRecommendations().length,
+  );
+
+  ngOnInit(): void {
+    void this.refresh();
+  }
+
+  async refresh(): Promise<void> {
+    this.loading.set(true);
+    this.loadError.set('');
+
+    try {
+      const rows = await this.recommendationService.listApprovedForStudent();
+      const prioritizedRows = rows.filter((row) => this.normalizeLevel(row.level) !== null);
+
+      prioritizedRows.sort((a, b) => {
+        const rateA = Number.isFinite(Number(a.concern_rate)) ? Number(a.concern_rate) : 0;
+        const rateB = Number.isFinite(Number(b.concern_rate)) ? Number(b.concern_rate) : 0;
+        return rateB - rateA;
+      });
+
+      this.approvedRecommendations.set(prioritizedRows);
+    } catch (error: unknown) {
+      const detail = (error as { error?: { detail?: string; message?: string }; message?: string })?.error?.detail
+        ?? (error as { error?: { detail?: string; message?: string }; message?: string })?.error?.message
+        ?? (error as { message?: string })?.message
+        ?? '';
+      this.loadError.set(typeof detail === 'string' && detail.trim().length
+        ? detail
+        : 'Impossible de charger vos recommandations validees.');
+      this.approvedRecommendations.set([]);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  recommendationTitle(item: StudentRecommendation): string {
+    return item.cert_title?.trim()
+      || item.gap_title?.trim()
+      || item.competence_name?.trim()
+      || 'Recommandation validee';
+  }
+
+  levelLabel(level: DisplayLevel): string {
+    if (level === 'CRITIQUE') return 'Critique';
+    if (level === 'HAUTE') return 'Haute';
+    return 'Moyenne';
+  }
+
+  recommendationContext(item: StudentRecommendation): string {
+    const metier = item.metier?.trim() ?? '';
+    const domaine = item.domaine?.trim() ?? '';
+    if (metier && domaine) return `${metier} - ${domaine}`;
+    return metier || domaine || 'Parcours etudiant';
+  }
+
+  keywordsText(item: StudentRecommendation): string {
+    const keywords = Array.isArray(item.keywords)
+      ? item.keywords.map((keyword) => String(keyword).trim()).filter(Boolean)
+      : [];
+    return keywords.slice(0, 4).join(', ');
+  }
+
+  concernRate(item: StudentRecommendation): number {
+    const value = Number(item.concern_rate);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  private byLevel(level: DisplayLevel): StudentRecommendation[] {
+    return this.approvedRecommendations().filter((item) => this.normalizeLevel(item.level) === level);
+  }
+
+  private normalizeLevel(level: string | null | undefined): DisplayLevel | null {
+    const normalized = String(level ?? '').trim().toUpperCase();
+    if (normalized === 'CRITIQUE') return 'CRITIQUE';
+    if (normalized === 'HAUTE') return 'HAUTE';
+    if (normalized === 'MOYENNE') return 'MOYENNE';
+    return null;
   }
 }
 
