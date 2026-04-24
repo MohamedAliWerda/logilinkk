@@ -4,7 +4,7 @@ Recommendation Service — ISGIS
 FastAPI micro-service qui :
   1) lit cv_submissions + cv_matching_competence_results (Supabase REST)
   2) agrege les gaps (TARGET_METIER / OTHER_METIER, niveau de priorite)
-  3) effectue un retrieval RAG simple (embedding lexical) sur RAG_MASTER_v3_FINAL.xlsx
+    3) effectue un retrieval RAG simple (embedding lexical) sur RAG_MASTER_v3_FINAL_enriched.xlsx
   4) appelle Gemini pour produire la reco structuree (RAG-only fallback si KO)
   5) insere les recommandations (status=pending) + targets dans Supabase
   6) expose POST /generate, GET /status/{job_id}, GET /health
@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import threading
@@ -62,7 +63,7 @@ GEMINI_RATE_LIMIT_SLEEP = float(os.getenv("GEMINI_RATE_LIMIT_SLEEP", "0.15"))
 
 RAG_XLSX_PATH = os.getenv(
     "RAG_XLSX_PATH",
-    str(Path(__file__).parent / "RAG_MASTER_v3_FINAL.xlsx"),
+    str(Path(__file__).parent / "RAG_MASTER_v3_FINAL_enriched.xlsx"),
 )
 
 EMBED_DIM = 384
@@ -85,6 +86,42 @@ def _supabase_headers() -> dict[str, str]:
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }
+
+
+def _sanitize_json_value(value: Any) -> Any:
+    if value is None:
+        return None
+
+    if isinstance(value, dict):
+        return {str(k): _sanitize_json_value(v) for k, v in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [_sanitize_json_value(v) for v in value]
+
+    if isinstance(value, np.generic):
+        return _sanitize_json_value(value.item())
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+
+    return value
+
+
+def _serialize_json_payload(payload: Any) -> str:
+    sanitized = _sanitize_json_value(payload)
+    try:
+        return json.dumps(sanitized, allow_nan=False)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"Invalid JSON payload for Supabase: {exc}") from exc
 
 
 def supabase_select(table: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -127,7 +164,8 @@ def supabase_upsert(table: str, rows: list[dict[str, Any]], on_conflict: str | N
         # Chunk to avoid huge payloads
         for i in range(0, len(rows), 500):
             chunk = rows[i : i + 500]
-            resp = client.post(url, params=params, json=chunk, headers=headers)
+            payload = _serialize_json_payload(chunk)
+            resp = client.post(url, params=params, content=payload, headers=headers)
             if resp.status_code >= 400:
                 raise RuntimeError(f"Supabase UPSERT {table} failed: {resp.status_code} {resp.text}")
 
@@ -135,8 +173,9 @@ def supabase_upsert(table: str, rows: list[dict[str, Any]], on_conflict: str | N
 def supabase_patch(table: str, match: dict[str, str], patch: dict[str, Any]) -> None:
     url = f"{SUPABASE_URL}/rest/v1/{table}"
     params = {k: f"eq.{v}" for k, v in match.items()}
+    payload = _serialize_json_payload(patch)
     with httpx.Client(timeout=30.0) as client:
-        resp = client.patch(url, params=params, json=patch, headers=_supabase_headers())
+        resp = client.patch(url, params=params, content=payload, headers=_supabase_headers())
         if resp.status_code >= 400:
             raise RuntimeError(f"Supabase PATCH {table} failed: {resp.status_code} {resp.text}")
 
@@ -148,6 +187,33 @@ def supabase_delete(table: str, match: dict[str, str]) -> None:
         resp = client.delete(url, params=params, headers=_supabase_headers())
         if resp.status_code >= 400:
             raise RuntimeError(f"Supabase DELETE {table} failed: {resp.status_code} {resp.text}")
+
+
+def get_recommendation_status_map(recommendation_ids: list[str]) -> dict[str, str]:
+    """Return current status per recommendation id from ai_recommendations."""
+    if not recommendation_ids:
+        return {}
+
+    status_map: dict[str, str] = {}
+    # Keep chunks small enough for query-string limits.
+    for i in range(0, len(recommendation_ids), 200):
+        chunk = [rid for rid in recommendation_ids[i : i + 200] if rid]
+        if not chunk:
+            continue
+
+        rows = supabase_select(
+            "ai_recommendations",
+            {
+                "select": "id,status",
+                "id": f"in.({','.join(chunk)})",
+            },
+        )
+        for row in rows:
+            rid = str(row.get("id") or "").strip()
+            if rid:
+                status_map[rid] = str(row.get("status") or "").strip().lower()
+
+    return status_map
 
 
 # =============================================================================
@@ -651,12 +717,6 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
             on_conflict="id",
         )
 
-        # Purge recommandations 'pending' precedentes (re-runs proprement idempotents).
-        try:
-            supabase_delete("ai_recommendations", {"status": "pending"})
-        except Exception as exc:
-            LOGGER.warning("Unable to clear previous pending rows: %s", exc)
-
         now_iso = _iso_now()
         reco_rows: list[dict[str, Any]] = []
         target_rows: list[dict[str, Any]] = []
@@ -767,14 +827,32 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
             seen.add(r["id"])
             deduped_reco.append(r)
 
-        supabase_upsert("ai_recommendations", deduped_reco, on_conflict="id")
-        supabase_upsert("ai_recommendation_targets", target_rows, on_conflict="recommendation_id,auth_id")
+        existing_status_by_id = get_recommendation_status_map([r["id"] for r in deduped_reco])
+        preserved_ids: set[str] = set()
+        upsertable_reco: list[dict[str, Any]] = []
+        for row in deduped_reco:
+            current_status = existing_status_by_id.get(row["id"], "")
+            # Preserve admin decisions across runs: do not reset approved/edited/rejected to pending.
+            if current_status and current_status != "pending":
+                preserved_ids.add(row["id"])
+                continue
+            upsertable_reco.append(row)
+
+        if upsertable_reco:
+            supabase_upsert("ai_recommendations", upsertable_reco, on_conflict="id")
+
+        target_rows_upsertable = [
+            t for t in target_rows if t.get("recommendation_id") not in preserved_ids
+        ]
+        if target_rows_upsertable:
+            supabase_upsert("ai_recommendation_targets", target_rows_upsertable, on_conflict="recommendation_id,auth_id")
 
         elapsed = round(time.time() - started, 1)
         stats = {
             "stage": "done",
-            "total_generated": len(deduped_reco),
-            "targets": len(target_rows),
+            "total_generated": len(upsertable_reco),
+            "targets": len(target_rows_upsertable),
+            "preserved_non_pending": len(preserved_ids),
             "n_students": n_students,
             "elapsed_sec": elapsed,
             "daily_cap_hit": daily_cap_hit,
@@ -789,7 +867,13 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
             }],
             on_conflict="id",
         )
-        LOGGER.info("Job %s done in %.1fs - %d reco inserted.", job_id, elapsed, len(deduped_reco))
+        LOGGER.info(
+            "Job %s done in %.1fs - %d reco inserted, %d preserved.",
+            job_id,
+            elapsed,
+            len(upsertable_reco),
+            len(preserved_ids),
+        )
         return {"ok": True, "job_id": job_id, **stats}
 
     except Exception as exc:
