@@ -89,6 +89,13 @@ export const routes: Routes = [
             (module) => module.ValidationAdmin
           ),
       },
+      {
+        path: 'feedback',
+        loadComponent: () =>
+          import('./admin/home_admin/feedback_admin/feedback_admin').then(
+            (module) => module.FeedbackAdmin
+          ),
+      },
       { path: 'settings', component: SettingsAdmin },
     ],
   },
