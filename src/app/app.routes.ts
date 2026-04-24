@@ -76,6 +76,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'feedback',
+        loadComponent: () =>
+          import('./admin/home_admin/comonent_admin/feedback_admin').then(
+            (module) => module.FeedbackAdmin
+          ),
+      },
+      {
         path: 'etud',
         loadComponent: () =>
           import('./admin/home_admin/comonent_admin/etud_admin/etud_admin').then(

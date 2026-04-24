@@ -1,0 +1,232 @@
+<section class="admin-page-container">
+    <!-- ══ HEADER ══════════════════════════════════════════════════ -->
+    <header class="admin-page-header">
+        <div class="header-main">
+            <h1 class="title">Feedback Anciens Diplômés</h1>
+            <p class="subtitle">Suivi des retours et évaluations des anciens étudiants</p>
+        </div>
+    </header>
+
+    <!-- ══ STATS CARDS ═════════════════════════════════════════════ -->
+    <div class="stats-grid">
+        @for (stat of stats; track stat.label) {
+        <div class="stat-card">
+            <div class="stat-value">{{ stat.value }}</div>
+            <div class="stat-label">{{ stat.label }}</div>
+        </div>
+        }
+    </div>
+
+    <!-- ══ TABS ════════════════════════════════════════════════════ -->
+    <div class="tabs-container">
+        <button
+            class="tab-button"
+            [class.active]="activeTab === 'anciens'"
+            (click)="setActiveTab('anciens')"
+        >
+            <span class="tab-icon"></span> Anciens diplômés
+        </button>
+        <button
+            class="tab-button"
+            [class.active]="activeTab === 'retours'"
+            (click)="setActiveTab('retours')"
+        >
+            <span class="tab-icon"></span> Retours reçus ({{ oldStudents.filter(s => s.status === 'À répondu').length }})
+        </button>
+    </div>
+
+    <!-- ══ SEARCH BAR ──────────────────────────────────────────── -->
+    <div class="search-bar-wrap">
+        <div class="search-box">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+                type="text"
+                [(ngModel)]="searchTerm"
+                placeholder="Rechercher un ancien diplômé..."
+            />
+        </div>
+    </div>
+
+    <!-- ══ TABLE PANEL ─────────────────────────────────────────── -->
+    <div class="table-panel">
+        <div class="table-panel-header">
+            <h3 class="table-panel-title">
+                @if (activeTab === 'anciens') {
+                Gestion des anciens étudiants
+                } @else {
+                Retours et évaluations
+                }
+            </h3>
+            @if (activeTab === 'anciens') {
+            <button class="btn-add-old-student">+ Ajouter un ancien</button>
+            }
+        </div>
+
+        <table class="dashboard-styled-table">
+            <thead>
+                <tr>
+                    <th (click)="setSort('fullName')" class="sortable">
+                        Nom
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'fullName'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
+                            <path d="M7 10l5 5 5-5H7z" />
+                        </svg>
+                    </th>
+                    <th (click)="setSort('email')" class="sortable">
+                        Email
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'email'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
+                            <path d="M7 10l5 5 5-5H7z" />
+                        </svg>
+                    </th>
+                    <th (click)="setSort('promotion')" class="sortable text-center">
+                        Promotion
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'promotion'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
+                            <path d="M7 10l5 5 5-5H7z" />
+                        </svg>
+                    </th>
+                    @if (activeTab === 'anciens') {
+                    <th (click)="setSort('status')" class="sortable text-center">
+                        Statut
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'status'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
+                            <path d="M7 10l5 5 5-5H7z" />
+                        </svg>
+                    </th>
+                    } @else {
+                    <th class="text-center">
+                        Évaluation
+                    </th>
+                    <th class="text-center">
+                        Poste
+                    </th>
+                    }
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (student of filteredStudents; track trackById($index, student)) {
+                <tr>
+                    <td class="col-name">{{ student.fullName }}</td>
+                    <td class="col-email">{{ student.email }}</td>
+                    <td class="text-center">{{ student.promotion }}</td>
+                    @if (activeTab === 'anciens') {
+                    <td class="text-center">
+                        <span class="status-badge" [ngClass]="getStatusColor(student.status)">
+                            {{ getStatusIcon(student.status) }} {{ student.status }}
+                        </span>
+                    </td>
+                    } @else {
+                    <td class="text-center">
+                        @if (student.rating) {
+                        <div class="rating-display">
+                            <span class="stars">{{ renderStars(student.rating) }}</span>
+                            <span class="rating-value">{{ student.rating }}/5</span>
+                        </div>
+                        }
+                    </td>
+                    <td class="col-position">
+                        @if (student.position) {
+                        <div class="position-info">
+                            <strong>{{ student.position }}</strong>
+                            <small>@ {{ student.company }}</small>
+                        </div>
+                        }
+                    </td>
+                    }
+                    <td class="col-actions">
+                        <button type="button" class="action-link" (click)="viewProfile(student.id)">
+                            Voir le profil
+                        </button>
+                        @if (activeTab === 'anciens' && student.status === 'Non contacté') {
+                        <button type="button" class="action-link send-link" (click)="sendInvitation(student.id)">
+                            Envoyer
+                        </button>
+                        }
+                        <button type="button" class="action-link delete-link" (click)="deleteStudent(student.id)">
+                            supprimer
+                        </button>
+                    </td>
+                </tr>
+                } @empty {
+                <tr>
+                    <td [colSpan]="activeTab === 'anciens' ? 5 : 6" class="empty-msg">
+                        Aucun ancien diplômé trouvé
+                    </td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ══ PROFILE MODAL ───────────────────────────────────────── -->
+    @if (showProfileModal && selectedStudent) {
+    <div class="modal-overlay" (click)="closeProfileModal()">
+        <div class="profile-modal-card" (click)="$event.stopPropagation()">
+            <header class="modal-header">
+                <h3 class="modal-title">{{ selectedStudent.fullName }}</h3>
+                <button class="close-btn" (click)="closeProfileModal()">✕ Fermer</button>
+            </header>
+
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h4>Informations générales</h4>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Email:</span>
+                            <span class="info-value">{{ selectedStudent.email }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Promotion:</span>
+                            <span class="info-value">{{ selectedStudent.promotion }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Statut:</span>
+                            <span class="info-value" [ngClass]="getStatusColor(selectedStudent.status)">
+                                {{ selectedStudent.status }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                @if (selectedStudent.status === 'À répondu') {
+                <div class="modal-section">
+                    <h4>Parcours professionnel</h4>
+                    <div class="info-grid">
+                        <div class="info-item full-width">
+                            <span class="info-label">Entreprise:</span>
+                            <span class="info-value">{{ selectedStudent.company }}</span>
+                        </div>
+                        <div class="info-item full-width">
+                            <span class="info-label">Poste actuel:</span>
+                            <span class="info-value">{{ selectedStudent.position }}</span>
+                        </div>
+                        <div class="info-item full-width">
+                            <span class="info-label">Date du feedback:</span>
+                            <span class="info-value">{{ selectedStudent.feedbackDate }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <h4>Évaluation</h4>
+                    <div class="rating-section">
+                        <span class="stars-large">{{ renderStars(selectedStudent.rating || 0) }}</span>
+                        <span class="rating-text">{{ selectedStudent.rating }}/5</span>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <h4>Compétences pertinentes acquises à l'ISGI</h4>
+                    <div class="competence-list">
+                        @for (competence of selectedStudent.competenceFeedback; track competence) {
+                        <span class="competence-tag">{{ competence }}</span>
+                        }
+                    </div>
+                </div>
+                }
+            </div>
+        </div>
+    </div>
+    }
+</section>
