@@ -189,6 +189,15 @@ def supabase_delete(table: str, match: dict[str, str]) -> None:
             raise RuntimeError(f"Supabase DELETE {table} failed: {resp.status_code} {resp.text}")
 
 
+def supabase_delete_where(table: str, params: dict[str, str]) -> None:
+    """Delete rows with raw PostgREST filter params (e.g. id=in.(a,b), status=eq.pending)."""
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    with httpx.Client(timeout=60.0) as client:
+        resp = client.delete(url, params=params, headers=_supabase_headers())
+        if resp.status_code >= 400:
+            raise RuntimeError(f"Supabase DELETE {table} failed: {resp.status_code} {resp.text}")
+
+
 def get_recommendation_status_map(recommendation_ids: list[str]) -> dict[str, str]:
     """Return current status per recommendation id from ai_recommendations."""
     if not recommendation_ids:
@@ -214,6 +223,54 @@ def get_recommendation_status_map(recommendation_ids: list[str]) -> dict[str, st
                 status_map[rid] = str(row.get("status") or "").strip().lower()
 
     return status_map
+
+
+def list_pending_recommendation_ids() -> list[str]:
+    rows = supabase_select(
+        "ai_recommendations",
+        {
+            "select": "id",
+            "status": "eq.pending",
+        },
+    )
+    ids = [str(row.get("id") or "").strip() for row in rows]
+    return [rid for rid in ids if rid]
+
+
+def delete_recommendations_by_ids(ids: list[str]) -> int:
+    if not ids:
+        return 0
+    deleted = 0
+    for i in range(0, len(ids), 200):
+        chunk = [rid for rid in ids[i : i + 200] if rid]
+        if not chunk:
+            continue
+        supabase_delete_where(
+            "ai_recommendations",
+            {
+                "id": f"in.({','.join(chunk)})",
+            },
+        )
+        deleted += len(chunk)
+    return deleted
+
+
+def delete_targets_by_recommendation_ids(ids: list[str]) -> int:
+    if not ids:
+        return 0
+    deleted = 0
+    for i in range(0, len(ids), 200):
+        chunk = [rid for rid in ids[i : i + 200] if rid]
+        if not chunk:
+            continue
+        supabase_delete_where(
+            "ai_recommendation_targets",
+            {
+                "recommendation_id": f"in.({','.join(chunk)})",
+            },
+        )
+        deleted += len(chunk)
+    return deleted
 
 
 # =============================================================================
@@ -847,12 +904,23 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
         if target_rows_upsertable:
             supabase_upsert("ai_recommendation_targets", target_rows_upsertable, on_conflict="recommendation_id,auth_id")
 
+        latest_pending_ids = {str(row.get("id") or "").strip() for row in upsertable_reco if row.get("id")}
+        current_pending_ids = set(list_pending_recommendation_ids())
+        stale_pending_ids = sorted(current_pending_ids - latest_pending_ids)
+        pruned_pending = 0
+        pruned_targets = 0
+        if stale_pending_ids:
+            pruned_pending = delete_recommendations_by_ids(stale_pending_ids)
+            pruned_targets = delete_targets_by_recommendation_ids(stale_pending_ids)
+
         elapsed = round(time.time() - started, 1)
         stats = {
             "stage": "done",
             "total_generated": len(upsertable_reco),
             "targets": len(target_rows_upsertable),
             "preserved_non_pending": len(preserved_ids),
+            "pruned_stale_pending": pruned_pending,
+            "pruned_stale_targets": pruned_targets,
             "n_students": n_students,
             "elapsed_sec": elapsed,
             "daily_cap_hit": daily_cap_hit,

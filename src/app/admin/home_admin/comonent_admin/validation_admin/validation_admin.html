@@ -39,26 +39,51 @@
 
   <!-- Stats row -->
   <div class="stats-row">
-    <div class="stat-card">
+    <button
+      type="button"
+      class="stat-card"
+      [class.active]="levelFilter === 'all'"
+      (click)="setLevelFilter('all')"
+    >
       <span class="stat-label">Total</span>
       <span class="stat-value">{{ stats.total }}</span>
-    </div>
-    <div class="stat-card lvl-critique">
+    </button>
+    <button
+      type="button"
+      class="stat-card lvl-critique"
+      [class.active]="levelFilter === 'CRITIQUE'"
+      (click)="setLevelFilter('CRITIQUE')"
+    >
       <span class="stat-label">Critique</span>
       <span class="stat-value">{{ stats.critique }}</span>
-    </div>
-    <div class="stat-card lvl-haute">
+    </button>
+    <button
+      type="button"
+      class="stat-card lvl-haute"
+      [class.active]="levelFilter === 'HAUTE'"
+      (click)="setLevelFilter('HAUTE')"
+    >
       <span class="stat-label">Haute</span>
       <span class="stat-value">{{ stats.haute }}</span>
-    </div>
-    <div class="stat-card lvl-moyenne">
+    </button>
+    <button
+      type="button"
+      class="stat-card lvl-moyenne"
+      [class.active]="levelFilter === 'MOYENNE'"
+      (click)="setLevelFilter('MOYENNE')"
+    >
       <span class="stat-label">Moyenne</span>
       <span class="stat-value">{{ stats.moyenne }}</span>
-    </div>
-    <div class="stat-card lvl-faible">
+    </button>
+    <button
+      type="button"
+      class="stat-card lvl-faible"
+      [class.active]="levelFilter === 'FAIBLE'"
+      (click)="setLevelFilter('FAIBLE')"
+    >
       <span class="stat-label">Faible</span>
       <span class="stat-value">{{ stats.faible }}</span>
-    </div>
+    </button>
   </div>
 
   <!-- Filter tabs -->
@@ -77,7 +102,29 @@
         'Toutes'
       }}
     </button>
-    <button type="button" class="btn-ghost" (click)="refresh()">Rafraichir</button>
+  </div>
+
+  <div class="search-row">
+    <label class="search-input-wrap">
+      <span>Rechercher</span>
+      <input
+        type="text"
+        placeholder="Metier, competence, certification, mot-cle..."
+        [(ngModel)]="searchQuery"
+      />
+    </label>
+    <div class="search-actions">
+      <button
+        type="button"
+        class="btn-ghost"
+        [disabled]="!searchQuery"
+        (click)="clearSearch()"
+      >
+        Effacer
+      </button>
+      <button type="button" class="btn-ghost" (click)="refresh()">Rafraichir</button>
+    </div>
+    <span class="result-count">{{ filteredRecommendations.length }} resultat(s)</span>
   </div>
 
   <!-- Errors -->
@@ -88,10 +135,10 @@
   <div class="empty" *ngIf="loading">Chargement…</div>
 
   <!-- List -->
-  <div class="reco-list" *ngIf="!loading && recommendations.length > 0">
+  <div class="reco-list" *ngIf="!loading && filteredRecommendations.length > 0">
     <article
       class="reco-card"
-      *ngFor="let reco of recommendations; trackBy: trackById"
+      *ngFor="let reco of filteredRecommendations; trackBy: trackById"
     >
       <header class="reco-card-head">
         <div class="reco-title">
@@ -221,7 +268,7 @@
     </article>
   </div>
 
-  <div class="empty" *ngIf="!loading && recommendations.length === 0 && !loadError">
+  <div class="empty" *ngIf="!loading && filteredRecommendations.length === 0 && !loadError">
     Aucune recommandation pour ce filtre. Cliquez sur
     <strong>Generer les recommandations</strong> pour lancer le modele.
   </div>
