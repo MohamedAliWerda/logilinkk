@@ -11,7 +11,7 @@ partir des gaps de compétences des étudiants.
    - Lit `cv_submissions` + `cv_matching_competence_results` depuis Supabase.
    - Agrège les gaps en deux buckets : `TARGET_METIER` (métier visé par
      l'étudiant) et `OTHER_METIER` (métiers connexes).
-   - Charge `RAG_MASTER_v3_FINAL.xlsx` et fait du retrieval lexical (top-K).
+  - Charge `RAG_MASTER_v3_FINAL_enriched.xlsx` et fait du retrieval lexical (top-K).
    - Appelle **Gemini** pour produire la reco structurée
      (`cert_title`, `cert_provider`, `llm_recommendation`, …).
    - Si Gemini est indisponible ou si le quota journalier est atteint, un
@@ -39,7 +39,7 @@ Variables d'environnement (toutes optionnelles, défaut en dur dans `main.py`) :
 | `SUPABASE_SERVICE_ROLE_KEY` | Service-role key (bypass RLS) |
 | `GEMINI_API_KEY` | Clé Google AI Studio |
 | `GEMINI_MODEL` | défaut `gemini-2.5-flash-lite` |
-| `RAG_XLSX_PATH` | Chemin du fichier `RAG_MASTER_v3_FINAL.xlsx` |
+| `RAG_XLSX_PATH` | Chemin du fichier `RAG_MASTER_v3_FINAL_enriched.xlsx` |
 | `TOP_K_RAG` | Top-K retrieval (défaut 5) |
 | `GEMINI_RATE_LIMIT_SLEEP` | Pause entre appels LLM (défaut 0.15s) |
 | `MAX_LLM_CALLS` | Cap local sur le nb d'appels Gemini par job (0 = illimité) |

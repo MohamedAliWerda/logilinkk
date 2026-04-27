@@ -14,6 +14,7 @@ import {
 } from './validation-admin.service';
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'edited';
+type LevelFilter = 'all' | 'CRITIQUE' | 'HAUTE' | 'MOYENNE' | 'FAIBLE';
 
 @Component({
   selector: 'app-validation-admin',
@@ -30,6 +31,8 @@ export class ValidationAdmin implements OnInit, OnDestroy {
   loadError = '';
   actionError = '';
   statusFilter: StatusFilter = 'pending';
+  levelFilter: LevelFilter = 'all';
+  searchQuery = '';
 
   currentJob: RecommendationJob | null = null;
   private pollTimer: any = null;
@@ -126,6 +129,17 @@ export class ValidationAdmin implements OnInit, OnDestroy {
     void this.refresh();
   }
 
+  setLevelFilter(filter: LevelFilter): void {
+    this.levelFilter = this.levelFilter === filter ? 'all' : filter;
+    this.cdr.markForCheck();
+  }
+
+  clearSearch(): void {
+    if (!this.searchQuery) return;
+    this.searchQuery = '';
+    this.cdr.markForCheck();
+  }
+
   startEdit(reco: Recommendation): void {
     this.editingId = reco.id;
     this.editDraft = {
@@ -213,6 +227,19 @@ export class ValidationAdmin implements OnInit, OnDestroy {
     };
   }
 
+  get filteredRecommendations(): Recommendation[] {
+    const normalizedQuery = this.searchQuery.trim().toLowerCase();
+    return this.recommendations.filter((reco) => {
+      if (this.levelFilter !== 'all' && (reco.level ?? '').toUpperCase() !== this.levelFilter) {
+        return false;
+      }
+      if (!normalizedQuery) {
+        return true;
+      }
+      return this.matchesSearch(reco, normalizedQuery);
+    });
+  }
+
   levelClass(level: string | null | undefined): string {
     const v = (level ?? '').toUpperCase();
     if (v === 'CRITIQUE') return 'lvl-critique';
@@ -236,6 +263,23 @@ export class ValidationAdmin implements OnInit, OnDestroy {
 
   trackById(_index: number, item: Recommendation): string {
     return item.id;
+  }
+
+  private matchesSearch(reco: Recommendation, query: string): boolean {
+    const fields = [
+      reco.gap_title,
+      reco.competence_name,
+      reco.metier,
+      reco.domaine,
+      reco.cert_title,
+      reco.cert_provider,
+      reco.cert_description,
+      reco.llm_recommendation,
+      reco.category,
+      reco.status,
+      ...(Array.isArray(reco.keywords) ? reco.keywords : []),
+    ];
+    return fields.some((value) => String(value ?? '').toLowerCase().includes(query));
   }
 
   private formatError(err: any, fallback: string): string {

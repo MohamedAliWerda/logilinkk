@@ -95,18 +95,48 @@ export class RecommendationsService {
   }
 
   async listRecommendations(status?: string): Promise<RecommendationRow[]> {
+    const normalizedStatus = (status ?? '').trim().toLowerCase();
+
+    if (normalizedStatus === 'approved') {
+      return this.listApprovedRecommendationsForAdmin();
+    }
+
     let query = this.supabase
       .from('ai_recommendations')
       .select('*')
       // Business priority: lower popularity_rank means higher priority (1 highest, 99 lowest).
       .order('popularity_rank', { ascending: true, nullsFirst: false })
       .order('concern_rate', { ascending: false });
-    if (status) {
-      query = query.eq('status', status);
+    if (normalizedStatus) {
+      query = query.eq('status', normalizedStatus);
     }
     const { data, error } = await query;
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    return data ?? [];
+
+    const rows = (data ?? []) as RecommendationRow[];
+    if (normalizedStatus) {
+      return rows;
+    }
+
+    // For "all", include approved rows from the confirmed table (source of truth)
+    // so previously validated recommendations remain visible even after regeneration.
+    const approvedRows = await this.listApprovedRecommendationsForAdmin();
+    const approvedIds = new Set(approvedRows.map((r) => String(r.id).trim()));
+    const nonApproved = rows.filter((r) => !approvedIds.has(String(r?.id ?? '').trim()));
+    return [...approvedRows, ...nonApproved];
+  }
+
+  private async listApprovedRecommendationsForAdmin(): Promise<RecommendationRow[]> {
+    const confirmedRows = await this.listAllConfirmedRecommendations();
+    return confirmedRows
+      .map((row: any) => ({
+        ...row,
+        id: String(row?.recommendation_id ?? row?.id ?? '').trim(),
+        status: 'approved',
+        created_at: row?.created_at ?? row?.confirmed_at ?? null,
+        updated_at: row?.updated_at ?? row?.confirmed_at ?? null,
+      }))
+      .filter((row: RecommendationRow) => !!row.id);
   }
 
   async listApprovedRecommendationsForStudent(authOrUserId: string): Promise<RecommendationRow[]> {
@@ -264,6 +294,11 @@ export class RecommendationsService {
       .maybeSingle();
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     if (!data) throw new HttpException('Recommendation not found', HttpStatus.NOT_FOUND);
+
+    // If an approved recommendation is edited, it must leave the confirmed pool
+    // until an explicit re-approval happens.
+    await this.removeConfirmedMirror(id);
+
     return data;
   }
 
@@ -274,7 +309,24 @@ export class RecommendationsService {
       .eq('id', id);
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
 
+    // A rejected recommendation must not remain in confirmed tables.
+    await this.removeConfirmedMirror(id);
+
     await this.logAdminFeedback(id, adminId, 'rejected', '', comment);
+  }
+
+  private async removeConfirmedMirror(recommendationId: string): Promise<void> {
+    const { error: targetError } = await this.supabase
+      .from('ai_confirmed_recommendation_targets')
+      .delete()
+      .eq('recommendation_id', recommendationId);
+    if (targetError) throw new HttpException(targetError.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    const { error: confirmedError } = await this.supabase
+      .from('ai_confirmed_recommendations')
+      .delete()
+      .eq('recommendation_id', recommendationId);
+    if (confirmedError) throw new HttpException(confirmedError.message, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
   async approveRecommendation(id: string, adminId: string | null, comment?: string): Promise<RecommendationRow> {
