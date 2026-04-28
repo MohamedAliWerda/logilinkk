@@ -7,6 +7,8 @@ export interface StudentRecommendation {
   id: string;
   status: string;
   level?: string | null;
+  student_similarity_score?: number | null;
+  student_competence_name?: string | null;
   category?: string | null;
   metier?: string | null;
   domaine?: string | null;

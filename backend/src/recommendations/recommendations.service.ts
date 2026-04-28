@@ -7,6 +7,13 @@ export type RecommendationStatus = 'pending' | 'approved' | 'rejected' | 'edited
 
 export type RecommendationRow = Record<string, any>;
 
+type StudentGapCompetence = {
+  competenceName: string;
+  normalizedCompetence: string;
+  similarityScore: number;
+  level: 'CRITIQUE' | 'MOYEN' | 'FAIBLE';
+};
+
 @Injectable()
 export class RecommendationsService {
   private readonly logger = new Logger(RecommendationsService.name);
@@ -150,8 +157,27 @@ export class RecommendationsService {
     // ai_confirmed_recommendations.metier <-> cv_submissions.professional_title.
     const allConfirmed = await this.listAllConfirmedRecommendations();
     const byTargetJob = allConfirmed.filter((row) => this.isMetierMatch(row?.metier, targetJob));
+    if (byTargetJob.length === 0) return [];
 
-    return byTargetJob.map((row) => this.toStudentRecommendation(row));
+    const studentGaps = await this.listStudentGapCompetences(resolvedAuthId, targetJob);
+    const mappedRows = byTargetJob
+      .map((row) => {
+        const gap = this.findBestGapCompetenceForRecommendation(row, studentGaps);
+        return gap
+          ? this.toStudentRecommendation(row, gap)
+          : null;
+      })
+      .filter((row): row is RecommendationRow => row !== null)
+      .sort((left, right) => this.compareStudentRecommendations(left, right));
+
+    if (mappedRows.length > 0) {
+      return mappedRows;
+    }
+
+    // Fallback when naming mismatch prevents competence mapping.
+    return byTargetJob
+      .map((row) => this.toStudentRecommendation(row, null))
+      .sort((left, right) => this.compareStudentRecommendations(left, right));
   }
 
   private async listAllConfirmedRecommendations(): Promise<any[]> {
@@ -227,11 +253,187 @@ export class RecommendationsService {
     return commonTokenCount >= 2;
   }
 
-  private toStudentRecommendation(row: any): RecommendationRow {
+  private mapSimilarityToStudentLevel(similarityScore: number): 'CRITIQUE' | 'MOYEN' | 'FAIBLE' {
+    const safeScore = Number.isFinite(similarityScore)
+      ? Math.max(0, Math.min(1, similarityScore))
+      : 1;
+
+    // Lower similarity means a stronger competence gap for the student.
+    if (safeScore < 0.30) return 'CRITIQUE';
+    if (safeScore < 0.50) return 'MOYEN';
+    return 'FAIBLE';
+  }
+
+  private async listStudentGapCompetences(authId: string, targetJob: string): Promise<StudentGapCompetence[]> {
+    const { data, error } = await this.supabase
+      .from('cv_matching_competence_results')
+      .select('competence_name, similarity_score, metier_name, is_top_metier')
+      .eq('auth_id', authId)
+      .eq('status', 'gap');
+    if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    const rows = (data ?? [])
+      .map((row: any) => {
+        const competenceName = String(row?.competence_name ?? '').trim();
+        const normalizedCompetence = this.normalizeText(competenceName);
+        const similarityScore = Number(row?.similarity_score ?? NaN);
+
+        if (!competenceName || !normalizedCompetence || !Number.isFinite(similarityScore)) {
+          return null;
+        }
+
+        const safeSimilarityScore = Math.max(0, Math.min(1, similarityScore));
+        return {
+          competenceName,
+          normalizedCompetence,
+          similarityScore: Number(safeSimilarityScore.toFixed(4)),
+          metierName: String(row?.metier_name ?? '').trim(),
+          isTopMetier: row?.is_top_metier === true,
+        };
+      })
+      .filter((row): row is {
+        competenceName: string;
+        normalizedCompetence: string;
+        similarityScore: number;
+        metierName: string;
+        isTopMetier: boolean;
+      } => row !== null);
+
+    if (rows.length === 0) return [];
+
+    const metierScoped = rows.filter((row) => this.isMetierMatch(row.metierName, targetJob));
+    const topMetierScoped = rows.filter((row) => row.isTopMetier);
+    const source = metierScoped.length > 0
+      ? metierScoped
+      : (topMetierScoped.length > 0 ? topMetierScoped : rows);
+
+    const bestByCompetence = new Map<string, StudentGapCompetence>();
+
+    for (const row of source) {
+      const existing = bestByCompetence.get(row.normalizedCompetence);
+      if (!existing || row.similarityScore < existing.similarityScore) {
+        bestByCompetence.set(row.normalizedCompetence, {
+          competenceName: row.competenceName,
+          normalizedCompetence: row.normalizedCompetence,
+          similarityScore: row.similarityScore,
+          level: this.mapSimilarityToStudentLevel(row.similarityScore),
+        });
+      }
+    }
+
+    return Array.from(bestByCompetence.values());
+  }
+
+  private computeTextOverlap(left: string, right: string): number {
+    if (!left || !right) return 0;
+    if (left === right) return 1;
+    if (left.includes(right) || right.includes(left)) return 0.92;
+
+    const leftTokens = left.split(' ').filter((token) => token.length > 2);
+    const rightTokens = right.split(' ').filter((token) => token.length > 2);
+    if (leftTokens.length === 0 || rightTokens.length === 0) return 0;
+
+    const leftSet = new Set(leftTokens);
+    const rightSet = new Set(rightTokens);
+    let common = 0;
+
+    for (const token of leftSet) {
+      if (rightSet.has(token)) {
+        common += 1;
+      }
+    }
+
+    if (common === 0) return 0;
+    const union = new Set([...leftSet, ...rightSet]).size;
+    return union > 0 ? common / union : 0;
+  }
+
+  private findBestGapCompetenceForRecommendation(
+    recommendation: any,
+    studentGaps: StudentGapCompetence[],
+  ): StudentGapCompetence | null {
+    if (!Array.isArray(studentGaps) || studentGaps.length === 0) {
+      return null;
+    }
+
+    const candidates = [
+      recommendation?.gap_title,
+      recommendation?.gap_label,
+      recommendation?.competence_name,
+      recommendation?.detected_gap,
+    ]
+      .map((value) => this.normalizeText(value))
+      .filter((value) => value.length > 0);
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    let bestMatch: { gap: StudentGapCompetence; score: number } | null = null;
+
+    for (const gap of studentGaps) {
+      for (const candidate of candidates) {
+        const score = this.computeTextOverlap(candidate, gap.normalizedCompetence);
+        if (score <= 0) continue;
+
+        const shouldReplace = !bestMatch
+          || score > bestMatch.score
+          || (score === bestMatch.score && gap.similarityScore < bestMatch.gap.similarityScore);
+
+        if (shouldReplace) {
+          bestMatch = { gap, score };
+        }
+      }
+    }
+
+    if (!bestMatch || bestMatch.score < 0.34) {
+      return null;
+    }
+
+    return bestMatch.gap;
+  }
+
+  private normalizeRecommendationLevel(level: unknown): 'CRITIQUE' | 'MOYEN' | 'FAIBLE' {
+    const normalized = String(level ?? '').trim().toUpperCase();
+    if (normalized === 'CRITIQUE') return 'CRITIQUE';
+    if (normalized === 'FAIBLE') return 'FAIBLE';
+    if (normalized === 'HAUTE' || normalized === 'MOYENNE' || normalized === 'MOYEN') return 'MOYEN';
+    return 'MOYEN';
+  }
+
+  private compareStudentRecommendations(left: RecommendationRow, right: RecommendationRow): number {
+    const leftSimilarity = Number(left.student_similarity_score);
+    const rightSimilarity = Number(right.student_similarity_score);
+    const leftHasSimilarity = Number.isFinite(leftSimilarity);
+    const rightHasSimilarity = Number.isFinite(rightSimilarity);
+
+    if (leftHasSimilarity && rightHasSimilarity && leftSimilarity !== rightSimilarity) {
+      return leftSimilarity - rightSimilarity;
+    }
+
+    if (leftHasSimilarity && !rightHasSimilarity) return -1;
+    if (!leftHasSimilarity && rightHasSimilarity) return 1;
+
+    const leftRate = Number(left.concern_rate);
+    const rightRate = Number(right.concern_rate);
+    const safeLeftRate = Number.isFinite(leftRate) ? leftRate : 0;
+    const safeRightRate = Number.isFinite(rightRate) ? rightRate : 0;
+
+    return safeRightRate - safeLeftRate;
+  }
+
+  private toStudentRecommendation(row: any, studentGap: StudentGapCompetence | null): RecommendationRow {
     const recommendationId = String(row?.recommendation_id ?? row?.id ?? '').trim();
+    const similarityScore = studentGap
+      ? Number(studentGap.similarityScore.toFixed(4))
+      : null;
+
     return {
       ...row,
       id: recommendationId,
+      level: studentGap?.level ?? this.normalizeRecommendationLevel(row?.level),
+      student_similarity_score: similarityScore,
+      student_competence_name: studentGap?.competenceName ?? null,
     };
   }
 

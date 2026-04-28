@@ -56,7 +56,7 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv(
 # Gemini (seul provider LLM)
 GEMINI_API_KEY = os.getenv(
     "GEMINI_API_KEY",
-    "AIzaSyDRMWPJ0OcgR7DpE1bi3ku04IesJyFM85A",
+    "AIzaSyDzEdHcT9o6y5xpGYb591CKD_FxprRtc0s",
 )
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 GEMINI_RATE_LIMIT_SLEEP = float(os.getenv("GEMINI_RATE_LIMIT_SLEEP", "0.15"))
