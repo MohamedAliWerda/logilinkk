@@ -1,222 +1,264 @@
-<main class="main-area">
-    <!-- Page header -->
-    <header class="dashboard-header" aria-label="Analyse des Gaps">
-        <h1>GAPS</h1>
-        <p>Analyse des Gaps</p>
+<main class="gaps-page">
+    <header class="page-header" aria-label="Analyse des gaps">
+        <div class="header-copy">
+            <span class="eyebrow">Analyse des gaps</span>
+            <h1>Analyse des Gaps</h1>
+            <p>{{ viewMode === 'cohort' ? 'Vue cohorte — adéquation profil, compétences et marché' : 'Vue individuelle — suivi détaillé d’un étudiant' }}</p>
+        </div>
+
+        <div class="header-controls">
+            <div class="cohort-pill">
+                <span class="live-dot"></span>
+                LOG 2024-B · 18 étudiants
+            </div>
+
+            <label class="select-wrap">
+                <span class="sr-only">Changer de vue</span>
+                <select [value]="viewMode" (change)="setViewMode($any($event.target).value)">
+                    <option value="cohort">Vue cohorte</option>
+                    <option value="student">Vue individuelle</option>
+                </select>
+            </label>
+
+            <button class="btn-export" type="button">Exporter rapport ↗</button>
+        </div>
     </header>
 
-    <!-- 1. Profil -> Modules (Moved to top) -->
-    <div class="gaps-section">
-        <div class="section-title">
-            <h2>Profil &rarr; Modules</h2>
-            <p>Dans quelle mesure chaque module couvre le profil attendu</p>
-        </div>
+    <section *ngIf="viewMode === 'cohort'">
+        <section class="kpi-grid" aria-label="Indicateurs clés">
+            <article class="kpi-card" *ngFor="let kpi of kpis">
+                <div class="kpi-label">{{ kpi.label }}</div>
+                <div class="kpi-value" [ngClass]="'tone-' + kpi.tone">{{ kpi.value }}</div>
+                <div class="kpi-sub">{{ kpi.note }}</div>
+            </article>
+        </section>
 
-        <div class="gaps-row">
-            <!-- 3A: Couverture -->
-            <div class="chart-card half-card">
-                <h3 class="chart-title">Couverture du profil par module (contribution %)</h3>
-                <div class="mod-list mt-3">
-                    <div class="mod-item" *ngFor="let item of couvertureModules">
-                        <div class="mod-head">
-                            <span class="mod-label">{{ item.label }}</span>
-                            <span class="mod-val" style="color: #d97706;">{{ item.valeur }}%</span>
-                        </div>
-                        <div class="mod-track">
-                            <div class="mod-fill" [style.width.%]="item.valeur" style="background: #8b5cf6;"></div>
-                        </div>
-                    </div>
+        <section class="panel">
+            <div class="panel-head">
+                <div>
+                    <h2>Profil → Compétences</h2>
+                    <p>Écart entre niveau acquis par la cohorte et niveau requis par le référentiel</p>
                 </div>
-                <div class="mod-legend mt-4 pt-3 border-top">
-                    <span class="legend-dot" style="background:#8b5cf6"></span>
-                    <span>Contribution au profil</span>
+
+                <div class="legend">
+                    <span class="legend-item"><span class="legend-dot is-acquired"></span>Acquis moyen</span>
+                    <span class="legend-item"><span class="legend-line"></span>Niveau requis</span>
+                    <span class="legend-item"><span class="legend-dot is-aligned"></span>Aligné</span>
+                    <span class="legend-item"><span class="legend-dot is-partial"></span>Partiel</span>
+                    <span class="legend-item"><span class="legend-dot is-gap"></span>Gap fort</span>
+                    <span class="legend-item"><span class="legend-dot is-absent"></span>Absente</span>
                 </div>
             </div>
 
-            <!-- 3B: Balance -->
-            <div class="chart-card half-card">
-                <h3 class="chart-title">Balance théorie / pratique par module</h3>
-                <div class="mod-list mt-3">
-                    <div class="mod-item" *ngFor="let item of balanceModules">
-                        <div class="mod-head">
-                            <span class="mod-label">{{ item.label }}</span>
-                            <span class="mod-badge">{{ item.pratique }}% pratique</span>
-                        </div>
-                        <div class="mod-stacked-track">
-                            <div class="mod-st-theo" [style.width.%]="item.theorie"></div>
-                            <div class="mod-st-prat" [style.width.%]="item.pratique"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="mod-legend mt-4 pt-3 border-top">
-                    <span class="legend-dot" style="background:#5baddb"></span><span>Théorie</span>
-                    <span class="legend-dot" style="background:#5dbf7a; margin-left: 1rem;"></span><span>Pratique</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. Profil -> Compétences -->
-    <div class="gaps-section mt-4">
-        <div class="section-title">
-            <h2>Profil &rarr; Compétences</h2>
-            <p>Écart entre niveau acquis par le profil et niveau requis par le référentiel</p>
-        </div>
-
-        <!-- Row 1: Techniques & Organisationnelle -->
-        <div class="gaps-row">
-            <!-- 2A: Compétences Techniques -->
-            <div class="chart-card half-card">
-                <h3 class="chart-title mb-3">Niveau acquis vs requis — compétences techniques</h3>
-                <div class="comp-list">
-                    <div class="comp-item" *ngFor="let item of compTech">
-                        <div class="comp-header">
-                            <span class="comp-label">{{ item.label }}</span>
-                            <div class="comp-badges">
-                                <span class="comp-status" [ngClass]="{'status-absente': item.status==='Absente', 'status-aligne': item.status==='Aligné', 'status-insuff': item.status==='Insuffisante'}">{{ item.status }}</span>
-                                <span class="comp-gap" [style.color]="item.status === 'Aligné' ? '#5dbf7a' : ''">{{ item.gap }}</span>
-                            </div>
-                        </div>
-                        <div class="comp-dual-bar">
-                            <div class="comp-bar-bg"></div>
-                            <div class="comp-acquis-bar" [style.width.%]="item.acquis"></div>
-                            <div class="comp-requis-marker" [style.left.%]="item.requis"></div>
-                        </div>
-                        <div class="comp-footer">
-                            <span class="c-acquis">Acquis : {{ item.acquis }}</span>
-                            <span class="c-requis">Requis : {{ item.requis }}</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="tab-row" role="tablist" aria-label="Catégories de compétences">
+                <button
+                    *ngFor="let tab of tabs"
+                    type="button"
+                    class="tab"
+                    [class.is-active]="selectedCategory === tab.key"
+                    (click)="setCategory(tab.key)"
+                >
+                    {{ tab.label }}
+                </button>
             </div>
 
-            <!-- 2B: Compétences Organisationnelles -->
-            <div class="chart-card half-card">
-                <h3 class="chart-title mb-3">Niveau acquis vs requis — compétences Organisationnelle</h3>
-                <div class="comp-list">
-                    <div class="comp-item" *ngFor="let item of compOrga">
-                        <div class="comp-header">
-                            <span class="comp-label">{{ item.label }}</span>
-                            <div class="comp-badges">
-                                <span class="comp-status" [ngClass]="{'status-absente': item.status==='Absente', 'status-aligne': item.status==='Aligné', 'status-insuff': item.status==='Insuffisante'}">{{ item.status }}</span>
-                                <span class="comp-gap" [style.color]="item.status === 'Aligné' ? '#5dbf7a' : ''">{{ item.gap }}</span>
-                            </div>
-                        </div>
-                        <div class="comp-dual-bar">
-                            <div class="comp-bar-bg"></div>
-                            <div class="comp-acquis-bar" [style.width.%]="item.acquis"></div>
-                            <div class="comp-requis-marker" [style.left.%]="item.requis"></div>
-                        </div>
-                        <div class="comp-footer">
-                            <span class="c-acquis">Acquis : {{ item.acquis }}</span>
-                            <span class="c-requis">Requis : {{ item.requis }}</span>
-                        </div>
+            <div class="skill-list">
+                <div class="skill-row" *ngFor="let item of currentSkills">
+                    <div class="skill-name">{{ item.label }}</div>
+                    <div class="skill-track" aria-hidden="true">
+                        <div class="skill-fill" [style.width.%]="item.acquis"></div>
+                        <div class="skill-marker" [style.left.%]="item.requis"></div>
                     </div>
+                    <div class="skill-values">{{ item.acquis }} / {{ item.requis }}</div>
+                    <div class="skill-delta" [class.is-positive]="item.gap > 0" [class.is-negative]="item.gap <= 0">
+                        {{ item.gap > 0 ? '+' + item.gap : item.gap }}
+                    </div>
+                    <div class="skill-badge" [ngClass]="statusClassFor(item.status)">{{ item.status }}</div>
+                    <div class="skill-count">{{ item.count }} étudiant{{ item.count > 1 ? 's' : '' }}</div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Row 2: Comportementale & Physique -->
-        <div class="gaps-row mt-3">
-            <!-- 2C: Compétences Comportementales -->
-            <div class="chart-card half-card">
-                <h3 class="chart-title mb-3">Niveau acquis vs requis — compétences Comportementale</h3>
-                <div class="comp-list">
-                    <div class="comp-item" *ngFor="let item of compComp">
-                        <div class="comp-header">
-                            <span class="comp-label">{{ item.label }}</span>
-                            <div class="comp-badges">
-                                <span class="comp-status" [ngClass]="{'status-absente': item.status==='Absente', 'status-aligne': item.status==='Aligné', 'status-insuff': item.status==='Insuffisante'}">{{ item.status }}</span>
-                                <span class="comp-gap" [style.color]="item.status === 'Aligné' ? '#5dbf7a' : ''">{{ item.gap }}</span>
-                            </div>
-                        </div>
-                        <div class="comp-dual-bar">
-                            <div class="comp-bar-bg"></div>
-                            <div class="comp-acquis-bar" [style.width.%]="item.acquis"></div>
-                            <div class="comp-requis-marker" [style.left.%]="item.requis"></div>
-                        </div>
-                        <div class="comp-footer">
-                            <span class="c-acquis">Acquis : {{ item.acquis }}</span>
-                            <span class="c-requis">Requis : {{ item.requis }}</span>
-                        </div>
+        <section class="dual-grid">
+            <article class="panel">
+                <div class="panel-head compact">
+                    <div>
+                        <h2>Classement étudiants — adéquation marché</h2>
+                        <p>Les profils les plus proches des besoins métier</p>
                     </div>
+                </div>
+
+                <div class="student-list">
+                    <div class="student-row" *ngFor="let student of students">
+                        <div class="student-avatar" [style.background]="student.bg" [style.color]="student.fg">{{ student.initials }}</div>
+                        <div class="student-main">
+                            <div class="student-name">{{ student.name }}</div>
+                            <div class="student-track"><div class="student-fill" [style.width.%]="student.pct" [style.background]="student.color"></div></div>
+                        </div>
+                        <div class="student-pct" [style.color]="student.color">{{ student.pct }}%</div>
+                        <div class="student-gaps">{{ student.gaps }} gap{{ student.gaps > 1 ? 's' : '' }}</div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="panel">
+                <div class="panel-head compact">
+                    <div>
+                        <h2>Top 5 gaps à traiter en priorité</h2>
+                        <p>Les écarts les plus coûteux pour la cohorte</p>
+                    </div>
+                </div>
+
+                <div class="priority-list">
+                    <div class="priority-item" *ngFor="let item of priorityItems; let i = index">
+                        <div class="priority-index">{{ i + 1 }}</div>
+                        <div class="priority-main">
+                            <div class="priority-name">{{ item.label }}</div>
+                            <div class="priority-sub">{{ item.domain }} · {{ item.count }} étudiant{{ item.count > 1 ? 's' : '' }} concernés</div>
+                        </div>
+                        <div class="priority-badge" [ngClass]="item.statusClass">{{ item.status }}</div>
+                        <div class="priority-gap">−{{ item.gap }}</div>
+                    </div>
+                </div>
+
+                <div class="job-fit">
+                    <h3>Adéquation moyenne ↔ métiers cibles</h3>
+                    <div class="job-row" *ngFor="let job of jobFit">
+                        <span class="job-label">{{ job.label }}</span>
+                        <div class="job-track"><div class="job-fill" [ngClass]="'tone-' + job.tone" [style.width.%]="job.pct"></div></div>
+                        <span class="job-val" [ngClass]="'tone-' + job.tone">{{ job.pct }}%</span>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="panel panel-bottom">
+            <div class="panel-head compact">
+                <div>
+                    <h2>Couverture des modules — moyenne cohorte</h2>
+                    <p>Chaque module contribue à la couverture du profil attendu</p>
                 </div>
             </div>
 
-            <!-- 2D: Compétences Physiques -->
-            <div class="chart-card half-card">
-                <h3 class="chart-title mb-3">Niveau acquis vs requis — compétences Physique</h3>
-                <div class="comp-list">
-                    <div class="comp-item" *ngFor="let item of compPhys">
-                        <div class="comp-header">
-                            <span class="comp-label">{{ item.label }}</span>
-                            <div class="comp-badges">
-                                <span class="comp-status" [ngClass]="{'status-absente': item.status==='Absente', 'status-aligne': item.status==='Aligné', 'status-insuff': item.status==='Insuffisante'}">{{ item.status }}</span>
-                                <span class="comp-gap" [style.color]="item.status === 'Aligné' ? '#5dbf7a' : ''">{{ item.gap }}</span>
-                            </div>
-                        </div>
-                        <div class="comp-dual-bar">
-                            <div class="comp-bar-bg"></div>
-                            <div class="comp-acquis-bar" [style.width.%]="item.acquis"></div>
-                            <div class="comp-requis-marker" [style.left.%]="item.requis"></div>
-                        </div>
-                        <div class="comp-footer">
-                            <span class="c-acquis">Acquis : {{ item.acquis }}</span>
-                            <span class="c-requis">Requis : {{ item.requis }}</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="module-grid">
+                <article class="module-card" *ngFor="let module of modules">
+                    <div class="module-code">{{ module.code }}</div>
+                    <div class="module-name">{{ module.name }}</div>
+                    <svg class="module-ring" width="64" height="64" viewBox="0 0 52 52" [attr.aria-label]="module.code + ' couverture ' + module.coverage + '%'">
+                        <circle cx="26" cy="26" r="20" fill="none" stroke="#E4E1D9" stroke-width="5"></circle>
+                        <circle cx="26" cy="26" r="20" fill="none" [attr.stroke]="module.color" stroke-width="5" stroke-linecap="round" [attr.stroke-dasharray]="module.dash" transform="rotate(-90 26 26)"></circle>
+                    </svg>
+                    <div class="module-pct" [style.color]="module.color">{{ module.coverage }}%</div>
+                    <div class="module-practical">{{ module.practical }}% pratique</div>
+                </article>
             </div>
-        </div>
+        </section>
+    </section>
 
-    </div>
-
-    <!-- 3. Profil -> Marché (Moved to bottom) -->
-    <div class="gaps-section mt-4 mb-4">
-        <div class="section-title">
-            <h2>Profil &rarr; Marché</h2>
-            <p>Adéquation entre le profil étudiant et les exigences des métiers cibles</p>
-        </div>
-
-        <div class="gaps-row">
-            <!-- 1A: Score d'adéquation profil <-> métier -->
-            <div class="chart-card half-card">
-                <h3 class="chart-title">Score d'adéquation profil &harr; métier</h3>
-                <div class="adequation-list">
-                    <div class="adequation-item" *ngFor="let item of adequationMetier">
-                        <span class="adq-label">{{ item.label }}</span>
-                        <div class="adq-bar-track">
-                            <div class="adq-bar-fill" [style.width.%]="item.score" [style.background]="item.color"></div>
-                        </div>
-                        <span class="adq-score" [style.color]="item.color">{{ item.score }}%</span>
-                        <span class="adq-status" [ngClass]="{'status-aligne': item.status === 'Aligné', 'status-partiel': item.status === 'Partiel', 'status-gap': item.status === 'Gap fort'}">
-              {{ item.status }}
-            </span>
-                    </div>
-                </div>
+    <section *ngIf="viewMode === 'student'" class="student-view">
+        <section class="panel student-hero">
+            <div class="student-hero-copy">
+                <span class="eyebrow">Vue individuelle</span>
+                <h2>{{ selectedStudent.name }}</h2>
+                <p>{{ selectedStudent.marketTarget }} · {{ selectedStudent.pct }}% d’adéquation marché</p>
             </div>
 
-            <!-- 1B: Gaps bloquants les plus fréquents -->
-            <div class="chart-card half-card">
-                <h3 class="chart-title">Gaps bloquants les plus fréquents</h3>
-                <div class="horizontal-bar-chart">
-                    <!-- Max grid lines for 5 -->
-                    <div class="h-grid">
-                        <div class="h-line" *ngFor="let _ of [0,1,2,3,4,5]"></div>
-                    </div>
-                    <div class="h-bars">
-                        <div class="h-bar-row" *ngFor="let item of gapsBloquants">
-                            <span class="h-label">{{ item.label }}</span>
-                            <div class="h-track">
-                                <div class="h-fill" [style.width.%]="(item.value / 5) * 100" [style.background]="item.color"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="h-axis-labels">
-                        <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
-                    </div>
+            <div class="student-hero-stats">
+                <div class="hero-stat">
+                    <span class="hero-stat-label">Classement cohorte</span>
+                    <strong>#{{ selectedStudent.cohortRank }}</strong>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-label">Gaps</span>
+                    <strong>{{ selectedStudent.gaps }}</strong>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-label">Cible métier</span>
+                    <strong>{{ selectedStudent.marketTarget }}</strong>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+
+        <section class="student-layout">
+            <article class="panel student-detail-panel">
+                <div class="panel-head compact">
+                    <div>
+                        <h2>Points de vigilance</h2>
+                        <p>Les écarts qui freinent le plus la transition vers le métier</p>
+                    </div>
+                </div>
+
+                <div class="detail-columns">
+                    <div>
+                        <h3>Atouts</h3>
+                        <ul class="detail-list success-list">
+                            <li *ngFor="let item of selectedStudent.strengths">{{ item }}</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>Watchouts</h3>
+                        <ul class="detail-list alert-list">
+                            <li *ngFor="let item of selectedStudent.watchouts">{{ item }}</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="next-steps">
+                    <h3>Prochaines actions</h3>
+                    <div class="next-step" *ngFor="let step of selectedStudent.nextSteps; let i = index">
+                        <span>{{ i + 1 }}</span>
+                        <p>{{ step }}</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="panel student-focus-panel">
+                <div class="panel-head compact">
+                    <div>
+                        <h2>Focus compétences</h2>
+                        <p>Niveau acquis par rapport au niveau requis</p>
+                    </div>
+                </div>
+
+                <div class="skill-list focus-skill-list">
+                    <div class="skill-row focus-row" *ngFor="let item of selectedStudent.skillFocus">
+                        <div class="skill-name">{{ item.label }}</div>
+                        <div class="skill-track" aria-hidden="true">
+                            <div class="skill-fill" [style.width.%]="item.acquis"></div>
+                            <div class="skill-marker" [style.left.%]="item.requis"></div>
+                        </div>
+                        <div class="skill-values">{{ item.acquis }} / {{ item.requis }}</div>
+                        <div class="skill-badge" [ngClass]="statusClassFor(item.status)">{{ item.status }}</div>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="panel student-grid-bottom">
+            <div class="panel-head compact">
+                <div>
+                    <h2>Repères cohorte</h2>
+                    <p>Positionnement relatif dans la promotion</p>
+                </div>
+            </div>
+
+            <div class="student-grid-mini">
+                <article class="mini-card">
+                    <span class="mini-label">Adéquation</span>
+                    <strong>{{ selectedStudent.pct }}%</strong>
+                    <p>score global du profil</p>
+                </article>
+                <article class="mini-card">
+                    <span class="mini-label">Alerte principale</span>
+                    <strong>{{ selectedStudent.watchouts[0] }}</strong>
+                    <p>écart prioritaire à traiter</p>
+                </article>
+                <article class="mini-card">
+                    <span class="mini-label">Orientation</span>
+                    <strong>{{ selectedStudent.marketTarget }}</strong>
+                    <p>métier cible actuel</p>
+                </article>
+            </div>
+        </section>
+    </section>
 </main>
