@@ -1,0 +1,171 @@
+<div class="container">
+
+  <div class="hero-header">
+    <h1>
+      Trouvez votre <span>prochaine opportunité</span>
+    </h1>
+    <p class="subtitle">
+      Sélectionnez plusieurs postes à travers différentes entreprises,
+      puis postulez en une seule fois grâce à votre profil LogiLink.
+    </p>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <input
+      type="text"
+      placeholder="Rechercher une entreprise, un secteur ou un poste..."
+    />
+  </div>
+
+  <!-- Cards -->
+  <div class="cards">
+    <!-- Card 1 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="avatar blue">L</div>
+        <div>
+          <h3>LogiTrans ✔</h3>
+          <p>Supply Chain • Tunis</p>
+        </div>
+        <span class="count">3</span>
+      </div>
+
+      <div
+        class="job"
+        *ngFor="let job of logitransJobs"
+        [class.selected]="job.selected"
+        (click)="toggleJob(job)"
+      >
+        <div class="radio"></div>
+        <span>{{ job.title }}</span>
+        <span class="tag">{{ job.type }}</span>
+        <!-- ✅ AJOUT : bouton détails -->
+        <button class="details-btn" (click)="$event.stopPropagation(); openDetails(job)">
+          Détails
+        </button>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="avatar pink">SE</div>
+        <div>
+          <h3>Sfax Express ✔</h3>
+          <p>Transport routier • Sfax</p>
+        </div>
+        <span class="count">2</span>
+      </div>
+
+      <div
+        class="job"
+        *ngFor="let job of sfaxJobs"
+        [class.selected]="job.selected"
+        (click)="toggleJob(job)"
+      >
+        <div class="radio"></div>
+        <span>{{ job.title }}</span>
+        <span class="tag">{{ job.type }}</span>
+        <!-- ✅ AJOUT : bouton détails -->
+        <button class="details-btn" (click)="$event.stopPropagation(); openDetails(job)">
+          Détails
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Bar -->
+  <div class="bottom-bar" *ngIf="selectedJobs.length > 0">
+    <div>
+      <strong>{{ selectedJobs.length }} poste(s) sélectionné(s)</strong>
+      <p>Vous pouvez encore ajouter d'autres offres avant d'envoyer.</p>
+    </div>
+    <button (click)="postuler()">Postuler maintenant</button>
+  </div>
+</div>
+
+<!-- ✅ AJOUT : Modale détails du poste -->
+<div class="modal-overlay" *ngIf="selectedJob" (click)="closeDetails()">
+  <div class="modal" (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <h2>{{ selectedJob.title }}</h2>
+      <button class="modal-close" (click)="closeDetails()">✕</button>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>TITRE DU POSTE</label>
+          <p>{{ selectedJob.title }}</p>
+        </div>
+      </div>
+
+      <div class="modal-row two-col">
+        <div class="modal-field">
+          <label>ENTREPRISE</label>
+          <p>{{ selectedJob.company }}</p>
+        </div>
+        <div class="modal-field">
+          <label>LIEU</label>
+          <p>{{ selectedJob.location }}</p>
+        </div>
+      </div>
+
+      <div class="modal-row two-col">
+        <div class="modal-field">
+          <label>TYPE CONTRAT</label>
+          <select disabled>
+            <option>{{ selectedJob.type }}</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>SOURCE</label>
+          <select disabled>
+            <option>{{ selectedJob.source || 'Direct' }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-row two-col">
+        <div class="modal-field">
+          <label>SALAIRE MIN (DT)</label>
+          <p>{{ selectedJob.salaryMin }}</p>
+        </div>
+        <div class="modal-field">
+          <label>SALAIRE MAX (DT)</label>
+          <p>{{ selectedJob.salaryMax }}</p>
+        </div>
+      </div>
+
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>DESCRIPTION</label>
+          <p class="description-text">{{ selectedJob.description }}</p>
+        </div>
+      </div>
+
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>COMPÉTENCES CLÉS</label>
+          <div class="skills-list">
+            <span class="skill-tag" *ngFor="let skill of selectedJob.skills">
+              {{ skill }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeDetails()">Annuler</button>
+      <button class="btn-select" (click)="toggleJob(selectedJob); closeDetails()">
+        {{ selectedJob.selected ? 'Désélectionner' : "Enregistrer l'offre" }}
+      </button>
+    </div>
+
+  </div>
+</div>

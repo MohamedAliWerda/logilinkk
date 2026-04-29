@@ -1,0 +1,91 @@
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header-candidatures">
+
+  <div class="header-left">
+    <span class="badge">CANDIDATURES</span>
+    <h2>Candidatures</h2>
+    <p>{{ totalCandidats }} étudiants ont postulé · classés par score IA</p>
+  </div>
+
+  <div class="header-right">
+    <button class="btn">Exporter CSV</button>
+  </div>
+
+</div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <span>Candidats</span>
+      <h2>{{ totalCandidats }}</h2>
+    </div>
+    <div class="kpi-card">
+      <span>Score moyen</span>
+      <h2>{{ avgScore }} <small>/100</small></h2>
+    </div>
+    <div class="kpi-card">
+      <span>Top candidats</span>
+      <h2>{{ topCandidats }}</h2>
+      <p>{{ percentTop }}%</p>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <button
+      *ngFor="let p of postes"
+      (click)="setPoste(p)"
+      [class.active]="selectedPoste === p">
+      {{ p }}
+    </button>
+  </div>
+
+  <!-- SECTION -->
+  <div class="section-header">
+    <span class="dot"></span>
+    <h3>{{ selectedPoste }} <span>· {{ totalCandidats }} candidats</span></h3>
+  </div>
+
+  <!-- CARDS -->
+  <div class="card"
+       *ngFor="let c of filteredCandidatures; let i = index">
+
+    <!-- Avatar -->
+    <div class="avatar">
+      {{ getInitials(c.prenom, c.nom) }}
+      <span class="rank">{{ i + 1 }}</span>
+    </div>
+
+    <!-- Infos -->
+    <div class="info">
+
+      <!-- ✅ NOUVEAU : POSTE -->
+      <div class="poste">
+        {{ c.poste }}
+      </div>
+
+      <h4>{{ c.prenom }} {{ c.nom }}</h4>
+      <p>{{ c.email }}</p>
+      <small>{{ c.ville }} · {{ c.timeAgo }}</small>
+
+      <div class="skills">
+        <span *ngFor="let s of c.competences">{{ s }}</span>
+      </div>
+    </div>
+
+    <!-- ❌ STATUS SUPPRIMÉ -->
+
+    <!-- Score -->
+    <div class="score" [ngClass]="getScoreClass(c.score)">
+      <b>{{ c.score }}</b>
+      <small>{{ getScoreLabel(c.score) }}</small>
+    </div>
+
+    <!-- ✅ BTN MODIFIÉ -->
+    <button class="btn">Voir CV</button>
+
+  </div>
+
+</div>

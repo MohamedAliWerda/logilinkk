@@ -1,0 +1,133 @@
+<div class="cv-paper" *ngIf="cv">
+    <div class="ats-header">
+        <h1 class="ats-name">{{ fullName }}</h1>
+        <p *ngIf="cv.professionalTitle" class="ats-title">{{ cv.professionalTitle }}</p>
+        <p *ngIf="cv.specialization" class="ats-subtitle">{{ cv.specialization }}</p>
+        <div class="ats-contacts">
+            <span *ngIf="infoField('email')"><i class="fa-regular fa-envelope"></i> {{ infoField('email') }}</span>
+            <span *ngIf="infoField('telephone')"><i class="fa-solid fa-phone"></i> {{ infoField('telephone') }}</span>
+            <span *ngIf="infoField('ville')"><i class="fa-solid fa-location-dot"></i> {{ infoField('ville') }}{{ infoField('codePostal') ? ' ' + infoField('codePostal') : '' }}</span>
+            <span *ngIf="infoField('linkedin')"><i class="fa-brands fa-linkedin"></i> {{ infoField('linkedin') }}</span>
+            <span *ngIf="infoField('permis') && infoField('permis') !== 'Aucun'"><i class="fa-solid fa-car"></i> Permis {{ infoField('permis') }}</span>
+        </div>
+    </div>
+
+    <div *ngIf="cv.objectif" class="ats-section">
+        <div class="ats-section-title">OBJECTIF PROFESSIONNEL</div>
+        <p class="ats-objective">{{ cv.objectif }}</p>
+    </div>
+
+    <div *ngIf="cv.experiences?.length" class="ats-section">
+        <div class="ats-section-title">STAGES</div>
+        <div *ngFor="let e of cv.experiences">
+            <div class="ats-entry">
+                <div class="ats-entry-row">
+                    <div class="ats-entry-left">
+                        <span class="ats-entry-main">{{ e.poste }}</span>
+                        <span class="ats-entry-org">{{ e.entreprise }}{{ e.secteur ? ' — ' + e.secteur : '' }}</span>
+                        <span *ngIf="e.lieu" class="ats-entry-detail">{{ e.lieu }}</span>
+                    </div>
+                    <div class="ats-entry-right">
+                        <span *ngIf="e.dateDebut || e.dateFin" class="ats-entry-date">{{ e.dateDebut }}{{ e.dateFin ? ' — ' + e.dateFin : (e.dateDebut ? ' — En cours' : '') }}</span>
+                    </div>
+                </div>
+                <p *ngIf="e.description" class="ats-entry-desc">{{ e.description }}</p>
+                <p *ngIf="e.motsCles" class="ats-entry-desc"><strong>Mots-clés :</strong> {{ e.motsCles }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div *ngIf="cv.formations?.length" class="ats-section">
+        <div class="ats-section-title">DIPLÔMES</div>
+        <div *ngFor="let f of cv.formations">
+            <div class="ats-entry">
+                <div class="ats-entry-row">
+                    <div class="ats-entry-left">
+                        <span class="ats-entry-main">{{ f.diplome }}</span>
+                        <span class="ats-entry-org">{{ f.institution }}</span>
+                        <span *ngIf="f.moyenne" class="ats-entry-detail">Mention : {{ f.moyenne }}</span>
+                    </div>
+                    <div class="ats-entry-right">
+                        <span *ngIf="f.dateDebut || f.dateFin" class="ats-entry-date">{{ f.dateDebut }}{{ f.dateFin ? ' — ' + f.dateFin : (f.dateDebut ? ' — En cours' : '') }}</span>
+                    </div>
+                </div>
+                <p *ngIf="f.modules" class="ats-entry-desc"><strong>Modules clés :</strong> {{ f.modules }}</p>
+                <p *ngIf="f.pfeTitre" class="ats-entry-desc"><strong>PFE :</strong> {{ f.pfeTitre }}{{ f.pfeEntreprise ? ' (' + f.pfeEntreprise + ')' : '' }}</p>
+                <p *ngIf="f.pfeTechnologies" class="ats-entry-desc"><strong>Technologies PFE :</strong> {{ f.pfeTechnologies }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div *ngIf="cv.projets?.length" class="ats-section">
+        <div class="ats-section-title">PROJETS ACADÉMIQUES & PERSONNELS</div>
+        <div *ngFor="let p of cv.projets">
+            <div class="ats-entry">
+                <div class="ats-entry-row">
+                    <div class="ats-entry-left">
+                        <span class="ats-entry-main">{{ p.titre }}</span>
+                        <span *ngIf="p.technologies" class="ats-entry-org">{{ p.technologies }}</span>
+                    </div>
+                    <div class="ats-entry-right">
+                        <span *ngIf="p.lien" class="ats-entry-date">{{ p.lien }}</span>
+                    </div>
+                </div>
+                <p *ngIf="p.description" class="ats-entry-desc">{{ p.description }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div *ngIf="(cv.hardSkills?.length || cv.softSkills?.length)" class="ats-section">
+        <div class="ats-section-title">COMPÉTENCES</div>
+        <div class="ats-skills-wrap">
+            <div *ngFor="let h of cv.hardSkills" class="ats-skill-item">
+                <span class="ats-skill-name">{{ h.nom }}</span>
+                <span class="ats-skill-level">{{ h.type }} · {{ h.niveau }}</span>
+            </div>
+            <div *ngFor="let s of cv.softSkills" class="ats-skill-item">
+                <span class="ats-skill-name">{{ s.nom }}</span>
+                <span class="ats-skill-level">{{ s.niveau }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div *ngIf="cv.langues?.length" class="ats-section">
+        <div class="ats-section-title">LANGUES</div>
+        <div class="ats-skills-wrap">
+            <div *ngFor="let l of cv.langues" class="ats-skill-item">
+                <span class="ats-skill-name">{{ l.langue }}</span>
+                <span class="ats-skill-level">{{ l.niveau }}{{ l.certification ? ' · ' + l.certification : '' }}{{ l.score ? ' ' + l.score : '' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div *ngIf="cv.certifications?.length" class="ats-section">
+        <div class="ats-section-title">CERTIFICATIONS</div>
+        <div *ngFor="let c of cv.certifications" class="ats-entry">
+            <div class="ats-entry-row">
+                <div class="ats-entry-left">
+                    <span class="ats-entry-main">{{ c.titre }}</span>
+                    <span *ngIf="c.organisme" class="ats-entry-org">{{ c.organisme }}</span>
+                </div>
+                <div class="ats-entry-right">
+                    <span *ngIf="c.date" class="ats-entry-date">{{ c.date }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div *ngIf="(cv.engagements?.length || profile?.interests)" class="ats-section">
+        <div class="ats-section-title">ACTIVITÉS PARA-UNIVERSITAIRES</div>
+        <div *ngFor="let e of cv.engagements" class="ats-entry">
+            <div class="ats-entry-row">
+                <div class="ats-entry-left">
+                    <span class="ats-entry-main">{{ e.role }}</span>
+                    <span class="ats-entry-org">{{ e.type }}</span>
+                </div>
+                <div class="ats-entry-right">
+                    <span *ngIf="e.dateDebut || e.dateFin" class="ats-entry-date">{{ e.dateDebut }}{{ e.dateFin ? ' — ' + e.dateFin : '' }}</span>
+                </div>
+            </div>
+        </div>
+        <p *ngIf="interestLabels"><strong>Intérêts :</strong> {{ interestLabels }}</p>
+    </div>
+</div>

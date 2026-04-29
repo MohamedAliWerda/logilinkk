@@ -1,0 +1,150 @@
+<div class="main-login-layout">
+  <div class="login-left">
+    <div class="deco deco-ring deco-ring-1"></div>
+    <div class="deco deco-ring deco-ring-2"></div>
+    <div class="deco deco-ring deco-ring-3"></div>
+
+    <!-- Mini bar chart -->
+    <div class="deco viz-bar-chart">
+      <div class="viz-bar" style="height:30px"></div>
+      <div class="viz-bar" style="height:50px"></div>
+      <div class="viz-bar" style="height:38px"></div>
+      <div class="viz-bar" style="height:60px"></div>
+      <div class="viz-bar" style="height:44px"></div>
+    </div>
+
+    <!-- Mini donut -->
+    <div class="deco viz-donut">
+      <svg viewBox="0 0 36 36" width="70" height="70">
+        <circle cx="18" cy="18" r="13" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="5"/>
+        <circle cx="18" cy="18" r="13" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="5"
+          stroke-dasharray="55 82" stroke-dashoffset="-10" stroke-linecap="round"/>
+        <circle cx="18" cy="18" r="13" fill="none" stroke="rgba(255,255,255,0.30)" stroke-width="5"
+          stroke-dasharray="25 82" stroke-dashoffset="-65" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <!-- Mini stat card top-left -->
+    <div class="deco viz-stat-card viz-card-1">
+      <div class="viz-card-line viz-card-line-long"></div>
+      <div class="viz-card-line viz-card-line-short"></div>
+      <div class="viz-card-bar-row">
+        <div class="viz-mini-bar" style="width:55%"></div>
+        <div class="viz-mini-bar" style="width:80%"></div>
+        <div class="viz-mini-bar" style="width:40%"></div>
+      </div>
+    </div>
+
+    <!-- Mini stat card bottom-right -->
+    <div class="deco viz-stat-card viz-card-2">
+      <div class="viz-card-line viz-card-line-long"></div>
+      <div class="viz-card-line viz-card-line-short"></div>
+    </div>
+
+    <div class="left-content">
+      <img src="logo.png" alt="LOGILINK ISGIS & DJAGORA" class="main-logo" />
+    </div>
+  </div>
+
+  <div class="login-right">
+    <div class="login-box">
+      <div class="login-header">
+        <img src="isgi-sfax-logo-.png" alt="ISGI Sfax" class="logo-left">
+        <img src="djagora-removebg-preview.png" alt="Djagora" class="logo-right">
+      </div>
+
+      <h2>Créer un compte entreprise</h2>
+      <p class="subtitle">Tous les champs sont obligatoires.</p>
+
+      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" novalidate>
+
+        <!-- Nom de l'entreprise -->
+        <label for="nomEntreprise">NOM DE L'ENTREPRISE</label>
+        <div class="input-icon-wrap">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="2" y="7" width="20" height="14" rx="2"/>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+          <input id="nomEntreprise" formControlName="nomEntreprise" placeholder="Acme Logistics" />
+        </div>
+
+        <!-- Email + Téléphone -->
+        <div class="two-col">
+          <div class="col">
+            <label for="email">ADRESSE E-MAIL</label>
+            <div class="input-icon-wrap">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <polyline points="2,4 12,13 22,4"/>
+              </svg>
+              <input id="email" formControlName="email" type="email" placeholder="contact@entreprise.com" />
+            </div>
+          </div>
+          <div class="col">
+            <label for="telephone">TÉLÉPHONE</label>
+            <div class="input-icon-wrap">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13 1 .37 1.97.72 2.91a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.94.35 1.91.59 2.91.72A2 2 0 0 1 22 16.92z"/>
+              </svg>
+              <input id="telephone" formControlName="telephone" type="tel" placeholder="+212 6 12 34 56 78" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Adresse -->
+        <label for="adresse">ADRESSE</label>
+        <div class="input-icon-wrap">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+          <input id="adresse" formControlName="adresse" placeholder="Casablanca, Maroc" />
+        </div>
+
+        <!-- Description -->
+        <label for="description">DESCRIPTION</label>
+        <div class="input-icon-wrap textarea-wrap">
+          <svg class="input-icon textarea-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <textarea id="description" formControlName="description" rows="3"
+            placeholder="Présentez votre entreprise, ses activités et sa culture..."></textarea>
+        </div>
+
+        <!-- Mot de passe -->
+        <label for="password">MOT DE PASSE</label>
+        <div class="input-icon-wrap password-field">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <input id="password" formControlName="password"
+            [type]="hidePassword ? 'password' : 'text'"
+            placeholder="Minimum 8 caractères" />
+          <button type="button" (click)="togglePasswordVisibility()" class="toggle-password"
+            [attr.aria-label]="hidePassword ? 'Afficher le mot de passe' : 'Masquer le mot de passe'">&#x1F441;</button>
+        </div>
+
+        <p *ngIf="formError" class="auth-error">{{ formError }}</p>
+
+        <button class="login-btn" type="submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Création...' : 'Créer mon compte' }}
+          <svg *ngIf="!isSubmitting" class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
+      </form>
+
+      <p class="signin-link">
+  Déjà un compte ?
+  <a routerLink="/entreprise/loginen" class="access-switch-btn">
+    Se Connecter
+  </a>
+</p>
+    </div>
+  </div>
+</div>

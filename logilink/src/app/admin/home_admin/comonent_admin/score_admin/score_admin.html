@@ -1,0 +1,148 @@
+<section class="score-page" aria-labelledby="score-title">
+
+    <!-- ══ HEADER ══════════════════════════════════════════════════ -->
+    <header class="score-header">
+        <h1 id="score-title">Score Employabilité</h1>
+        <p>Analyse de l'adéquation entre les formations ISGI et les exigences du marché du travail.</p>
+    </header>
+
+    <div class="top-grid">
+        <!-- ══ 1. SCORE GÉNÉRAL ═══════════════════════════════════════ -->
+        <article class="panel panel-row">
+            <div class="donut-wrap">
+                <div class="donut" [style.background]="scoreGradient">
+                    <div class="donut-inner">
+                        <span class="donut-value">{{ scoreGeneral }}%</span>
+                        <span class="donut-sublabel">{{ scoreLabel }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="general-info">
+                <div class="panel-header">
+                    <h2>Score Employabilité Général</h2>
+                    <span class="chip chip-good">Année 2024-2025</span>
+                </div>
+                <p class="general-desc">
+                    Le score global mesure l'alignement entre les compétences enseignées et celles recherchées par le marché. Un score ≥ 75 est considéré excellent.
+                </p>
+                <div class="score-scale">
+                    <div class="scale-bar">
+                        <div class="scale-fill" [style.width.%]="scoreGeneral" style="background: linear-gradient(90deg, #ffc46a, #e07800);"></div>
+                    </div>
+                    <div class="scale-labels">
+                        <span>0</span><span>Faible</span><span>Moyen</span><span>Bon</span><span>100</span>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- ══ 2. DISTRIBUTION DES SCORES ═════════════════════════════ -->
+        <article class="panel">
+            <div class="panel-header">
+                <h2>Distribution des Scores</h2>
+                <span class="panel-sub">Score Employabilité / Nombre d'étudiants</span>
+            </div>
+
+            <div class="dist-chart-wrap">
+                <div class="y-axis">
+                    @for (g of distributionGridReversed; track trackByGrid($index, g)) {
+                    <span class="y-label">{{ g }}</span> }
+                </div>
+
+                <div class="dist-chart-area">
+                    @for (g of distributionGridInner; track trackByGrid($index, g)) {
+                    <div class="grid-line" [style.bottom.%]="distributionGridPct(g)"></div>
+                    }
+
+                    <div class="bars-row">
+                        @for (d of distributionBins; track trackByDistribution($index, d); let i = $index) {
+                        <div class="dist-col" [title]="d.range + ' : ' + d.students + ' étudiants'">
+                            <span class="dist-count" [style.color]="getColor(i)">{{ d.students }}</span>
+                            <div class="dist-bar-bg">
+                                <div class="dist-bar" [style.height.%]="distributionBarPct(d.students)" [style.background]="getColor(i)"></div>
+                            </div>
+                            <span class="dist-label">{{ d.range }}</span>
+                        </div>
+                        }
+                    </div>
+
+                    <div class="x-baseline"></div>
+                </div>
+            </div>
+
+            <div class="niveau-legend">
+                <span class="legend-swatch"></span>Score Employabilité / nombre d'étudiants
+            </div>
+        </article>
+    </div>
+
+    <!-- ══ 3. SCORE PAR FILIÈRE ═════════════════════════════════════ -->
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Score Employabilité par Filière</h2>
+            <span class="panel-sub">{{ filiereStats.length }} filières analysées</span>
+        </div>
+        <div class="filiere-list">
+            @for (f of filiereStats; track trackByFiliere($index, f); let i = $index) {
+            <div class="filiere-row">
+                <span class="filiere-name" [title]="f.filiere">{{ f.filiere }}</span>
+                <div class="bar-wrap">
+                    <div class="bar-track">
+                        <div class="bar-fill" [style.width.%]="f.score" [style.background]="getColor(i)"></div>
+                    </div>
+                    <span class="bar-pct">{{ f.score }}%</span>
+                </div>
+                <span [class]="scoreClass(f.score)">{{ f.score }}%</span>
+            </div>
+            }
+        </div>
+    </article>
+
+    <!-- ══ 4. DISTRIBUTION PAR NIVEAU ══════════════════════════════ -->
+    <article class="panel niveau-panel">
+        <div class="panel-header">
+            <h2>Score Employabilité par Niveau</h2>
+            <span class="panel-sub">{{ niveauStats.length }} niveaux · Distribution globale</span>
+        </div>
+
+        <div class="dist-chart-wrap">
+
+            <!-- Y-axis -->
+            <div class="y-axis">
+                @for (g of yGridLinesReversed; track trackByGrid($index, g)) {
+                <span class="y-label">{{ g }}</span> }
+            </div>
+
+            <!-- Chart area  -->
+            <div class="dist-chart-area">
+
+                <!-- Grid lines (inside chart, above bars) -->
+                @for (g of yGridLinesInner; track trackByGrid($index, g)) {
+                <div class="grid-line" [style.bottom.%]="gridLinePct(g)"></div>
+                }
+
+                <!-- Bars -->
+                <div class="bars-row">
+                    @for (n of niveauStats; track trackByNiveau($index, n); let i = $index) {
+                    <div class="dist-col" [title]="niveauFullLabels[n.niveau]">
+                        <span class="dist-count" [style.color]="getColor(i)">{{ n.score }}%</span>
+                        <div class="dist-bar-bg">
+                            <div class="dist-bar" [style.height.%]="niveauBarPct(n.score)" [style.background]="getColor(i)"></div>
+                        </div>
+                        <span class="dist-label">{{ n.niveau }}</span>
+                    </div>
+                    }
+                </div>
+
+                <!-- X baseline -->
+                <div class="x-baseline"></div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="niveau-legend">
+            <span class="legend-swatch"></span>Score Employabilité par niveau
+        </div>
+    </article>
+
+</section>

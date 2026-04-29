@@ -1,0 +1,305 @@
+<div class="page-wrapper">
+  <div class="page-header">
+    <div class="header-left">
+      <div class="section-badge">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="2" y="7" width="20" height="14" rx="2" />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </svg>
+        GESTION DES OFFRES
+      </div>
+      <h1>Vos offres d'emploi</h1>
+      <p class="page-subtitle">Créez, modifiez et suivez vos publications en un coup d'œil.</p>
+    </div>
+    <div class="header-right">
+      <div class="search-box">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Rechercher poste, compétence..."
+          [(ngModel)]="searchQuery"
+          (input)="filterOffres()"
+        />
+      </div>
+      <button class="btn-primary" (click)="openCreateModal()">
+        <span>+</span>
+        Nouvelle offre
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-card-left">
+      <span class="stat-label">OFFRES ACTIVES</span>
+      <span class="stat-value">{{ offres.length }}</span>
+    </div>
+    <div class="stat-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="7" width="20" height="14" rx="2"/>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+      </svg>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-left">
+      <span class="stat-label">CANDIDATURES TOTALES</span>
+      <span class="stat-value">{{ totalCandidatures }}</span>
+    </div>
+    <div class="stat-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-left">
+      <span class="stat-label">COMPÉTENCES COUVERTES</span>
+      <span class="stat-value">{{ totalCompetences }}</span>
+    </div>
+    <div class="stat-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+  <div class="offres-list">
+    <div *ngIf="isLoading" class="loading-state">
+      <div class="spinner"></div>
+      Chargement des offres...
+    </div>
+
+    <div *ngIf="!isLoading && filteredOffres.length === 0" class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="1.5">
+        <rect x="2" y="7" width="20" height="14" rx="2" />
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+      </svg>
+      <p>Aucune offre trouvée</p>
+      <button class="btn-primary" (click)="openCreateModal()">Créer votre première offre</button>
+    </div>
+
+    <div class="offre-card" *ngFor="let offre of filteredOffres">
+      <div class="offre-main">
+        <div class="offre-top">
+          <h3 class="offre-titre">{{ offre.titre }}</h3>
+          <span class="badge-contrat">{{ offre.typeContrat }}</span>
+          <span class="badge-source" *ngIf="offre.source && offre.source !== 'partenaire'">
+            {{ offre.source }}
+          </span>
+        </div>
+
+        <div class="offre-meta">
+       <span class="meta-item">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+    <circle cx="12" cy="10" r="3"/>
+  </svg>
+  {{ offre.lieu }}
+</span>
+
+          <span class="meta-separator">·</span>
+
+          <span class="meta-item" *ngIf="offre.createdAt">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            {{ getTimeAgo(offre.createdAt) }}
+          </span>
+
+          <span class="meta-separator" *ngIf="offre.createdAt">·</span>
+
+          <span class="meta-item candidatures-count" (click)="viewCandidatures(offre)">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <strong>{{ offre.candidaturesCount || 0 }} candidatures</strong>
+          </span>
+
+          <span class="meta-item" *ngIf="offre.salaireMin != null">
+            <span class="meta-separator">·</span>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+            {{ offre.salaireMin }} – {{ offre.salaireMax }} DT
+          </span>
+        </div>
+
+        <p class="offre-description">{{ offre.description }}</p>
+
+        <div class="competences-row">
+          <span class="chip" *ngFor="let c of offre.competences">{{ c }}</span>
+        </div>
+      </div>
+
+      <div class="offre-actions">
+        <button class="btn-modifier" (click)="openEditModal(offre)">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          Modifier
+        </button>
+        <button class="btn-supprimer" (click)="deleteOffre(offre)">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+          </svg>
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showCreateModal || showEditModal" (click)="closeModals()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ showEditModal ? "Modifier l'offre" : 'Nouvelle offre' }}</h3>
+      <button class="modal-close" (click)="closeModals()">✕</button>
+    </div>
+
+    <form [formGroup]="offreForm" (ngSubmit)="showEditModal ? submitEditOffre() : submitOffre()">
+      <div class="form-body">
+        <label>TITRE DU POSTE</label>
+        <input formControlName="titre" placeholder="ex. Développeur Full-Stack" />
+
+        <div class="modal-two-col">
+          <div>
+            <label>ENTREPRISE</label>
+            <input formControlName="entreprise" placeholder="Nom de l'entreprise" />
+          </div>
+          <div>
+            <label>LIEU</label>
+            <input formControlName="lieu" placeholder="Sfax / Hybride / Remote" />
+          </div>
+        </div>
+
+        <div class="modal-two-col">
+          <div>
+            <label>TYPE CONTRAT</label>
+            <select formControlName="typeContrat">
+              <option value="CDI">CDI</option>
+              <option value="CDD">CDD</option>
+              <option value="Stage">Stage</option>
+              <option value="Freelance">Freelance</option>
+            </select>
+          </div>
+          <div>
+            <label>SOURCE</label>
+            <select formControlName="source">
+              <option value="partenaire">Direct</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="aneti">ANETI</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-two-col">
+          <div>
+            <label>SALAIRE MIN (DT)</label>
+            <input type="number" formControlName="salaireMin" placeholder="ex. 1200" />
+          </div>
+          <div>
+            <label>SALAIRE MAX (DT)</label>
+            <input type="number" formControlName="salaireMax" placeholder="ex. 2000" />
+          </div>
+        </div>
+
+        <label>DESCRIPTION</label>
+        <textarea
+          formControlName="description"
+          rows="3"
+          placeholder="Décrivez le poste..."
+        ></textarea>
+
+        <label>COMPÉTENCES CLÉS</label>
+        <div class="skills-input-row">
+          <input
+            [(ngModel)]="newSkill"
+            [ngModelOptions]="{ standalone: true }"
+            (keydown.enter)="addSkill(); $event.preventDefault()"
+            placeholder="ex. Angular"
+          />
+          <button type="button" class="btn-ajouter" (click)="addSkill()">Ajouter</button>
+        </div>
+        <div class="chips-row">
+          <span class="chip removable" *ngFor="let s of tempSkills; let i = index">
+            {{ s }}
+            <button type="button" (click)="removeSkill(i)">✕</button>
+          </span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-annuler" (click)="closeModals()">Annuler</button>
+        <button type="submit" class="btn-publier" [disabled]="isSaving || offreForm.invalid">
+          {{ isSaving ? 'Enregistrement...' : "Enregistrer l'offre" }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
