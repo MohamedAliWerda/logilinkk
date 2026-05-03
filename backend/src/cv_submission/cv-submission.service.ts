@@ -2256,13 +2256,30 @@ export class CvSubmissionService {
       return basePayload;
     }
 
+    const selectedMetierId = this.normalizeMetierId(basePayload?.metierId);
+
     try {
-      const extractedInventory = await this.extractAllHardSkillsFromNotes(authId);
-      if (!extractedInventory.length) {
-        return basePayload;
+      let extractedInventory: ExtractedHardSkill[] = [];
+      if (selectedMetierId) {
+        extractedInventory = await this.buildHardSkillsFromNotes(authId, selectedMetierId);
+        if (!extractedInventory.length) {
+          return {
+            ...basePayload,
+            hardSkills: [],
+          };
+        }
+      } else {
+        extractedInventory = await this.extractAllHardSkillsFromNotes(authId);
+        if (!extractedInventory.length) {
+          return basePayload;
+        }
       }
 
       const incomingHard = this.normalizeIncomingHardSkills(basePayload?.hardSkills);
+      const filteredIncomingHard = selectedMetierId
+        ? incomingHard.filter((s) => s.metierIds.length === 0 || s.metierIds.includes(selectedMetierId))
+        : incomingHard;
+
       const extractedHard = extractedInventory.map((s) => ({
         type: String(s.type ?? 'Metier T&L').trim() || 'Metier T&L',
         nom: String(s.nom ?? '').trim(),
@@ -2271,7 +2288,7 @@ export class CvSubmissionService {
         metierIds: this.parseMetierIds(s.metierIds),
       })).filter((s) => s.nom.length > 0);
 
-      const mergedHard = this.dedupeSkillList([...incomingHard, ...extractedHard]).map((s) => ({
+      const mergedHard = this.dedupeSkillList([...filteredIncomingHard, ...extractedHard]).map((s) => ({
         type: s.type,
         nom: s.nom,
         niveau: s.niveau,
