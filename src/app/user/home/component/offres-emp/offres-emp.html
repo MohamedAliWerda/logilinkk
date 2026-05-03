@@ -1,0 +1,128 @@
+<div class="container">
+
+  <div class="hero-header">
+    <h1>
+      Offres d'emploi 
+    </h1>
+    <p class="subtitle">
+      Postulez à plusieurs offres en un clic
+    </p>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <input
+      type="text"
+      placeholder="Rechercher une entreprise, un secteur ou un poste..."
+    />
+  </div>
+
+  <!-- Cards -->
+  <div class="cards">
+    <!-- Card 1 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="avatar blue">L</div>
+        <div>
+          <h3>LogiTrans ✔</h3>
+          <p>Supply Chain • Tunis</p>
+        </div>
+        <span class="count">3</span>
+      </div>
+
+      <div
+        class="job"
+        *ngFor="let job of logitransJobs"
+        [class.selected]="job.selected"
+        (click)="toggleJob(job)"
+      >
+        <div class="radio"></div>
+        <span>{{ job.title }}</span>
+        <span class="tag">{{ job.type }}</span>
+        <!-- ✅ AJOUT : bouton détails -->
+        <button class="details-btn" (click)="$event.stopPropagation(); openDetails(job)">
+          Détails
+        </button>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="avatar pink">SE</div>
+        <div>
+          <h3>Sfax Express ✔</h3>
+          <p>Transport routier • Sfax</p>
+        </div>
+        <span class="count">2</span>
+      </div>
+
+      <div
+        class="job"
+        *ngFor="let job of sfaxJobs"
+        [class.selected]="job.selected"
+        (click)="toggleJob(job)"
+      >
+        <div class="radio"></div>
+        <span>{{ job.title }}</span>
+        <span class="tag">{{ job.type }}</span>
+        <!-- ✅ AJOUT : bouton détails -->
+        <button class="details-btn" (click)="$event.stopPropagation(); openDetails(job)">
+          Détails
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Bar -->
+  <div class="bottom-bar" *ngIf="selectedJobs.length > 0">
+    <div>
+      <strong>{{ selectedJobs.length }} poste(s) sélectionné(s)</strong>
+      <p>Vous pouvez encore ajouter d'autres offres avant d'envoyer.</p>
+    </div>
+    <button (click)="postuler()">Postuler maintenant</button>
+  </div>
+</div>
+
+<!-- ✅ AJOUT : Modale détails du poste -->
+<div class="modal-overlay" *ngIf="selectedJob" (click)="closeDetails()">
+  <div class="modal" (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <h2>{{ selectedJob.title }}</h2>
+      <button class="modal-close" (click)="closeDetails()">✕</button>
+    </div>
+
+    <div class="modal-body">
+
+  <div class="modal-row">
+    <div class="modal-field">
+      <label>Titre de poste</label>
+      <p>{{ selectedJob.title }}</p>
+    </div>
+  </div>
+
+  <div class="modal-row">
+    <div class="modal-field">
+      <label>Sociéte</label>
+      <p>{{ selectedJob.company }}</p>
+    </div>
+  </div>
+
+  <div class="modal-row">
+    <div class="modal-field">
+      <label>Exigences</label>
+      <p class="description-text">{{ selectedJob.description }}</p>
+    </div>
+  </div>
+
+</div>
+
+    <div class="modal-footer">
+  <button class="btn-select" (click)="toggleJob(selectedJob); closeDetails()">
+    {{ selectedJob.selected ? 'Éliminer' : "Enregistrer l'offre" }}
+  </button>
+</div>
+
+  </div>
+</div>
