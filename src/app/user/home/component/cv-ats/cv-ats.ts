@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, ChangeDetectorRef } from '@angular/core';
 import { CvSubmissionService } from './cv-submission.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -64,11 +64,15 @@ export class CvAts {
   showPreview = false;
   step = 1;
   formError = '';
+  navigationLock = false;
+  formRestored = signal(false);
+  restoredFromDate = signal<string | null>(null);
   readonly sharedProfileInfo = buildCvAtsPrefill(STUDENT_PROFILE_DATA);
 
   constructor(
     private cvSubmissionService: CvSubmissionService,
     private router: Router,
+    private cd: ChangeDetectorRef,
   ) {
     this.applyLoggedInUser();
   }
@@ -86,6 +90,231 @@ export class CvAts {
     }
   }
 
+  private async autoRestoreFormState(): Promise<void> {
+    try {
+      // Attempt to fetch existing CV from Supabase (no métier ID specified = get default)
+      const existingCv = await this.cvSubmissionService.fetchMyCv();
+      if (!existingCv) {
+        // If the server endpoint didn't return a full CV object, try reading per-table rows directly from Supabase
+        const tables = await this.cvSubmissionService.fetchCvTablesForCurrentUser();
+        const hasTableData = (tables.formations?.length || tables.experiences?.length || tables.certifications?.length || tables.engagements?.length || tables.langues?.length) > 0;
+        if (!hasTableData) {
+          this.formRestored.set(false);
+          return;
+        }
+
+        // Build a synthetic CV object from table rows and restore
+        const syntheticCv: any = {
+          formations: tables.formations,
+          experiences: tables.experiences,
+          certifications: tables.certifications,
+          engagements: tables.engagements,
+          langues: tables.langues,
+        };
+        await this.restoreFormFieldsFromCv(syntheticCv);
+        this.formRestored.set(true);
+        this.restoredFromDate.set(null);
+        console.log('[CvAts] Form auto-restored from Supabase table rows', tables);
+        return;
+      }
+
+      // Restore all form fields from the saved CV data
+      await this.restoreFormFieldsFromCv(existingCv);
+      this.formRestored.set(true);
+      this.restoredFromDate.set(this.asString(existingCv.updatedAt ?? existingCv.createdAt));
+      console.log('[CvAts] Form auto-restored from Supabase', existingCv);
+    } catch (err) {
+      console.debug('[CvAts] No previous CV found for auto-restore', err);
+      this.formRestored.set(false);
+    }
+  }
+
+  private async restoreFormFieldsFromCv(cv: any): Promise<void> {
+    if (!cv || typeof cv !== 'object') return;
+
+    // Restore info fields
+    if (cv.info && typeof cv.info === 'object') {
+      this.info.linkedin = this.asString(cv.info.linkedin ?? this.info.linkedin);
+      this.info.dateNaissance = this.asString(cv.info.dateNaissance ?? this.info.dateNaissance);
+      this.info.permis = this.asString(cv.info.permis ?? this.info.permis);
+      this.info.photoName = this.asString(cv.info.photoName ?? this.info.photoName);
+    }
+
+    // Restore professional details
+    this.professionalTitle = this.asString(cv.professionalTitle ?? this.professionalTitle);
+    this.specialization = this.asString(cv.specialization ?? this.specialization);
+    this.objectif = this.asString(cv.objectif ?? this.objectif);
+
+    // Restore selected métier if available
+    if (cv.metierId) {
+      const normalizedMetierId = this.normalizeMetierId(cv.metierId);
+      const found = this.metiers.find((m) => m._id === normalizedMetierId);
+      if (found) {
+        this.selectedMetierId = normalizedMetierId;
+      }
+    }
+
+    // Restore formations
+    if (Array.isArray(cv.formations) && cv.formations.length > 0) {
+      this.formations = cv.formations.map((f: any) => ({
+        diplome: this.asString(f.diplome ?? this.formations[0]?.diplome),
+        institution: this.asString(f.institution ?? ''),
+        dateDebut: this.asString(f.dateDebut ?? ''),
+        dateFin: this.asString(f.dateFin ?? ''),
+        moyenne: this.asString(f.moyenne ?? ''),
+        modules: this.asString(f.modules ?? ''),
+        pfeTitre: this.asString(f.pfeTitre ?? ''),
+        pfeEntreprise: this.asString(f.pfeEntreprise ?? ''),
+        pfeTechnologies: this.asString(f.pfeTechnologies ?? ''),
+      }));
+    }
+
+    // Restore experiences
+    if (Array.isArray(cv.experiences) && cv.experiences.length > 0) {
+      this.experiences = cv.experiences.map((e: any) => ({
+        poste: this.asString(e.poste ?? ''),
+        entreprise: this.asString(e.entreprise ?? ''),
+        secteur: this.asString(e.secteur ?? ''),
+        dateDebut: this.asString(e.dateDebut ?? ''),
+        dateFin: this.asString(e.dateFin ?? ''),
+        lieu: this.asString(e.lieu ?? ''),
+        description: this.asString(e.description ?? ''),
+        motsCles: this.asString(e.motsCles ?? ''),
+      }));
+    }
+
+    // Restore hard skills
+    if (Array.isArray(cv.hardSkills) && cv.hardSkills.length > 0) {
+      this.hardSkills = cv.hardSkills.map((s: any) => ({
+        type: this.asString(s.skill_type ?? s.type ?? 'Metier T&L'),
+        nom: this.asString(s.nom ?? ''),
+        niveau: (s.niveau ?? 'Intermediaire') as Level,
+        _system: s._system ?? false,
+      }));
+      this.skillsExtracted = true;
+    }
+
+    // Restore soft skills
+    if (Array.isArray(cv.softSkills) && cv.softSkills.length > 0) {
+      this.softSkills = cv.softSkills.map((s: any) => ({
+        nom: this.asString(s.nom ?? ''),
+        niveau: (s.niveau ?? 'Intermediaire') as Level,
+        contexte: this.asString(s.contexte ?? ''),
+      }));
+    }
+
+    // Restore languages
+    if (Array.isArray(cv.langues) && cv.langues.length > 0) {
+      this.langues = cv.langues.map((l: any) => ({
+        langue: this.asString(l.langue ?? ''),
+        niveau: this.asString(l.niveau ?? 'B1'),
+        certification: this.asString(l.certification ?? ''),
+        score: this.asString(l.score ?? ''),
+      }));
+    }
+
+    // Restore projects
+    if (Array.isArray(cv.projets) && cv.projets.length > 0) {
+      this.projets = cv.projets.map((p: any) => ({
+        titre: this.asString(p.titre ?? ''),
+        description: this.asString(p.description ?? ''),
+        technologies: this.asString(p.technologies ?? ''),
+        lien: this.asString(p.lien ?? ''),
+      }));
+    }
+
+    // Restore certifications
+    if (Array.isArray(cv.certifications) && cv.certifications.length > 0) {
+      this.certifications = cv.certifications.map((c: any) => ({
+        titre: this.asString(c.titre ?? ''),
+        organisme: this.asString(c.organisme ?? ''),
+        date: this.asString(c.date ?? ''),
+        verification: this.asString(c.verification ?? ''),
+      }));
+    }
+
+    // Restore engagements
+    if (Array.isArray(cv.engagements) && cv.engagements.length > 0) {
+      this.engagements = cv.engagements.map((e: any) => ({
+        type: this.asString(e.type ?? 'Associatif'),
+        role: this.asString(e.role ?? ''),
+        dateDebut: this.asString(e.dateDebut ?? ''),
+        dateFin: this.asString(e.dateFin ?? ''),
+      }));
+    }
+
+    // Restore interests
+    if (Array.isArray(cv.interests) && cv.interests.length > 0) {
+      this.interests = cv.interests.map((i: any) => ({
+        label: this.asString(i.label ?? ''),
+      }));
+    }
+
+    // Restore other metadata
+    this.consentGiven = Boolean(cv.consentGiven);
+    this.atsScore = Number(cv.atsScore ?? 0);
+    this.cohortRank = Number(cv.cohortRank ?? 0);
+  }
+
+  clearRestoredForm(): void {
+    // Reset form to default state and clear restoration flag
+    this.formRestored.set(false);
+    this.restoredFromDate.set(null);
+
+    // Reset all form fields to defaults
+    this.professionalTitle = '';
+    this.specialization = '';
+    this.objectif = '';
+    this.selectedMetierId = '';
+
+    this.formations = [
+      {
+        diplome: this.sharedProfileInfo.filiere,
+        institution: 'ISGIS - Universite de Sfax',
+        dateDebut: '',
+        dateFin: '',
+        moyenne: '',
+        modules: '',
+        pfeTitre: '',
+        pfeEntreprise: '',
+        pfeTechnologies: '',
+      },
+    ];
+
+    this.experiences = [
+      {
+        poste: '',
+        entreprise: '',
+        secteur: '',
+        dateDebut: '',
+        dateFin: '',
+        lieu: '',
+        description: '',
+        motsCles: '',
+      },
+    ];
+
+    this.hardSkills = [
+      { type: 'Metier T&L', nom: '', niveau: 'Intermediaire' as Level },
+      { type: 'Outil / Logiciel', nom: '', niveau: 'Intermediaire' as Level },
+    ];
+
+    this.softSkills = [
+      { nom: 'Communication', niveau: 'Intermediaire' as Level, contexte: '' },
+    ];
+
+    this.langues = [{ langue: '', niveau: 'B1', certification: '', score: '' }];
+    this.projets = [{ titre: '', description: '', technologies: '', lien: '' }];
+    this.certifications = [{ titre: '', organisme: '', date: '', verification: '' }];
+    this.engagements = [{ type: 'Associatif', role: '', dateDebut: '', dateFin: '' }];
+    this.interests = [{ label: '' }];
+
+    this.consentGiven = false;
+    this.atsScore = 0;
+    this.cohortRank = 0;
+    this.skillsExtracted = false;
+  }
+
   metiers: Array<{ _id: string; nom_metier: string; domaine: string }> = [];
   selectedMetierId = '';
 
@@ -101,7 +330,8 @@ export class CvAts {
         .filter((m) => m._id.length > 0 && m.nom_metier.length > 0);
 
       this.checkSavedCv();
-      await this.loadExtractedSkills();
+      // Try to auto-restore form data for returning users
+      await this.autoRestoreFormState();
     } catch (err) {
       console.error('Failed to load metiers', err);
     }
@@ -261,7 +491,21 @@ export class CvAts {
 
     this.professionalTitle = found.nom_metier;
     this.specialization = found.domaine || '';
-    await this.loadExtractedSkills(normalizedMetierId, true);
+
+    // Try to restore form data for this specific métier from Supabase
+    try {
+      const existingCvForMetier = await this.cvSubmissionService.fetchMyCv(normalizedMetierId);
+      if (existingCvForMetier) {
+        await this.restoreFormFieldsFromCv(existingCvForMetier);
+        console.log('[CvAts] Form restored for selected métier:', normalizedMetierId, existingCvForMetier);
+      } else {
+        // No saved data for this métier, load generated skills instead
+        await this.loadExtractedSkills(normalizedMetierId, false);
+      }
+    } catch (err) {
+      console.debug('[CvAts] Failed to restore for métier, loading extracted skills instead', err);
+      await this.loadExtractedSkills(normalizedMetierId, false);
+    }
   }
 
   savePreviewAsHtml(): boolean {
@@ -422,23 +666,35 @@ export class CvAts {
         await this.loadExtractedSkills(this.selectedMetierId, true);
       }
       this.step = step;
+      // Ensure UI updates immediately under OnPush
+      try { this.cd.detectChanges(); } catch {}
       this.formError = '';
     }
   }
 
   async next(): Promise<void> {
-    if (!this.canGoNext()) {
-      this.formError = 'Veuillez remplir les champs obligatoires de cette etape.';
-      return;
-    }
+    if (this.navigationLock) return;
+    this.navigationLock = true;
+    try {
+      if (!this.canGoNext()) {
+        this.formError = 'Veuillez remplir les champs obligatoires de cette etape.';
+        return;
+      }
 
-    if (this.step === 2 && this.selectedMetierId) {
-      await this.loadExtractedSkills(this.selectedMetierId, true);
-    }
+      // Load extracted skills if user selected a métier on the Profil step
+      if (this.step === 2 && this.selectedMetierId) {
+        await this.loadExtractedSkills(this.selectedMetierId, true);
+      }
 
-    this.formError = '';
-    if (this.step < this.totalSteps) {
-      this.step += 1;
+      this.formError = '';
+      if (this.step < this.totalSteps) {
+        // Ensure we only advance by a single step and never skip
+        this.step = Math.min(this.step + 1, this.totalSteps);
+        // Ensure UI updates immediately under OnPush
+        try { this.cd.detectChanges(); } catch {}
+      }
+    } finally {
+      this.navigationLock = false;
     }
   }
 

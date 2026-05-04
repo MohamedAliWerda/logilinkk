@@ -11,6 +11,14 @@ type AtsScoreResult = {
   successScore: number;
   atsScore: number;
   rawResponse: string;
+  scoringSource: 'gemini' | 'fallback';
+  scoringModel: string | null;
+};
+
+type GeminiTextResult = {
+  text: string;
+  providerName: GeminiProviderConfig['name'];
+  model: string;
 };
 
 type ExtractedHardSkill = {
@@ -2309,39 +2317,55 @@ export class CvSubmissionService {
     const payloadForMatching = await this.enrichPayloadForMatching(payload, authId);
     const resumeText = this.buildResumeText(payloadForMatching);
     const referenceKeywords = await this.loadReferenceKeywordsSafely();
-    const qualityScore = this.computeCvQualityScore(payload);
 
     try {
       const prompt = this.buildScorePrompt(resumeText, referenceKeywords);
-      const rawResponse = await this.generateGeminiText(prompt);
-      const parsedMatch = this.parseScore(rawResponse, /Job Description Match[:\s]*([0-9]{1,3})\s*%/i);
-      const parsedSuccess = this.parseScore(rawResponse, /Application Success rates?[:\s]*([0-9]{1,3})\s*%/i);
+      const gemini = await this.generateGeminiText(prompt);
+      const parsedMatch = this.parseScore(gemini.text, /Job Description Match[:\s]*([0-9]{1,3})\s*%/i);
+      const parsedSuccess = this.parseScore(gemini.text, /Application Success rates?[:\s]*([0-9]{1,3})\s*%/i);
+      const parsedAts = this.parseScore(gemini.text, /ATS Score[:\s]*([0-9]{1,3})\s*%/i);
 
-      if (parsedMatch !== null && parsedSuccess !== null) {
-        const matchScore = this.clampScore(Math.round(parsedMatch * 0.75 + qualityScore * 0.25));
-        const successScore = this.clampScore(Math.round(parsedSuccess * 0.6 + qualityScore * 0.4));
+      if (parsedMatch !== null && parsedSuccess !== null && parsedAts !== null) {
+        this.logger.log(
+          `ATS score computed via Gemini provider=${gemini.providerName} model=${gemini.model}`,
+        );
         return {
-          matchScore,
-          successScore,
-          atsScore: this.clampScore(Math.round((matchScore + successScore) / 2)),
-          rawResponse,
+          matchScore: this.clampScore(parsedMatch),
+          successScore: this.clampScore(parsedSuccess),
+          atsScore: this.clampScore(parsedAts),
+          rawResponse: gemini.text,
+          scoringSource: 'gemini',
+          scoringModel: gemini.model,
         };
       }
 
       this.logger.warn('Gemini response format mismatch; applying deterministic fallback score.');
-      const fallback = this.computeFallbackScore(resumeText, referenceKeywords, qualityScore);
+      const fallback = this.computeFallbackScore(
+        resumeText,
+        referenceKeywords,
+        this.computeCvQualityScore(payload),
+      );
+      this.logger.warn('ATS score computed via fallback (Gemini response missing required fields).');
       return {
         ...fallback,
-        rawResponse,
+        rawResponse: gemini.text,
+        scoringSource: 'fallback',
+        scoringModel: null,
       };
     } catch (err: any) {
       const errMessage = String(err?.message ?? err ?? 'unknown error');
       this.logger.warn(`Gemini scoring failed, using fallback score: ${errMessage}`);
 
-      const fallback = this.computeFallbackScore(resumeText, referenceKeywords, qualityScore);
+      const fallback = this.computeFallbackScore(
+        resumeText,
+        referenceKeywords,
+        this.computeCvQualityScore(payload),
+      );
       return {
         ...fallback,
         rawResponse: `FALLBACK_SCORE: ${errMessage}`,
+        scoringSource: 'fallback',
+        scoringModel: null,
       };
     }
   }
@@ -2403,7 +2427,7 @@ export class CvSubmissionService {
     resumeText: string,
     referenceKeywords: string[],
     qualityScore: number,
-  ): Omit<AtsScoreResult, 'rawResponse'> {
+  ): Pick<AtsScoreResult, 'matchScore' | 'successScore' | 'atsScore'> {
     const resumeTokens = new Set(this.extractKeywords(resumeText));
     const matched = referenceKeywords.filter((k) => resumeTokens.has(k)).length;
     const rawMatch = this.clampScore(
@@ -2475,7 +2499,7 @@ export class CvSubmissionService {
     return Number.isFinite(value) ? value : null;
   }
 
-  private async generateGeminiText(prompt: string): Promise<string> {
+  private async generateGeminiText(prompt: string): Promise<GeminiTextResult> {
     const providers = this.getGeminiProviders();
     if (!providers.length) {
       throw new Error('No Gemini API key configured. Set GEMINI_API_KEY_PRIMARY (or GEMINI_API_KEY).');
@@ -2494,7 +2518,12 @@ export class CvSubmissionService {
       }
 
       try {
-        return await this.generateGeminiTextWithProvider(provider, prompt);
+        const text = await this.generateGeminiTextWithProvider(provider, prompt);
+        return {
+          text,
+          providerName: provider.name,
+          model: provider.model,
+        };
       } catch (err: any) {
         lastError = err instanceof Error ? err : new Error(String(err ?? 'unknown error'));
       }
@@ -2597,6 +2626,7 @@ Reference Keywords: ${referenceKeywords.join(', ')}
 Respond ONLY in this exact format with these exact section headers:
 • Job Description Match: [number 1-100]%
 • Application Success rates: [number 1-100]%
+• ATS Score: [number 1-100]%
 `.trim();
   }
 

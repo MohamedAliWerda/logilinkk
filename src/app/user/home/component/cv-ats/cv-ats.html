@@ -11,6 +11,25 @@
             <div class="step-counter">Étape {{ step }} / {{ totalSteps }}</div>
         </div>
 
+        <!-- AUTO-RESTORE BANNER -->
+        @if (formRestored()) {
+        <div class="restoration-banner success-banner">
+            <div class="banner-content">
+                <div class="banner-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <div class="banner-text">
+                    <strong>Données restaurées</strong>
+                    <p>Vos informations précédentes ont été automatiquement restaurées depuis votre dernier CV{{ restoredFromDate() ? ' (' + restoredFromDate() + ')' : '' }}.</p>
+                </div>
+                <button type="button" class="banner-action-btn" (click)="clearRestoredForm()" title="Effacer les données et recommencer">
+                    <i class="fa-solid fa-trash"></i>
+                    Recommencer à zéro
+                </button>
+            </div>
+        </div>
+        }
+
         <!-- STEPPER -->
         <div class="stepper">
             @for (s of steps; track s.label; let i = $index) {
@@ -615,7 +634,7 @@
               </button> } @else {
         <div></div>
         } @if (step
-        < totalSteps) { <button type="button" class="btn-next" (click)="next()">
+        < totalSteps) { <button type="button" class="btn-next" (click)="next()" [disabled]="navigationLock || !canGoNext()">
             Continuer <i class="fa-solid fa-arrow-right"></i>
             </button>
             }

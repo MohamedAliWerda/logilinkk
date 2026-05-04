@@ -440,12 +440,24 @@ textarea.form-control {
 
 .form-error {
     margin-top: 0.8rem;
-    background: #fee2e2;
-    color: #b91c1c;
-    border: 1px solid #fecaca;
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
+    border: 2px solid #fca5a5;
     border-radius: 10px;
-    padding: 0.55rem 0.75rem;
+    padding: 0.75rem 1rem;
     font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: shake 0.3s ease-in-out;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
 }
 
 .form-footer {
@@ -458,6 +470,14 @@ textarea.form-control {
 .btn-prev {
     background: #e2e8f0;
     color: #1e293b;
+    transition: all 0.2s ease;
+}
+
+.btn-prev:disabled {
+    background: #cbd5e1;
+    color: #78716c;
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .btn-next,
@@ -466,6 +486,16 @@ textarea.form-control {
 .btn-get-score {
     background: linear-gradient(135deg, #fb923c, #ea580c);
     color: #fff;
+    transition: all 0.2s ease;
+}
+
+.btn-next:disabled,
+.btn-generate:disabled,
+.btn-download:disabled {
+    background: linear-gradient(135deg, #cbd5e1, #a1a1a1);
+    color: #78716c;
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .preview-topbar {
@@ -817,6 +847,92 @@ textarea.form-control {
     }
     .cv-paper {
         padding: 24px 20px;
+    }
+}
+
+/* ─── Restoration Banner ─── */
+.restoration-banner {
+    border-radius: 16px;
+    padding: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    animation: slideInDown 0.4s ease-out;
+}
+
+.restoration-banner.success-banner {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #86efac;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.12);
+}
+
+.banner-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+}
+
+.banner-icon {
+    font-size: 1.5rem;
+    color: #22c55e;
+    flex-shrink: 0;
+}
+
+.banner-text {
+    flex: 1;
+}
+
+.banner-text strong {
+    display: block;
+    color: #15803d;
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.banner-text p {
+    color: #16a34a;
+    font-size: 0.9rem;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.banner-action-btn {
+    background: #f5f5f5;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.banner-action-btn:hover {
+    background: #ef4444;
+    border-color: #dc2626;
+    color: #fff;
+}
+
+.banner-action-btn i {
+    font-size: 0.8rem;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 

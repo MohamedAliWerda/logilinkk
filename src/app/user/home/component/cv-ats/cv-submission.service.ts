@@ -431,6 +431,69 @@ export class CvSubmissionService {
     }
   }
 
+  /**
+   * Fetch CV related table rows directly from Supabase for the current user.
+   * Returns normalized arrays for formations, experiences, certifications, engagements and langues.
+   */
+  async fetchCvTablesForCurrentUser(): Promise<{
+    formations: any[];
+    experiences: any[];
+    certifications: any[];
+    engagements: any[];
+    langues: any[];
+  }> {
+    const userId = this.getCurrentCacheUser();
+    if (!userId) {
+      return { formations: [], experiences: [], certifications: [], engagements: [], langues: [] };
+    }
+
+    try {
+      const tables = [
+        { name: 'cv_formations', key: 'formations' },
+        { name: 'cv_experiences', key: 'experiences' },
+        { name: 'cv_certifications', key: 'certifications' },
+        { name: 'cv_engagements', key: 'engagements' },
+        { name: 'cv_langues', key: 'langues' },
+      ];
+
+      const promises = tables.map((t) =>
+        this.supabase.from(t.name).select('*').eq('auth_id', userId).order('created_at', { ascending: true })
+      );
+
+      const results = await Promise.all(promises);
+
+      const mapped: Record<string, any[]> = {
+        formations: [],
+        experiences: [],
+        certifications: [],
+        engagements: [],
+        langues: [],
+      };
+
+      for (let i = 0; i < results.length; i++) {
+        const { data, error } = results[i] as any;
+        const key = tables[i].key;
+        if (error) {
+          console.warn(`[CvSubmissionService] Supabase read ${tables[i].name} error`, error);
+          mapped[key] = [];
+          continue;
+        }
+        mapped[key] = Array.isArray(data) ? data : [];
+      }
+
+      return {
+        formations: mapped['formations'],
+        experiences: mapped['experiences'],
+        certifications: mapped['certifications'],
+        engagements: mapped['engagements'],
+        langues: mapped['langues'],
+      };
+    } catch (err) {
+      console.error('fetchCvTablesForCurrentUser error', err);
+      return { formations: [], experiences: [], certifications: [], engagements: [], langues: [] };
+    }
+  }
+
   private normalizeMatchingAnalysis(raw: any): MatchingAnalysisResponse | null {
     if (!raw || typeof raw !== 'object') return null;
 
