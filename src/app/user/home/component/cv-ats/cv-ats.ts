@@ -256,6 +256,17 @@ export class CvAts {
     this.cohortRank = Number(cv.cohortRank ?? 0);
   }
 
+  private readStoredUserProfile(): Record<string, any> | null {
+    try {
+      const raw = localStorage.getItem('user');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as Record<string, any> | null;
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
   clearRestoredForm(): void {
     // Reset form to default state and clear restoration flag
     this.formRestored.set(false);
@@ -343,19 +354,6 @@ export class CvAts {
 
     // If CV already exists, restore saved skills.
     const existingCv = await this.cvSubmissionService.fetchMyCv(requestedMetierId);
-    if (existingCv && !forceRegeneration) {
-      this.professionalTitle = this.asString(existingCv.professionalTitle ?? this.professionalTitle);
-      this.specialization = this.asString(existingCv.specialization ?? this.specialization);
-
-      if (!this.selectedMetierId && this.professionalTitle) {
-        const titleNorm = this.asString(this.professionalTitle).trim().toLowerCase();
-        const matchedMetier = this.metiers.find((m) => this.asString(m.nom_metier).trim().toLowerCase() === titleNorm);
-        if (matchedMetier) {
-          this.selectedMetierId = matchedMetier._id;
-        }
-      }
-    }
-
     if (!forceRegeneration && (existingCv?.hardSkills?.length || existingCv?.softSkills?.length)) {
       this.hardSkills = (Array.isArray(existingCv.hardSkills) ? existingCv.hardSkills : []).map((s: any) => ({
         type: s.skill_type ?? s.type ?? 'Metier T&L',
@@ -416,28 +414,24 @@ export class CvAts {
   }
 
   private applyLoggedInUser(): void {
-    try {
-      const raw = localStorage.getItem('user');
-      if (!raw) return;
-      const u = JSON.parse(raw) as Record<string, any> | null;
-      if (!u) return;
+    const userProfile = this.readStoredUserProfile();
+    if (!userProfile) {
+      return;
+    }
 
-      this.info.prenom = this.asString(this.pick(u, 'prenom', 'firstName', 'given_name') ?? this.info.prenom);
-      this.info.nom = this.asString(this.pick(u, 'nom', 'lastName', 'family_name') ?? this.info.nom);
-      this.info.email = this.asString(this.pick(u, 'email', 'email_address') ?? this.info.email);
-      this.info.telephone = this.asString(this.pick(u, 'telephone', 'phone', 'phone_number') ?? this.info.telephone);
-      this.info.ville = this.asString(this.pick(u, 'ville', 'city') ?? this.info.ville);
-      this.info.codePostal = this.asString(this.pick(u, 'code_postal', 'postal_code', 'zip') ?? this.info.codePostal);
-      this.info.niveau = this.asString(this.pick(u, 'niveau', 'level') ?? this.info.niveau);
-      this.info.sexe = this.asString(this.pick(u, 'sexe', 'gender') ?? this.info.sexe);
-      this.info.nationalite = this.asString(this.pick(u, 'nationalite', 'nationality') ?? this.info.nationalite);
+    this.info.prenom = this.asString(this.pick(userProfile, 'prenom', 'firstName', 'given_name'));
+    this.info.nom = this.asString(this.pick(userProfile, 'nom', 'lastName', 'family_name'));
+    this.info.email = this.asString(this.pick(userProfile, 'email', 'email_address') ?? this.info.email);
+    this.info.telephone = this.asString(this.pick(userProfile, 'telephone', 'phone', 'phone_number') ?? this.info.telephone);
+    this.info.ville = this.asString(this.pick(userProfile, 'ville', 'city') ?? this.info.ville);
+    this.info.codePostal = this.asString(this.pick(userProfile, 'code_postal', 'postal_code', 'zip') ?? this.info.codePostal);
+    this.info.niveau = this.asString(this.pick(userProfile, 'niveau', 'level') ?? this.info.niveau);
+    this.info.sexe = this.asString(this.pick(userProfile, 'sexe', 'gender'));
+    this.info.nationalite = this.asString(this.pick(userProfile, 'nationalite', 'nationality') ?? this.info.nationalite);
 
-      const filiere = (this.pick(u, 'filiere', 'major') as string) ?? undefined;
-      if (filiere) {
-        this.formations[0].diplome = filiere;
-      }
-    } catch {
-      // ignore parse errors
+    const filiere = this.asString(this.pick(userProfile, 'filiere', 'major'));
+    if (filiere) {
+      this.formations[0].diplome = filiere;
     }
   }
 
@@ -456,15 +450,15 @@ export class CvAts {
   ];
 
   info = {
-    prenom: this.sharedProfileInfo.prenom,
-    nom: this.sharedProfileInfo.nom,
-    email: this.sharedProfileInfo.email,
-    telephone: this.sharedProfileInfo.telephone,
-    ville: this.sharedProfileInfo.ville,
-    codePostal: this.sharedProfileInfo.codePostal,
-    niveau: this.sharedProfileInfo.niveau,
-    sexe: this.sharedProfileInfo.sexe,
-    nationalite: this.sharedProfileInfo.nationalite,
+    prenom: '',
+    nom: '',
+    email: '',
+    telephone: '',
+    ville: '',
+    codePostal: '',
+    niveau: '',
+    sexe: '',
+    nationalite: '',
     linkedin: '',
     dateNaissance: '',
     permis: '',
@@ -492,19 +486,12 @@ export class CvAts {
     this.professionalTitle = found.nom_metier;
     this.specialization = found.domaine || '';
 
-    // Try to restore form data for this specific métier from Supabase
+    // Changing métier must not overwrite the user's current objective or typed fields.
+    // Only refresh the skills block for the selected métier.
     try {
-      const existingCvForMetier = await this.cvSubmissionService.fetchMyCv(normalizedMetierId);
-      if (existingCvForMetier) {
-        await this.restoreFormFieldsFromCv(existingCvForMetier);
-        console.log('[CvAts] Form restored for selected métier:', normalizedMetierId, existingCvForMetier);
-      } else {
-        // No saved data for this métier, load generated skills instead
-        await this.loadExtractedSkills(normalizedMetierId, false);
-      }
-    } catch (err) {
-      console.debug('[CvAts] Failed to restore for métier, loading extracted skills instead', err);
       await this.loadExtractedSkills(normalizedMetierId, false);
+    } catch (err) {
+      console.debug('[CvAts] Failed to load extracted skills for selected métier', err);
     }
   }
 
