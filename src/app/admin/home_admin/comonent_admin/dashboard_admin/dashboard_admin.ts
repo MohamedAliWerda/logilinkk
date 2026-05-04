@@ -1,7 +1,10 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { SupabaseService } from '../../../../services/supabase.service';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-dashboard-admin',
@@ -51,131 +54,24 @@ export class DashboardAdmin implements OnInit, OnDestroy {
   radarAcq = [42, 55, 65, 70];
   radarChart: any;
 
-  recentStudents = [
-    {
-      name: 'Ahmed Ben Ali', id: 'ISGI2025-042', speciality: 'Logistique', score: 85, employabilityScore: 81,
-      details: {
-        matchings: ['Coordinateur Supply Chain', 'Analyste Flux Logistiques'],
-        gaps: ['Optimisation KPI transport', 'Gestion avancée WMS'],
-        recommendations: ['Atelier KPI Logistique', "Projet terrain d'entrepôt"],
-      },
-    },
-    {
-      name: 'Fatma Trabelsi', id: 'ISGI2025-043', speciality: 'Transport', score: 78, employabilityScore: 75,
-      details: {
-        matchings: ['Agent Exploitation Transport', 'Planificatrice Tournées'],
-        gaps: ['Modélisation des coûts', 'Suivi SLA client'],
-        recommendations: ['Formation TMS avancée', 'Simulation SLA'],
-      },
-    },
-    {
-      name: 'Mohamed Karray', id: 'ISGI2025-044', speciality: 'Supply Chain', score: 91, employabilityScore: 87,
-      details: {
-        matchings: ['Assistant Demand Planner', 'Junior Supply Analyst'],
-        gaps: ['Data visualisation', 'Négociation fournisseurs'],
-        recommendations: ['Certif BI fundamentals', 'Cas pratique sourcing'],
-      },
-    },
-    {
-      name: 'Sarra Gharbi', id: 'ISGI2025-045', speciality: 'Logistique', score: 67, employabilityScore: 69,
-      details: {
-        matchings: ['Assistante Stock', 'Opératrice Flux'],
-        gaps: ['Tableaux de bord', 'Gestion des retours'],
-        recommendations: ['Bootcamp Excel opérationnel', 'Module Reverse Logistics'],
-      },
-    },
-    {
-      name: 'Youssef Hammami', id: 'ISGI2025-046', speciality: 'Commerce Int.', score: 74, employabilityScore: 72,
-      details: {
-        matchings: ['Assistant Import/Export', 'Coordinateur Transit Junior'],
-        gaps: ['Documentation douanière', 'Incoterms avancés'],
-        recommendations: ['Atelier Douane', 'Préparation certif. Incoterms'],
-      },
-    },
-  ];
+  recentStudents: Array<{
+    name: string;
+    id: string;
+    speciality: string;
+    score: number;
+    employabilityScore: number;
+    details: {
+      matchings: string[];
+      gaps: string[];
+      recommendations: string[];
+    };
+  }> = [];
 
-  allStudents = [
-    {
-      name: 'Ahmed Ben Ali', id: 'ISGI2025-042', speciality: 'Logistique', score: 85, employabilityScore: 81,
-      details: {
-        matchings: ['Coordinateur Supply Chain', 'Analyste Flux Logistiques'],
-        gaps: ['Optimisation KPI transport', 'Gestion avancée WMS'],
-        recommendations: ['Atelier KPI Logistique', "Projet terrain d'entrepôt"],
-      },
-    },
-    {
-      name: 'Fatma Trabelsi', id: 'ISGI2025-043', speciality: 'Transport', score: 78, employabilityScore: 75,
-      details: {
-        matchings: ['Agent Exploitation Transport', 'Planificatrice Tournées'],
-        gaps: ['Modélisation des coûts', 'Suivi SLA client'],
-        recommendations: ['Formation TMS avancée', 'Simulation SLA'],
-      },
-    },
-    {
-      name: 'Mohamed Karray', id: 'ISGI2025-044', speciality: 'Supply Chain', score: 91, employabilityScore: 87,
-      details: {
-        matchings: ['Assistant Demand Planner', 'Junior Supply Analyst'],
-        gaps: ['Data visualisation', 'Négociation fournisseurs'],
-        recommendations: ['Certif BI fundamentals', 'Cas pratique sourcing'],
-      },
-    },
-    {
-      name: 'Sarra Gharbi', id: 'ISGI2025-045', speciality: 'Logistique', score: 67, employabilityScore: 69,
-      details: {
-        matchings: ['Assistante Stock', 'Opératrice Flux'],
-        gaps: ['Tableaux de bord', 'Gestion des retours'],
-        recommendations: ['Bootcamp Excel opérationnel', 'Module Reverse Logistics'],
-      },
-    },
-    {
-      name: 'Youssef Hammami', id: 'ISGI2025-046', speciality: 'Commerce Int.', score: 74, employabilityScore: 72,
-      details: {
-        matchings: ['Assistant Import/Export', 'Coordinateur Transit Junior'],
-        gaps: ['Documentation douanière', 'Incoterms avancés'],
-        recommendations: ['Atelier Douane', 'Préparation certif. Incoterms'],
-      },
-    },
-    {
-      name: 'Nour Ben Hassen', id: 'ISGI2025-047', speciality: 'Transport', score: 83, employabilityScore: 80,
-      details: {
-        matchings: ['Planificatrice Transport', 'Assistante Affrètement'],
-        gaps: ['Pilotage KPI ponctualité', 'Gestion incidents route'],
-        recommendations: ['Module dispatching avancé', 'Cas incidents multi-sites'],
-      },
-    },
-    {
-      name: 'Imen Chahed', id: 'ISGI2025-048', speciality: 'Supply Chain', score: 88, employabilityScore: 86,
-      details: {
-        matchings: ['Supply Planner Junior', 'Analyste Approvisionnement'],
-        gaps: ['Forecasting avancé', 'Contract management'],
-        recommendations: ['Mini-projet S&OP', 'Atelier procurement'],
-      },
-    },
-    {
-      name: 'Walid Jebali', id: 'ISGI2025-049', speciality: 'Logistique', score: 79, employabilityScore: 77,
-      details: {
-        matchings: ['Superviseur Quai Junior', 'Coordinateur Stock'],
-        gaps: ['Lean logistics', 'Analyse ABC/XYZ'],
-        recommendations: ['Formation Lean entrepôt', 'Workshop analyses stocks'],
-      },
-    },
-    {
-      name: 'Rim Khelifi', id: 'ISGI2025-050', speciality: 'Commerce Int.', score: 81, employabilityScore: 79,
-      details: {
-        matchings: ['Assistante Trade Compliance', 'Chargée Export'],
-        gaps: ['Veille réglementaire', 'Négociation internationale'],
-        recommendations: ['Atelier compliance', 'Simulation négociations'],
-      },
-    },
-    {
-      name: 'Marouen Triki', id: 'ISGI2025-051', speciality: 'Transport', score: 72, employabilityScore: 70,
-      details: {
-        matchings: ['Agent Transit', 'Assistant Exploitation'],
-        gaps: ['Suivi performance flotte', 'Plan de charge'],
-        recommendations: ['Module fleet analytics', 'Coaching planification'],
-      },
-    },
-  ];
+  recentStudentsLoading = false;
+  recentStudentsError: string | null = null;
+  topGapsLoading = false;
+  topGapsError: string | null = null;
+
 
   specialityColors: Record<string, { bg: string; color: string }> = {
     'Logistique': { bg: '#fef3e2', color: '#e07800' },
@@ -227,7 +123,7 @@ export class DashboardAdmin implements OnInit, OnDestroy {
   marketColor: string;
   coverageColor: string;
   gapsData: { label: string; marketPct: number; coverPct: number }[];
-  gapsChart: { label: string; y: number; marketPct: number; coverPct: number; marketW: number; coverW: number }[];
+  gapsChart: { label: string; y: number; labelX: number; barX: number; marketPct: number; coverPct: number; marketW: number; coverW: number }[];
   barData: {
     range: string;
     labelX: number;
@@ -247,7 +143,12 @@ export class DashboardAdmin implements OnInit, OnDestroy {
   private matiereSubscription: any;
   private cvSubscription: any;
 
-  constructor(private router: Router, private supabaseService: SupabaseService, private cdr: ChangeDetectorRef) {
+  constructor(
+    private router: Router,
+    private supabaseService: SupabaseService,
+    private cdr: ChangeDetectorRef,
+    private http: HttpClient,
+  ) {
     // ── Domain Pie chart ─────────────────────────────────────────────
     const CPie = 2 * Math.PI * 50; // ≈ 314.16
     const rawPieSegs = [
@@ -285,29 +186,11 @@ export class DashboardAdmin implements OnInit, OnDestroy {
       cumPct += s.pct;
     }
 
-    // ── Top Gaps chart data (replaces radar visual) ─────────────────
+    // ── Top Gaps chart data — populated from backend ─────────────
     this.marketColor = '#1e2d5a';
     this.coverageColor = '#d97706';
-    this.gapsData = [
-      { label: 'SAP/ERP', marketPct: 92, coverPct: 18 },
-      { label: 'WMS', marketPct: 78, coverPct: 12 },
-      { label: 'Power BI', marketPct: 68, coverPct: 22 },
-      { label: 'RFID/IoT', marketPct: 58, coverPct: 10 },
-      { label: 'TMS', marketPct: 55, coverPct: 20 },
-      { label: 'Lean Mgmt', marketPct: 42, coverPct: 28 },
-    ];
-    const maxBarW = 360;
-    this.gapsChart = this.gapsData.map((d, i) => {
-      const y = 30 + i * 36;
-      return {
-        label: d.label,
-        y,
-        marketPct: d.marketPct,
-        coverPct: d.coverPct,
-        marketW: +((d.marketPct / 100) * maxBarW).toFixed(2),
-        coverW: +((d.coverPct / 100) * maxBarW).toFixed(2),
-      };
-    });
+    this.gapsData = [];
+    this.gapsChart = [];
 
     this.radarChart = this.buildRadarChart();
     this.barData = [];
@@ -325,6 +208,8 @@ export class DashboardAdmin implements OnInit, OnDestroy {
     this.fetchAndUpdateFiliereChart();
     this.fetchAndUpdateEmployabilityDistribution();
     this.fetchAndUpdateAtsDistribution();
+    void this.fetchTopGaps();
+    void this.fetchRecentStudents();
     this.setupRealtimeSubscription();
   }
 
@@ -504,6 +389,86 @@ export class DashboardAdmin implements OnInit, OnDestroy {
     }
   }
 
+  async fetchTopGaps(): Promise<void> {
+    this.topGapsLoading = true;
+    this.topGapsError = null;
+    try {
+      const url = `${environment.apiUrl}/admin/dashboard/top-gaps`;
+      const response = await firstValueFrom(
+        this.http.get<{ data?: Array<{ label: string; marketPct: number; coverPct: number; count: number }> } | Array<{ label: string; marketPct: number; coverPct: number; count: number }>>(url),
+      );
+      const items = Array.isArray(response)
+        ? response
+        : (response as { data?: any[] })?.data ?? [];
+      this.gapsData = (items ?? []).map((item: any) => ({
+        label: String(item?.label ?? '').trim() || '—',
+        marketPct: Number(item?.marketPct ?? 0),
+        coverPct: Number(item?.coverPct ?? 0),
+      }));
+      this.rebuildGapsChart();
+    } catch (err) {
+      console.error('Failed to load top gaps:', err);
+      this.topGapsError = 'Impossible de charger les gaps marché.';
+      this.gapsData = [];
+      this.gapsChart = [];
+    } finally {
+      this.topGapsLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  async fetchRecentStudents(): Promise<void> {
+    this.recentStudentsLoading = true;
+    this.recentStudentsError = null;
+    try {
+      const url = `${environment.apiUrl}/admin/dashboard/students?limit=5`;
+      const response = await firstValueFrom(
+        this.http.get<{ data?: any[] } | any[]>(url),
+      );
+      const rows = Array.isArray(response)
+        ? response
+        : (response as { data?: any[] })?.data ?? [];
+      this.recentStudents = (rows ?? []).map((row: any) => ({
+        name: String(row?.name ?? '').trim() || 'Étudiant',
+        id: String(row?.id ?? '').trim(),
+        speciality: String(row?.speciality ?? '').trim() || 'Non renseignée',
+        score: Number(row?.score ?? 0),
+        employabilityScore: Number(row?.employabilityScore ?? 0),
+        details: {
+          matchings: Array.isArray(row?.details?.matchings) ? row.details.matchings : [],
+          gaps: Array.isArray(row?.details?.gaps) ? row.details.gaps : [],
+          recommendations: Array.isArray(row?.details?.recommendations) ? row.details.recommendations : [],
+        },
+      }));
+    } catch (err) {
+      console.error('Failed to load recent students:', err);
+      this.recentStudentsError = 'Impossible de charger la liste des étudiants.';
+      this.recentStudents = [];
+    } finally {
+      this.recentStudentsLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  private rebuildGapsChart(): void {
+    const maxBarW = 420;
+    const barX = 200;
+    const labelX = 190;
+    this.gapsChart = (this.gapsData ?? []).map((d, i) => {
+      const y = 30 + i * 36;
+      return {
+        label: d.label,
+        y,
+        labelX,
+        barX,
+        marketPct: d.marketPct,
+        coverPct: d.coverPct,
+        marketW: +((d.marketPct / 100) * maxBarW).toFixed(2),
+        coverW: +((d.coverPct / 100) * maxBarW).toFixed(2),
+      };
+    });
+  }
+
   private calculateAtsDistribution(data: any[]): number[] {
     const dist = [0, 0, 0, 0, 0];
     if (!data) return dist;
@@ -562,6 +527,8 @@ export class DashboardAdmin implements OnInit, OnDestroy {
       .channel('public:cv_submissions')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cv_submissions' }, payload => {
         this.fetchAndUpdateAtsDistribution();
+        void this.fetchRecentStudents();
+        void this.fetchTopGaps();
       })
       .subscribe();
   }

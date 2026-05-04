@@ -88,40 +88,12 @@
 
     </div>
 
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.1rem; align-items: stretch;">
+    <div class="dashboard-stack">
 
-        <!-- ── Top Gaps Chart (replaces radar) ── -->
-        <div class="formations-section" style="margin: 0; height: 100%;">
-            <div class="panel-header">
-                <h2>Top Gaps : Marché vs Formation</h2>
-            </div>
-            <div class="gaps-chart-container" style="padding: 1.2rem 0;">
-                <svg viewBox="0 0 520 260" class="gaps-svg" xmlns="http://www.w3.org/2000/svg">
-                    <ng-container *ngFor="let g of gapsChart; let i = index">
-                        <text x="10" [attr.y]="g.y + 6" font-size="12" fill="#44546a">{{ g.label }}</text>
-                        <rect [attr.x]="120" [attr.y]="g.y - 10" [attr.width]="g.marketW" [attr.height]="12" rx="6" [attr.fill]="marketColor" />
-                        <rect [attr.x]="120" [attr.y]="g.y + 6" [attr.width]="g.coverW" [attr.height]="12" rx="6" [attr.fill]="coverageColor" />
-                        <text [attr.x]="120 + g.marketW + 8" [attr.y]="g.y + 0" font-size="11" fill="#1a1a2e">{{ g.marketPct }}%</text>
-                        <text [attr.x]="120 + g.coverW + 8" [attr.y]="g.y + 16" font-size="11" fill="#1a1a2e">{{ g.coverPct }}%</text>
-                    </ng-container>
-                </svg>
-                <div style="display:flex; gap:1.2rem; align-items:center; margin-top:1rem;">
-                    <div style="display:flex; align-items:center; gap:0.5rem;">
-                        <span style="width:18px;height:12px;background:#1e2d5a;display:inline-block;border-radius:2px"></span>
-                        <div style="font-size:0.95rem;color:#1a1a2e">Demande marché %</div>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.5rem;">
-                        <span style="width:18px;height:12px;background:#d97706;display:inline-block;border-radius:2px"></span>
-                        <div style="font-size:0.95rem;color:#1a1a2e">Couverture ISGIS %</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ── Répartition par Domaine (moved) ── -->
-        <div class="chart-card" style="margin: 0; height: 100%;">
+        <!-- ── Répartition par Domaine ── -->
+        <div class="chart-card domain-card">
             <h3 class="chart-title">Répartition par<br />Domaine</h3>
-            <div class="donut-container" style="flex: 1; justify-content: center; margin-top: 3rem;">
+            <div class="donut-container" style="flex: 1; justify-content: center; margin-top: 1.5rem;">
                 <svg viewBox="0 0 200 200" class="donut-svg" xmlns="http://www.w3.org/2000/svg">
           <circle *ngFor="let seg of domainPieSegments" cx="100" cy="100" r="50" fill="none" [attr.stroke]="seg.color"
             stroke-width="100" [attr.stroke-dasharray]="seg.dashArray" [attr.stroke-dashoffset]="seg.dashOffset"
@@ -145,7 +117,10 @@
             <h3 class="table-title">Liste des étudiants</h3>
             <button class="table-panel-link" type="button" (click)="openStudentsPopup()">Voir tout →</button>
         </div>
-        <table class="students-table">
+        <p *ngIf="recentStudentsLoading" style="font-size: 0.95rem; color:#44546a; padding: 0.4rem 0.8rem;">Chargement…</p>
+        <p *ngIf="recentStudentsError && !recentStudentsLoading" style="font-size: 0.95rem; color:#7B1212; padding: 0.4rem 0.8rem;">{{ recentStudentsError }}</p>
+        <p *ngIf="!recentStudentsLoading && !recentStudentsError && recentStudents.length === 0" style="font-size: 0.95rem; color:#44546a; padding: 0.4rem 0.8rem;">Aucun étudiant à afficher.</p>
+        <table *ngIf="recentStudents.length > 0" class="students-table">
             <thead>
                 <tr>
                     <th>Étudiant</th>

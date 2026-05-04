@@ -18,6 +18,28 @@
     padding: 28px 20px 40px;
 }
 
+.status-message {
+    margin: 24px 0;
+    padding: 14px 18px;
+    border-radius: 12px;
+    background: #fbf6ec;
+    border: 1px solid #e9e2d2;
+    color: #6b6760;
+    font-size: 14px;
+}
+
+.status-message.error {
+    background: #fcecec;
+    border-color: #f1c2c2;
+    color: #7b1212;
+}
+
+.empty-hint {
+    margin: 18px 0 0;
+    color: #6b6760;
+    font-size: 13px;
+}
+
 .page-header {
     display: flex;
     align-items: flex-start;

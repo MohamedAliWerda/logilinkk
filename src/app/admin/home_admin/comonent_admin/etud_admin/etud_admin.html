@@ -21,6 +21,13 @@
             <h3 class="table-panel-title">Liste des étudiants</h3>
         </div>
 
+        @if (loading) {
+        <p style="padding: 0.6rem 1rem; color:#44546a; font-size: 0.95rem;">Chargement…</p>
+        }
+        @if (errorMessage && !loading) {
+        <p style="padding: 0.6rem 1rem; color:#7B1212; font-size: 0.95rem;">{{ errorMessage }}</p>
+        }
+
         <table class="dashboard-styled-table">
             <thead>
                 <tr>

@@ -32,9 +32,12 @@ export class Dashboard {
   employabilityScoreFromApi: number | null = null;
   private matchingAnalysis: MatchingAnalysisResponse | null = null;
   private matchingTrace: MatchingAnalysisTraceResponse | null = null;
-  private targetMetierLabel = '';
-  private compatibleMetiersCount = 0;
-  private targetMetierGapsCount = 0;
+  targetMetierLabel = '';
+  targetMetierCoveragePct: number | null = null;
+  compatibleMetiersCount = 0;
+  targetMetierGapsCount = 0;
+  compatibleMetiers: Array<{ name: string; domain: string; coveragePct: number; avgScore: number }> = [];
+  gapItems: Array<{ competence: string; metier: string; domain: string; similarityScore: number }> = [];
   private readonly matchStatusThreshold = 0.6;
   private metierLookupLoaded = false;
   private readonly metierLabelById = new Map<string, string>();
@@ -128,9 +131,92 @@ export class Dashboard {
 
   private async refreshMatchingKpis(): Promise<void> {
     await this.resolveTargetMetierLabel();
+    this.targetMetierCoveragePct = this.resolveTargetMetierCoveragePct();
     this.compatibleMetiersCount = this.countCompatibleMetiers();
     this.targetMetierGapsCount = this.countTargetMetierGaps();
+    this.compatibleMetiers = this.buildCompatibleMetiers();
+    this.gapItems = this.buildGapItems();
     this.recomputeStats();
+  }
+
+  private resolveTargetMetierCoveragePct(): number | null {
+    const targetNormalized = this.normalizeMetierLabel(this.targetMetierLabel);
+    if (!targetNormalized) return null;
+
+    const traceRows = this.matchingTrace?.metierScores ?? [];
+    if (traceRows.length > 0) {
+      const candidate = traceRows.find((row) => this.metierMatchesRef(row.metierName, targetNormalized));
+      if (candidate) {
+        const pct = Number(candidate.coveragePct);
+        return Number.isFinite(pct) ? Number(Math.max(0, Math.min(100, pct)).toFixed(1)) : null;
+      }
+    }
+
+    const ranking = this.matchingAnalysis?.metierRanking ?? [];
+    const candidate = ranking.find((row) => this.metierMatchesRef(row.metier, targetNormalized));
+    if (!candidate) return null;
+
+    const pct = Number(candidate.coveragePct);
+    return Number.isFinite(pct) ? Number(Math.max(0, Math.min(100, pct)).toFixed(1)) : null;
+  }
+
+  private buildCompatibleMetiers(): Array<{ name: string; domain: string; coveragePct: number; avgScore: number }> {
+    const traceRows = this.matchingTrace?.metierScores ?? [];
+    const analysisRows = this.matchingAnalysis?.metierRanking ?? [];
+
+    const rows = traceRows.length > 0
+      ? traceRows.map((row) => ({
+          name: row.metierName,
+          domain: row.domaineName,
+          coveragePct: Number(row.coveragePct),
+          avgScore: Number(row.avgScore),
+        }))
+      : analysisRows.map((row) => ({
+          name: row.metier,
+          domain: row.domaine,
+          coveragePct: Number(row.coveragePct),
+          avgScore: Number(row.avgScore),
+        }));
+
+    return rows
+      .filter((row) => row.name && Number.isFinite(row.coveragePct) && row.coveragePct >= 50)
+      .map((row) => ({
+        ...row,
+        coveragePct: Number(Math.max(0, Math.min(100, row.coveragePct)).toFixed(1)),
+        avgScore: Number.isFinite(row.avgScore) ? Number(Math.max(0, Math.min(1, row.avgScore)).toFixed(2)) : 0,
+      }))
+      .sort((a, b) => b.coveragePct - a.coveragePct || a.name.localeCompare(b.name));
+  }
+
+  private buildGapItems(): Array<{ competence: string; metier: string; domain: string; similarityScore: number }> {
+    const traceRows = this.matchingTrace?.competenceResults ?? [];
+    const rows = traceRows.length > 0
+      ? traceRows
+          .filter((row) => row.status === 'gap')
+          .map((row) => ({
+            competence: String(row.competenceName ?? '').trim(),
+            metier: String(row.metierName ?? '').trim(),
+            domain: String(row.domaineName ?? '').trim(),
+            similarityScore: Number(row.similarityScore),
+          }))
+      : (this.matchingAnalysis?.gaps?.length ? this.matchingAnalysis?.gaps : this.matchingAnalysis?.topMetierGaps ?? [])
+          .map((row) => ({
+            competence: String(row.refCompetence ?? '').trim(),
+            metier: String(row.refMetier ?? '').trim(),
+            domain: String(row.refDomaine ?? '').trim(),
+            similarityScore: Number(row.similarityScore),
+          }));
+
+    const unique = new Map<string, { competence: string; metier: string; domain: string; similarityScore: number }>();
+    for (const row of rows) {
+      if (!row.competence) continue;
+      const key = `${row.competence}::${row.metier}`.toLowerCase();
+      if (!unique.has(key)) {
+        unique.set(key, row);
+      }
+    }
+
+    return Array.from(unique.values());
   }
 
   private normalizeMetierId(value: unknown): string {
@@ -606,6 +692,13 @@ export class Dashboard {
     return Math.round((gap / s.required) * 100);
   }
 
+  gapSeverityPercent(score: number): number {
+    const value = Number(score);
+    if (!Number.isFinite(value)) return 0;
+    const normalized = value > 1 ? value / 100 : value;
+    return Math.round((1 - Math.max(0, Math.min(1, normalized))) * 100);
+  }
+
   /** Recompute KPI stat values to reflect current data. */
   recomputeStats() {
     // ATS score: average coverage of required skill levels
@@ -640,6 +733,10 @@ export class Dashboard {
 
   setMenu(menu: string) {
     this.activeMenu = menu;
+  }
+
+  goToMatching(): void {
+    this.router.navigate(['/home/matching']);
   }
 
   goToProfil() {

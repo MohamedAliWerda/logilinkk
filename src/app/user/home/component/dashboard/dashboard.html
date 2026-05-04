@@ -46,21 +46,22 @@
             </div>
         </div>
 
-        <!-- Gaps vs Matching panel -->
+        <!-- Target metier summary -->
         <div class="panel graph-card">
             <div class="panel-header">
-                <h2>Gaps vs Matching</h2>
-                <div></div>
+                <h2>Metier vise</h2>
+                <button class="panel-link" type="button" (click)="goToMatching()">Voir tout →</button>
             </div>
-            <div class="graph-list">
-                <div class="graph-row" *ngFor="let s of skills | slice:0:5">
-                    <div class="g-label">{{ s.name }}</div>
-                    <div class="g-bars">
-                        <div class="g-match" [style.width.%]="getAvgMatchScore()"></div>
-                        <div class="g-gap" [style.width.%]="getGapPercent(s)"></div>
-                    </div>
-                    <div class="g-values"><span class="g-match-val">{{ getAvgMatchScore() }}%</span></div>
+            <div class="target-metier">
+                <div>
+                    <div class="target-metier-label">{{ targetMetierLabel || 'Non renseigne' }}</div>
+                    <div class="target-metier-sub">Metier vise du profil</div>
                 </div>
+                <div class="target-metier-score" *ngIf="targetMetierCoveragePct !== null">{{ targetMetierCoveragePct }}%</div>
+            </div>
+            <div class="target-metier-meta">
+                <span>{{ compatibleMetiersCount }} metiers compatibles</span>
+                <span>{{ targetMetierGapsCount }} gaps pour ce metier</span>
             </div>
         </div>
 
@@ -71,42 +72,41 @@
             <div class="panel">
                 <div class="panel-header">
                     <h2>Métiers compatibles</h2>
-                    <button class="panel-link" (click)="setMenu('matching')">Voir tout →</button>
+                    <button class="panel-link" type="button" (click)="goToMatching()">Voir tout →</button>
                 </div>
                 <ul class="mini-list">
-                    <li class="mini-item" *ngFor="let m of matchingCompanies | slice:0:5">
+                    <li class="mini-item" *ngFor="let m of compatibleMetiers | slice:0:5">
                         <div class="mini-icon" [title]="m.name">{{ m.name.split(' ').map(x=>x[0]).slice(0,2).join('') }}</div>
                         <div class="mini-content">
                             <div class="mini-title">{{ m.name }}</div>
-                            <div class="mini-meta">{{ m.sector }} • {{ m.location }}</div>
+                            <div class="mini-meta">{{ m.domain || 'Domaine non renseigne' }}</div>
                         </div>
                         <div class="mini-right">
-                            <span class="score-badge">{{ m.score }}%</span>
+                            <span class="score-badge">{{ m.coveragePct }}%</span>
                         </div>
                     </li>
                 </ul>
+                <p class="empty-state" *ngIf="compatibleMetiers.length === 0">Aucun metier compatible trouve.</p>
             </div>
 
             <div class="panel">
                 <div class="panel-header">
                     <h2>Gaps général</h2>
-                    <a class="panel-link" href="#">Détails →</a>
+                    <button class="panel-link" type="button" (click)="goToMatching()">Voir tout →</button>
                 </div>
                 <ul class="mini-list">
-                    <li class="mini-item" *ngFor="let s of skills | slice:0:5">
-                        <div class="mini-icon small">S</div>
+                    <li class="mini-item" *ngFor="let g of gapItems | slice:0:5">
+                        <div class="mini-icon small">G</div>
                         <div class="mini-content">
-                            <div class="mini-title">{{ s.name }}</div>
-                            <div class="mini-meta">Manquant</div>
+                            <div class="mini-title">{{ g.competence }}</div>
+                            <div class="mini-meta">{{ g.metier }} • {{ g.domain }}</div>
                             <div class="gap-bar">
-                                <div class="gap-fill" [style.width.%]="getGapPercent(s)"></div>
+                                <div class="gap-fill" [style.width.%]="gapSeverityPercent(g.similarityScore)"></div>
                             </div>
-                        </div>
-                        <div class="mini-right">
-                            <a class="panel-link" href="#">Voir →</a>
                         </div>
                     </li>
                 </ul>
+                <p class="empty-state" *ngIf="gapItems.length === 0">Aucun gap disponible pour le moment.</p>
             </div>
 
             <div class="panel">
