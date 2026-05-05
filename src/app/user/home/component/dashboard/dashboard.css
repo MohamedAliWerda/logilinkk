@@ -147,6 +147,49 @@
     height: 100%;
 }
 
+.target-metier {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.8rem 0.9rem;
+    border-radius: 0.9rem;
+    background: #f6f7fb;
+    border: 1px solid #e7ebf3;
+}
+
+.target-metier-label {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #1a1a2e;
+}
+
+.target-metier-sub {
+    font-size: 0.82rem;
+    color: #6b7280;
+    margin-top: 0.2rem;
+}
+
+.target-metier-score {
+    min-width: 64px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: #1a1a2e;
+    padding: 0.4rem 0.7rem;
+    border-radius: 999px;
+    background: #fff3e0;
+    border: 1px solid #f9ddb2;
+}
+
+.target-metier-meta {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
 .score-card,
 .employ-panel {
     background: linear-gradient(180deg, #ffffff 0%, #fbfbfb 100%);
@@ -158,6 +201,11 @@
 
 .score-header.panel-header.global-panel-banner {
     margin-bottom: 1rem;
+}
+
+.empty-state {
+    font-size: 0.85rem;
+    color: #8a94a6;
 }
 
 

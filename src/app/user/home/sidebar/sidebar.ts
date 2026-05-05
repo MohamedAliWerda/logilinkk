@@ -91,6 +91,17 @@ export class Sidebar implements OnInit, OnDestroy {
       </svg>`,
     },
     {
+    key: 'offres-emp',
+    label: "Offres d'emploi",
+    route: '/home/offres-emp',
+    exact: false,
+    icon: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2"/>
+      <path d="M16 3H8L6 7h12l-2-4z"/>
+    </svg>`,
+  },
+    {
       key: 'profil',
       label: 'Profil',
       route: '/home/profil',

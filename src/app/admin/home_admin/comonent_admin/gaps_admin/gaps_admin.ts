@@ -1,5 +1,77 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { environment } from '../../../../../environments/environment';
+
+type ViewMode = 'cohort' | 'student';
+type SkillStatus = 'Aligné' | 'Partiel' | 'Gap fort' | 'Absente';
+
+interface SkillItem {
+  label: string;
+  acquis: number;
+  requis: number;
+  status: SkillStatus;
+  gap: number;
+  count: number;
+}
+
+interface PriorityItem {
+  label: string;
+  domain: string;
+  count: number;
+  status: SkillStatus;
+  statusClass: string;
+  gap: number;
+}
+
+interface StudentItem {
+  authId: string;
+  initials: string;
+  name: string;
+  pct: number;
+  gaps: number;
+  color: string;
+  bg: string;
+  fg: string;
+  marketTarget: string;
+  cohortRank: number;
+}
+
+interface StudentDetailItem extends StudentItem {
+  strengths: string[];
+  watchouts: string[];
+  nextSteps: string[];
+  skillFocus: Array<{
+    label: string;
+    acquis: number;
+    requis: number;
+    status: SkillStatus;
+  }>;
+}
+
+interface JobItem {
+  label: string;
+  pct: number;
+  tone: 'good' | 'warn' | 'alert';
+}
+
+interface CategoryDescriptor {
+  key: string;
+  label: string;
+}
+
+interface GapsDashboardPayload {
+  cohortLabel: string;
+  totalStudents: number;
+  kpis: Array<{ label: string; value: string; note: string; tone: string }>;
+  tabs: CategoryDescriptor[];
+  skillCategories: Record<string, SkillItem[]>;
+  students: StudentItem[];
+  studentDetails: StudentDetailItem[];
+  priorityItems: PriorityItem[];
+  jobFit: JobItem[];
+}
 
 @Component({
   selector: 'app-gaps-admin',
@@ -8,71 +80,109 @@ import { CommonModule } from '@angular/common';
   templateUrl: './gaps_admin.html',
   styleUrl: './gaps_admin.css'
 })
-export class GapsAdmin {
-  // Chart 1: Profil -> Marché
-  adequationMetier = [
-    { label: 'Resp. logistique', score: 82, status: 'Aligné', color: '#5dbf7a' },
-    { label: 'Supply chain analyst', score: 68, status: 'Partiel', color: '#e07800' },
-    { label: 'Chef de projet TL', score: 65, status: 'Partiel', color: '#e07800' },
-    { label: 'Coordinateur I/E', score: 52, status: 'Gap fort', color: '#e06456' },
-    { label: 'Consultant TMS', score: 38, status: 'Gap fort', color: '#e06456' },
-    { label: 'Resp. entrepôt', score: 35, status: 'Gap fort', color: '#e06456' },
-  ];
+export class GapsAdmin implements OnInit {
+  viewMode: ViewMode = 'cohort';
+  selectedCategory = '';
+  selectedStudentIndex = 0;
 
-  gapsBloquants = [
-    { label: 'TMS / WMS', value: 4.5, color: '#e06456' },
-    { label: 'Data analytics', value: 3.5, color: '#e07800' },
-    { label: 'Anglais pro', value: 3.5, color: '#e07800' },
-    { label: 'Lean management', value: 2, color: '#5baddb' },
-    { label: 'Multimodal', value: 2, color: '#5baddb' },
-    { label: 'Réglementation', value: 1, color: '#5baddb' },
-  ];
+  loading = true;
+  errorMessage: string | null = null;
 
-  // Chart 2: Profil -> Compétences
-  compTech = [
-    { label: 'TMS / WMS', acquis: 28, requis: 85, status: 'Absente', gap: -57 },
-    { label: 'Multimodal', acquis: 55, requis: 85, status: 'Insuffisante', gap: -30 },
-    { label: 'Data supply chain', acquis: 32, requis: 80, status: 'Absente', gap: -48 },
-    { label: 'Gestion des risques', acquis: 48, requis: 75, status: 'Insuffisante', gap: -27 },
-  ];
+  cohortLabel = '';
+  totalStudents = 0;
+  kpis: Array<{ label: string; value: string; note: string; tone: string }> = [];
+  tabs: CategoryDescriptor[] = [];
+  skillCategories: Record<string, SkillItem[]> = {};
+  currentSkills: SkillItem[] = [];
+  students: StudentItem[] = [];
+  studentDetails: StudentDetailItem[] = [];
+  priorityItems: PriorityItem[] = [];
+  jobFit: JobItem[] = [];
 
-  compOrga = [
-    { label: 'Planification', acquis: 50, requis: 80, status: 'Insuffisante', gap: -30 },
-    { label: 'Gestion du temps', acquis: 70, requis: 85, status: 'Insuffisante', gap: -15 },
-    { label: 'Suivi de projet', acquis: 40, requis: 75, status: 'Insuffisante', gap: -35 },
-    { label: 'Coordination', acquis: 55, requis: 70, status: 'Insuffisante', gap: -15 },
-  ];
+  readonly statusClasses: Record<SkillStatus, string> = {
+    'Aligné': 'status-aligne',
+    'Partiel': 'status-partiel',
+    'Gap fort': 'status-gap',
+    'Absente': 'status-absente',
+  };
 
-  compComp = [
-    { label: 'Leadership', acquis: 50, requis: 80, status: 'Insuffisante', gap: -30 },
-    { label: 'Travail en équipe', acquis: 75, requis: 80, status: 'Aligné', gap: -5 },
-    { label: 'Gestion de stress', acquis: 45, requis: 75, status: 'Insuffisante', gap: -30 },
-    { label: 'Adaptabilité', acquis: 65, requis: 70, status: 'Insuffisante', gap: -5 },
-  ];
+  constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
-  compPhys = [
-    { label: 'Endurance', acquis: 75, requis: 70, status: 'Aligné', gap: '+5' },
-    { label: 'Force manuelle', acquis: 60, requis: 80, status: 'Insuffisante', gap: -20 },
-    { label: 'Posture', acquis: 80, requis: 80, status: 'Aligné', gap: 0 },
-    { label: 'Dextérité', acquis: 55, requis: 75, status: 'Insuffisante', gap: -20 },
-  ];
+  ngOnInit(): void {
+    void this.loadDashboard();
+  }
 
-  // Chart 3: Profil -> Modules
-  couvertureModules = [
-    { label: 'LOG101 - Fondamentaux', valeur: 55 },
-    { label: 'TRA201 - Multimodal', valeur: 72 },
-    { label: 'GES301 - Opérations', valeur: 48 },
-    { label: 'INF203 - SI logistiques', valeur: 80 },
-    { label: 'ECO102 - Économie TL', valeur: 38 },
-  ];
+  async loadDashboard(): Promise<void> {
+    this.loading = true;
+    this.errorMessage = null;
+    try {
+      const url = `${environment.apiUrl}/admin/gaps`;
+      const response = await firstValueFrom(this.http.get<{ data?: GapsDashboardPayload } | GapsDashboardPayload>(url));
+      const payload = (response as { data?: GapsDashboardPayload })?.data ?? (response as GapsDashboardPayload);
+      this.applyPayload(payload);
+    } catch (err) {
+      console.error('Failed to load gaps dashboard:', err);
+      this.errorMessage = 'Impossible de charger les données pour le moment.';
+      this.applyPayload(this.emptyPayload());
+    } finally {
+      this.loading = false;
+      this.cdr.detectChanges();
+    }
+  }
 
-  balanceModules = [
-    { label: 'LOG101 - Fondamentaux', theorie: 75, pratique: 25 },
-    { label: 'TRA201 - Multimodal', theorie: 60, pratique: 40 },
-    { label: 'GES301 - Opérations', theorie: 80, pratique: 20 },
-    { label: 'INF203 - SI logistiques', theorie: 50, pratique: 50 },
-    { label: 'ECO102 - Économie TL', theorie: 90, pratique: 10 },
-  ];
+  private applyPayload(payload: GapsDashboardPayload): void {
+    this.cohortLabel = payload.cohortLabel;
+    this.totalStudents = payload.totalStudents;
+    this.kpis = payload.kpis ?? [];
+    this.tabs = payload.tabs ?? [];
+    this.skillCategories = payload.skillCategories ?? {};
+    this.students = payload.students ?? [];
+    this.studentDetails = payload.studentDetails ?? [];
+    this.priorityItems = payload.priorityItems ?? [];
+    this.jobFit = payload.jobFit ?? [];
 
-  constructor() {}
+    const firstTab = this.tabs[0];
+    this.selectedCategory = firstTab ? firstTab.key : '';
+    this.currentSkills = firstTab ? this.skillCategories[firstTab.key] ?? [] : [];
+
+    this.selectedStudentIndex = 0;
+  }
+
+  private emptyPayload(): GapsDashboardPayload {
+    return {
+      cohortLabel: '',
+      totalStudents: 0,
+      kpis: [],
+      tabs: [],
+      skillCategories: {},
+      students: [],
+      studentDetails: [],
+      priorityItems: [],
+      jobFit: [],
+    };
+  }
+
+  setCategory(key: string): void {
+    this.selectedCategory = key;
+    this.currentSkills = this.skillCategories[key] ?? [];
+  }
+
+  setViewMode(value: ViewMode): void {
+    this.viewMode = value;
+  }
+
+  setStudent(index: number): void {
+    if (index < 0 || index >= this.studentDetails.length) {
+      return;
+    }
+    this.selectedStudentIndex = index;
+  }
+
+  get selectedStudent(): StudentDetailItem | null {
+    return this.studentDetails[this.selectedStudentIndex] ?? null;
+  }
+
+  statusClassFor(status: SkillStatus): string {
+    return this.statusClasses[status] ?? '';
+  }
 }

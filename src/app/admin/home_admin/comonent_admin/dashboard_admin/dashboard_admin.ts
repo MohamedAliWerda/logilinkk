@@ -1,6 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { SupabaseService } from '../../../../services/supabase.service';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-dashboard-admin',
@@ -8,14 +12,14 @@ import { Router } from '@angular/router';
   templateUrl: './dashboard_admin.html',
   styleUrl: './dashboard_admin.css',
 })
-export class DashboardAdmin {
+export class DashboardAdmin implements OnInit, OnDestroy {
   adminName = 'Nour';
   sidebarCollapsed = false;
   activeMenu = 'dashboard';
   showStudentsPopup = false;
   showStudentProfilePopup = false;
   readonly barW = 76;
-  activeScoreFilter: 'synergy' | 'cvAts' | 'employability' = 'synergy';
+  activeScoreFilter: 'cvAts' | 'employability' = 'cvAts';
 
   selectedStudent: {
     name: string;
@@ -31,16 +35,13 @@ export class DashboardAdmin {
   } | null = null;
 
   stats = [
-    { value: '247', label: 'Étudiants inscrits' },
-    { value: '74%', label: "Taux d'employabilité" },
-    { value: '81%', label: 'Taux Synergie' },
-    { value: '36', label: 'Nombre de Modules' },
+    { value: '...', label: 'Étudiants inscrits' },
+    { value: '...', label: "Taux d'employabilité" },
+    { value: '...', label: "Nombre d'étudiants avec profil scoré" },
+    { value: '...', label: 'Nombre de matière' },
   ];
 
-  donutLegend = [
-    { color: '#1e2d5a', label: 'Logistique', pct: 0.6 },
-    { color: '#d97706', label: 'Transport', pct: 0.4 },
-  ];
+  donutLegend: { color: string; label: string; pct: number }[] = [];
 
   domainPieLegend: { color: string; label: string; pct: number }[] = [
     { color: '#e06456', label: 'SCM & Achat', pct: 0 },
@@ -53,131 +54,24 @@ export class DashboardAdmin {
   radarAcq = [42, 55, 65, 70];
   radarChart: any;
 
-  recentStudents = [
-    {
-      name: 'Ahmed Ben Ali', id: 'ISGI2025-042', speciality: 'Logistique', score: 85, employabilityScore: 81,
-      details: {
-        matchings: ['Coordinateur Supply Chain', 'Analyste Flux Logistiques'],
-        gaps: ['Optimisation KPI transport', 'Gestion avancée WMS'],
-        recommendations: ['Atelier KPI Logistique', "Projet terrain d'entrepôt"],
-      },
-    },
-    {
-      name: 'Fatma Trabelsi', id: 'ISGI2025-043', speciality: 'Transport', score: 78, employabilityScore: 75,
-      details: {
-        matchings: ['Agent Exploitation Transport', 'Planificatrice Tournées'],
-        gaps: ['Modélisation des coûts', 'Suivi SLA client'],
-        recommendations: ['Formation TMS avancée', 'Simulation SLA'],
-      },
-    },
-    {
-      name: 'Mohamed Karray', id: 'ISGI2025-044', speciality: 'Supply Chain', score: 91, employabilityScore: 87,
-      details: {
-        matchings: ['Assistant Demand Planner', 'Junior Supply Analyst'],
-        gaps: ['Data visualisation', 'Négociation fournisseurs'],
-        recommendations: ['Certif BI fundamentals', 'Cas pratique sourcing'],
-      },
-    },
-    {
-      name: 'Sarra Gharbi', id: 'ISGI2025-045', speciality: 'Logistique', score: 67, employabilityScore: 69,
-      details: {
-        matchings: ['Assistante Stock', 'Opératrice Flux'],
-        gaps: ['Tableaux de bord', 'Gestion des retours'],
-        recommendations: ['Bootcamp Excel opérationnel', 'Module Reverse Logistics'],
-      },
-    },
-    {
-      name: 'Youssef Hammami', id: 'ISGI2025-046', speciality: 'Commerce Int.', score: 74, employabilityScore: 72,
-      details: {
-        matchings: ['Assistant Import/Export', 'Coordinateur Transit Junior'],
-        gaps: ['Documentation douanière', 'Incoterms avancés'],
-        recommendations: ['Atelier Douane', 'Préparation certif. Incoterms'],
-      },
-    },
-  ];
+  recentStudents: Array<{
+    name: string;
+    id: string;
+    speciality: string;
+    score: number;
+    employabilityScore: number;
+    details: {
+      matchings: string[];
+      gaps: string[];
+      recommendations: string[];
+    };
+  }> = [];
 
-  allStudents = [
-    {
-      name: 'Ahmed Ben Ali', id: 'ISGI2025-042', speciality: 'Logistique', score: 85, employabilityScore: 81,
-      details: {
-        matchings: ['Coordinateur Supply Chain', 'Analyste Flux Logistiques'],
-        gaps: ['Optimisation KPI transport', 'Gestion avancée WMS'],
-        recommendations: ['Atelier KPI Logistique', "Projet terrain d'entrepôt"],
-      },
-    },
-    {
-      name: 'Fatma Trabelsi', id: 'ISGI2025-043', speciality: 'Transport', score: 78, employabilityScore: 75,
-      details: {
-        matchings: ['Agent Exploitation Transport', 'Planificatrice Tournées'],
-        gaps: ['Modélisation des coûts', 'Suivi SLA client'],
-        recommendations: ['Formation TMS avancée', 'Simulation SLA'],
-      },
-    },
-    {
-      name: 'Mohamed Karray', id: 'ISGI2025-044', speciality: 'Supply Chain', score: 91, employabilityScore: 87,
-      details: {
-        matchings: ['Assistant Demand Planner', 'Junior Supply Analyst'],
-        gaps: ['Data visualisation', 'Négociation fournisseurs'],
-        recommendations: ['Certif BI fundamentals', 'Cas pratique sourcing'],
-      },
-    },
-    {
-      name: 'Sarra Gharbi', id: 'ISGI2025-045', speciality: 'Logistique', score: 67, employabilityScore: 69,
-      details: {
-        matchings: ['Assistante Stock', 'Opératrice Flux'],
-        gaps: ['Tableaux de bord', 'Gestion des retours'],
-        recommendations: ['Bootcamp Excel opérationnel', 'Module Reverse Logistics'],
-      },
-    },
-    {
-      name: 'Youssef Hammami', id: 'ISGI2025-046', speciality: 'Commerce Int.', score: 74, employabilityScore: 72,
-      details: {
-        matchings: ['Assistant Import/Export', 'Coordinateur Transit Junior'],
-        gaps: ['Documentation douanière', 'Incoterms avancés'],
-        recommendations: ['Atelier Douane', 'Préparation certif. Incoterms'],
-      },
-    },
-    {
-      name: 'Nour Ben Hassen', id: 'ISGI2025-047', speciality: 'Transport', score: 83, employabilityScore: 80,
-      details: {
-        matchings: ['Planificatrice Transport', 'Assistante Affrètement'],
-        gaps: ['Pilotage KPI ponctualité', 'Gestion incidents route'],
-        recommendations: ['Module dispatching avancé', 'Cas incidents multi-sites'],
-      },
-    },
-    {
-      name: 'Imen Chahed', id: 'ISGI2025-048', speciality: 'Supply Chain', score: 88, employabilityScore: 86,
-      details: {
-        matchings: ['Supply Planner Junior', 'Analyste Approvisionnement'],
-        gaps: ['Forecasting avancé', 'Contract management'],
-        recommendations: ['Mini-projet S&OP', 'Atelier procurement'],
-      },
-    },
-    {
-      name: 'Walid Jebali', id: 'ISGI2025-049', speciality: 'Logistique', score: 79, employabilityScore: 77,
-      details: {
-        matchings: ['Superviseur Quai Junior', 'Coordinateur Stock'],
-        gaps: ['Lean logistics', 'Analyse ABC/XYZ'],
-        recommendations: ['Formation Lean entrepôt', 'Workshop analyses stocks'],
-      },
-    },
-    {
-      name: 'Rim Khelifi', id: 'ISGI2025-050', speciality: 'Commerce Int.', score: 81, employabilityScore: 79,
-      details: {
-        matchings: ['Assistante Trade Compliance', 'Chargée Export'],
-        gaps: ['Veille réglementaire', 'Négociation internationale'],
-        recommendations: ['Atelier compliance', 'Simulation négociations'],
-      },
-    },
-    {
-      name: 'Marouen Triki', id: 'ISGI2025-051', speciality: 'Transport', score: 72, employabilityScore: 70,
-      details: {
-        matchings: ['Agent Transit', 'Assistant Exploitation'],
-        gaps: ['Suivi performance flotte', 'Plan de charge'],
-        recommendations: ['Module fleet analytics', 'Coaching planification'],
-      },
-    },
-  ];
+  recentStudentsLoading = false;
+  recentStudentsError: string | null = null;
+  topGapsLoading = false;
+  topGapsError: string | null = null;
+
 
   specialityColors: Record<string, { bg: string; color: string }> = {
     'Logistique': { bg: '#fef3e2', color: '#e07800' },
@@ -223,13 +117,13 @@ export class DashboardAdmin {
     this.selectedStudent = null;
   }
 
-  donutSegments: { color: string; dashArray: string; dashOffset: number }[];
+  donutSegments: { color: string; dashArray: string; dashOffset: number }[] = [];
   domainPieSegments: { color: string; dashArray: string; dashOffset: number }[];
   domainPieLabels: { x: number; y: number; text: string; color: string }[];
   marketColor: string;
   coverageColor: string;
   gapsData: { label: string; marketPct: number; coverPct: number }[];
-  gapsChart: { label: string; y: number; marketPct: number; coverPct: number; marketW: number; coverW: number }[];
+  gapsChart: { label: string; y: number; labelX: number; barX: number; marketPct: number; coverPct: number; marketW: number; coverW: number }[];
   barData: {
     range: string;
     labelX: number;
@@ -239,30 +133,22 @@ export class DashboardAdmin {
   yGridLines: { value: number; y: number }[];
   activeSeriesLegend: { label: string; color: string }[];
 
-  private readonly scoreRanges = ['0-20', '20-40', '40-60', '60-80', '80-100'];
-  private readonly cvAtsSeries = [5, 18, 72, 108, 43];
-  private readonly employabilitySeries = [7, 21, 69, 98, 49];
-  private readonly synergySeries = [6, 20, 70, 103, 46];
+  private readonly atsRanges = ['0-20', '20-40', '40-60', '60-80', '80-100'];
+  private readonly employabilityRanges = ['50-60', '60-70', '70-80', '80-90', '90-100'];
+  private cvAtsSeries = [0, 0, 0, 0, 0];
+  private employabilitySeries = [0, 0, 0, 0, 0];
 
-  constructor(private router: Router) {
-    // ── Donut chart ─────────────────────────────────────────────
-    const C = 2 * Math.PI * 70; // ≈ 439.82
-    const rawSegs = [
-      { color: '#1e2d5a', pct: 0.6 },
-      { color: '#d97706', pct: 0.4 },
-    ];
-    let covered = 0;
-    this.donutSegments = rawSegs.map((s) => {
-      const arcLength = +(s.pct * C).toFixed(2);
-      const seg = {
-        color: s.color,
-        dashArray: `${arcLength} ${+C.toFixed(2)}`,
-        dashOffset: +(-covered).toFixed(2),
-      };
-      covered += arcLength;
-      return seg;
-    });
+  private employabilitySubscription: any;
+  private studentsSubscription: any;
+  private matiereSubscription: any;
+  private cvSubscription: any;
 
+  constructor(
+    private router: Router,
+    private supabaseService: SupabaseService,
+    private cdr: ChangeDetectorRef,
+    private http: HttpClient,
+  ) {
     // ── Domain Pie chart ─────────────────────────────────────────────
     const CPie = 2 * Math.PI * 50; // ≈ 314.16
     const rawPieSegs = [
@@ -300,29 +186,11 @@ export class DashboardAdmin {
       cumPct += s.pct;
     }
 
-    // ── Top Gaps chart data (replaces radar visual) ─────────────────
+    // ── Top Gaps chart data — populated from backend ─────────────
     this.marketColor = '#1e2d5a';
     this.coverageColor = '#d97706';
-    this.gapsData = [
-      { label: 'SAP/ERP', marketPct: 92, coverPct: 18 },
-      { label: 'WMS', marketPct: 78, coverPct: 12 },
-      { label: 'Power BI', marketPct: 68, coverPct: 22 },
-      { label: 'RFID/IoT', marketPct: 58, coverPct: 10 },
-      { label: 'TMS', marketPct: 55, coverPct: 20 },
-      { label: 'Lean Mgmt', marketPct: 42, coverPct: 28 },
-    ];
-    const maxBarW = 360;
-    this.gapsChart = this.gapsData.map((d, i) => {
-      const y = 30 + i * 36;
-      return {
-        label: d.label,
-        y,
-        marketPct: d.marketPct,
-        coverPct: d.coverPct,
-        marketW: +((d.marketPct / 100) * maxBarW).toFixed(2),
-        coverW: +((d.coverPct / 100) * maxBarW).toFixed(2),
-      };
-    });
+    this.gapsData = [];
+    this.gapsChart = [];
 
     this.radarChart = this.buildRadarChart();
     this.barData = [];
@@ -330,6 +198,379 @@ export class DashboardAdmin {
     this.yGridLines = [];
     this.activeSeriesLegend = [];
     this.rebuildBarChart();
+  }
+
+  ngOnInit() {
+    this.fetchAndUpdateEmployabilityAverage();
+    this.fetchAndUpdateStudentsCount();
+    this.fetchAndUpdateMatiereCount();
+    this.fetchAndUpdateScoredProfilesCount();
+    this.fetchAndUpdateFiliereChart();
+    this.fetchAndUpdateEmployabilityDistribution();
+    this.fetchAndUpdateAtsDistribution();
+    void this.fetchTopGaps();
+    void this.fetchRecentStudents();
+    this.setupRealtimeSubscription();
+  }
+
+  ngOnDestroy() {
+    if (this.employabilitySubscription) {
+      this.employabilitySubscription.unsubscribe();
+    }
+    if (this.studentsSubscription) {
+      this.studentsSubscription.unsubscribe();
+    }
+    if (this.matiereSubscription) {
+      this.matiereSubscription.unsubscribe();
+    }
+    if (this.cvSubscription) {
+      this.cvSubscription.unsubscribe();
+    }
+  }
+
+  async fetchAndUpdateEmployabilityAverage() {
+    const supabase = this.supabaseService.adminClient;
+    const { data, error } = await supabase
+      .from('score_employabilité')
+      .select('score_final');
+
+    if (error) {
+      console.error('Error fetching score_employabilité:', error);
+      this.updateEmployabilityStat('Erreur');
+      return;
+    }
+
+    if (data && data.length > 0) {
+      const sum = data.reduce((acc, row) => acc + (row.score_final || 0), 0);
+      const average = sum / data.length;
+      const formattedAvg = average.toFixed(2);
+
+      this.updateEmployabilityStat(`${formattedAvg}%`);
+    } else {
+      this.updateEmployabilityStat('0.00%');
+    }
+  }
+
+  async fetchAndUpdateStudentsCount() {
+    const supabase = this.supabaseService.adminClient;
+    const { count, error } = await supabase
+      .from('profils_etudiant')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      console.error('Error fetching profils_etudiant count:', error);
+      this.updateStudentsStat('Erreur');
+      return;
+    }
+
+    this.updateStudentsStat((count || 0).toString());
+  }
+
+  async fetchAndUpdateMatiereCount() {
+    const supabase = this.supabaseService.adminClient;
+    const { count, error } = await supabase
+      .from('matiere')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      console.error('Error fetching matiere count:', error);
+      this.updateMatiereStat('Erreur');
+      return;
+    }
+
+    this.updateMatiereStat((count || 0).toString());
+  }
+
+  async fetchAndUpdateScoredProfilesCount() {
+    const supabase = this.supabaseService.adminClient;
+    const { count, error } = await supabase
+      .from('score_employabilité')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      console.error('Error fetching score_employabilité count:', error);
+      this.updateScoredStat('Erreur');
+      return;
+    }
+
+    this.updateScoredStat((count || 0).toString());
+  }
+
+  async fetchAndUpdateFiliereChart() {
+    const supabase = this.supabaseService.adminClient;
+    const { data, error } = await supabase
+      .from('score_employabilité')
+      .select('parcours_type, filiere_licence, filiere_master');
+
+    if (error) {
+      console.error('Error fetching filiere distribution:', error);
+      return;
+    }
+
+    let total = data.length;
+    if (total === 0) return;
+
+    let l_t = 0;
+    let l_l = 0;
+    let m_s = 0;
+    let m_i = 0;
+
+    for (const row of data) {
+      const type = row.parcours_type;
+      let filiere = '';
+      if (type === 'L') {
+        filiere = row.filiere_licence || '';
+      } else if (type === 'M' || type === 'LM') {
+        filiere = row.filiere_master || '';
+      }
+
+      if (filiere === 'Licence_Sciences_de_Transport') l_t++;
+      else if (filiere === 'Licence_Génie_Logistique') l_l++;
+      else if (filiere === 'Master_Recherche_STL') m_s++;
+      else if (filiere === 'Master_Pro_Génie_Industriel_et_Logistique') m_i++;
+    }
+
+    const rawSegs = [
+      { color: '#1e2d5a', label: 'Licence Sciences de Transport', pct: l_t / total },
+      { color: '#d97706', label: 'Licence Génie Logistique', pct: l_l / total },
+      { color: '#2a9d8f', label: 'Master Recherche STL', pct: m_s / total },
+      { color: '#e06456', label: 'Master Pro GTI & Logistique', pct: m_i / total },
+    ];
+
+    this.donutLegend = rawSegs.map(s => ({ color: s.color, label: s.label, pct: s.pct }));
+
+    const C = 2 * Math.PI * 70;
+    let covered = 0;
+    this.donutSegments = rawSegs.map((s) => {
+      const arcLength = +(s.pct * C).toFixed(2);
+      const seg = {
+        color: s.color,
+        dashArray: `${arcLength} ${+C.toFixed(2)}`,
+        dashOffset: +(-covered).toFixed(2),
+      };
+      covered += arcLength;
+      return seg;
+    });
+
+    this.cdr.detectChanges();
+  }
+
+  async fetchAndUpdateEmployabilityDistribution() {
+    const supabase = this.supabaseService.adminClient;
+    const { data, error } = await supabase
+      .from('score_employabilité')
+      .select('score_final');
+
+    if (error) {
+      console.error('Error fetching score_employabilité for distribution:', error);
+      return;
+    }
+    if (data && data.length > 0) {
+      this.employabilitySeries = this.calculateEmployabilityDistribution(data);
+      this.rebuildBarChart();
+      this.cdr.detectChanges();
+    }
+  }
+
+  async fetchAndUpdateAtsDistribution() {
+    const supabase = this.supabaseService.adminClient;
+    const { data, error } = await supabase
+      .from('cv_submissions')
+      .select('ats_score');
+
+    if (error) {
+      console.error('Error fetching cv_submissions for distribution:', error);
+      return;
+    }
+    if (data && data.length > 0) {
+      this.cvAtsSeries = this.calculateAtsDistribution(data);
+      this.rebuildBarChart();
+      this.cdr.detectChanges();
+    }
+  }
+
+  async fetchTopGaps(): Promise<void> {
+    this.topGapsLoading = true;
+    this.topGapsError = null;
+    try {
+      const url = `${environment.apiUrl}/admin/dashboard/top-gaps`;
+      const response = await firstValueFrom(
+        this.http.get<{ data?: Array<{ label: string; marketPct: number; coverPct: number; count: number }> } | Array<{ label: string; marketPct: number; coverPct: number; count: number }>>(url),
+      );
+      const items = Array.isArray(response)
+        ? response
+        : (response as { data?: any[] })?.data ?? [];
+      this.gapsData = (items ?? []).map((item: any) => ({
+        label: String(item?.label ?? '').trim() || '—',
+        marketPct: Number(item?.marketPct ?? 0),
+        coverPct: Number(item?.coverPct ?? 0),
+      }));
+      this.rebuildGapsChart();
+    } catch (err) {
+      console.error('Failed to load top gaps:', err);
+      this.topGapsError = 'Impossible de charger les gaps marché.';
+      this.gapsData = [];
+      this.gapsChart = [];
+    } finally {
+      this.topGapsLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  async fetchRecentStudents(): Promise<void> {
+    this.recentStudentsLoading = true;
+    this.recentStudentsError = null;
+    try {
+      const url = `${environment.apiUrl}/admin/dashboard/students?limit=5`;
+      const response = await firstValueFrom(
+        this.http.get<{ data?: any[] } | any[]>(url),
+      );
+      const rows = Array.isArray(response)
+        ? response
+        : (response as { data?: any[] })?.data ?? [];
+      this.recentStudents = (rows ?? []).map((row: any) => ({
+        name: String(row?.name ?? '').trim() || 'Étudiant',
+        id: String(row?.id ?? '').trim(),
+        speciality: String(row?.speciality ?? '').trim() || 'Non renseignée',
+        score: Number(row?.score ?? 0),
+        employabilityScore: Number(row?.employabilityScore ?? 0),
+        details: {
+          matchings: Array.isArray(row?.details?.matchings) ? row.details.matchings : [],
+          gaps: Array.isArray(row?.details?.gaps) ? row.details.gaps : [],
+          recommendations: Array.isArray(row?.details?.recommendations) ? row.details.recommendations : [],
+        },
+      }));
+    } catch (err) {
+      console.error('Failed to load recent students:', err);
+      this.recentStudentsError = 'Impossible de charger la liste des étudiants.';
+      this.recentStudents = [];
+    } finally {
+      this.recentStudentsLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  private rebuildGapsChart(): void {
+    const maxBarW = 420;
+    const barX = 200;
+    const labelX = 190;
+    this.gapsChart = (this.gapsData ?? []).map((d, i) => {
+      const y = 30 + i * 36;
+      return {
+        label: d.label,
+        y,
+        labelX,
+        barX,
+        marketPct: d.marketPct,
+        coverPct: d.coverPct,
+        marketW: +((d.marketPct / 100) * maxBarW).toFixed(2),
+        coverW: +((d.coverPct / 100) * maxBarW).toFixed(2),
+      };
+    });
+  }
+
+  private calculateAtsDistribution(data: any[]): number[] {
+    const dist = [0, 0, 0, 0, 0];
+    if (!data) return dist;
+    for (const row of data) {
+      const score = row.ats_score || 0;
+      if (score >= 0 && score < 20) dist[0]++;
+      else if (score >= 20 && score < 40) dist[1]++;
+      else if (score >= 40 && score < 60) dist[2]++;
+      else if (score >= 60 && score < 80) dist[3]++;
+      else if (score >= 80 && score <= 100) dist[4]++;
+    }
+    return dist;
+  }
+
+  private calculateEmployabilityDistribution(data: any[]): number[] {
+    const dist = [0, 0, 0, 0, 0];
+    if (!data) return dist;
+    for (const row of data) {
+      const score = row.score_final || 0;
+      if (score >= 50 && score < 60) dist[0]++;
+      else if (score >= 60 && score < 70) dist[1]++;
+      else if (score >= 70 && score < 80) dist[2]++;
+      else if (score >= 80 && score < 90) dist[3]++;
+      else if (score >= 90 && score <= 100) dist[4]++;
+    }
+    return dist;
+  }
+
+  setupRealtimeSubscription() {
+    const supabase = this.supabaseService.adminClient;
+    this.employabilitySubscription = supabase
+      .channel('public:score_employabilité')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'score_employabilité' }, payload => {
+        this.fetchAndUpdateEmployabilityAverage();
+        this.fetchAndUpdateScoredProfilesCount();
+        this.fetchAndUpdateFiliereChart();
+        this.fetchAndUpdateEmployabilityDistribution();
+      })
+      .subscribe();
+
+    this.studentsSubscription = supabase
+      .channel('public:profils_etudiant')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profils_etudiant' }, payload => {
+        this.fetchAndUpdateStudentsCount();
+      })
+      .subscribe();
+
+    this.matiereSubscription = supabase
+      .channel('public:matiere')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matiere' }, payload => {
+        this.fetchAndUpdateMatiereCount();
+      })
+      .subscribe();
+
+    this.cvSubscription = supabase
+      .channel('public:cv_submissions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cv_submissions' }, payload => {
+        this.fetchAndUpdateAtsDistribution();
+        void this.fetchRecentStudents();
+        void this.fetchTopGaps();
+      })
+      .subscribe();
+  }
+
+  updateEmployabilityStat(newValue: string) {
+    const statIndex = this.stats.findIndex(s => s.label === "Taux d'employabilité");
+    if (statIndex !== -1) {
+      const updatedStats = [...this.stats];
+      updatedStats[statIndex] = { ...updatedStats[statIndex], value: newValue };
+      this.stats = updatedStats;
+      this.cdr.detectChanges();
+    }
+  }
+
+  updateStudentsStat(newValue: string) {
+    const statIndex = this.stats.findIndex(s => s.label === 'Étudiants inscrits');
+    if (statIndex !== -1) {
+      const updatedStats = [...this.stats];
+      updatedStats[statIndex] = { ...updatedStats[statIndex], value: newValue };
+      this.stats = updatedStats;
+      this.cdr.detectChanges();
+    }
+  }
+
+  updateMatiereStat(newValue: string) {
+    const statIndex = this.stats.findIndex(s => s.label === 'Nombre de matière');
+    if (statIndex !== -1) {
+      const updatedStats = [...this.stats];
+      updatedStats[statIndex] = { ...updatedStats[statIndex], value: newValue };
+      this.stats = updatedStats;
+      this.cdr.detectChanges();
+    }
+  }
+
+  updateScoredStat(newValue: string) {
+    const statIndex = this.stats.findIndex(s => s.label === "Nombre d'étudiants avec profil scoré");
+    if (statIndex !== -1) {
+      const updatedStats = [...this.stats];
+      updatedStats[statIndex] = { ...updatedStats[statIndex], value: newValue };
+      this.stats = updatedStats;
+      this.cdr.detectChanges();
+    }
   }
 
   private buildRadarChart() {
@@ -375,7 +616,7 @@ export class DashboardAdmin {
     };
   }
 
-  setScoreFilter(filter: 'synergy' | 'cvAts' | 'employability') {
+  setScoreFilter(filter: 'cvAts' | 'employability') {
     this.activeScoreFilter = filter;
     this.rebuildBarChart();
   }
@@ -389,43 +630,45 @@ export class DashboardAdmin {
   }
 
   private rebuildBarChart() {
-    const BAR_MAX = 120;
+    const BAR_MAX = Math.max(
+      10,
+      ...this.employabilitySeries,
+      ...this.cvAtsSeries
+    ) * 1.2; // dynamically scale Y-axis based on max item
     const CHART_H = 245;
     const Y_BOTTOM = 265;
     const X_START = 60;
     const SLOT_W = 96;
 
     const allSeries = {
-      synergy: {
-        label: 'Score Synergie',
-        color: '#c2410c',
-        values: this.synergySeries,
-      },
       cvAts: {
         label: 'Score CV ATS',
         color: '#2f8f83',
         values: this.cvAtsSeries,
       },
       employability: {
-        label: 'Score Employabilite',
+        label: 'Score Employabilité',
         color: '#1e2d5a',
         values: this.employabilitySeries,
       },
     } as const;
 
     const activeSeries =
-      this.activeScoreFilter === 'synergy'
-        ? [allSeries.synergy]
-        : this.activeScoreFilter === 'cvAts'
-          ? [allSeries.cvAts]
-          : [allSeries.employability];
+      this.activeScoreFilter === 'cvAts'
+        ? [allSeries.cvAts]
+        : [allSeries.employability];
 
     this.activeSeriesLegend = activeSeries.map((s) => ({
       label: s.label,
       color: s.color,
     }));
 
-    this.barData = this.scoreRanges.map((range, i) => {
+    const currentRanges =
+      this.activeScoreFilter === 'cvAts'
+        ? this.atsRanges
+        : this.employabilityRanges;
+
+    this.barData = currentRanges.map((range, i) => {
       const barCount = activeSeries.length;
       const groupWidth = 74;
       const intraGap = barCount > 1 ? 8 : 0;
@@ -453,7 +696,10 @@ export class DashboardAdmin {
 
     this.xGridLines = this.barData.map((d) => d.labelX);
 
-    this.yGridLines = [120, 90, 60, 30, 0].map((v) => ({
+    const maxVal = BAR_MAX;
+    const step = maxVal / 4;
+    const gridVals = [maxVal, step * 3, step * 2, step, 0].map(v => Math.round(v));
+    this.yGridLines = gridVals.map((v) => ({
       value: v,
       y: +(Y_BOTTOM - (v / BAR_MAX) * CHART_H).toFixed(2),
     }));

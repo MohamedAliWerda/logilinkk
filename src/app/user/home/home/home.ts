@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, AsyncPipe } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
+import { inject } from '@angular/core';
 
 import { Navbar } from '../navbar/navbar';
 import { Sidebar } from '../sidebar/sidebar';
@@ -22,9 +23,8 @@ import { Observable } from 'rxjs';
   styleUrls: ['./home.css']
 })
 export class HomeComponent implements OnInit {
+  sidebarService = inject(SidebarService);
   isOpen!: Observable<boolean>;
-
-  constructor(public sidebarService: SidebarService) {}
 
   ngOnInit() {
     this.isOpen = this.sidebarService.isOpen$;

@@ -1,0 +1,379 @@
+<section class="admin-page-container">
+    <header class="topbar">
+        <div>
+            <h1 class="topbar-title">Feedback Anciens Diplômés</h1>
+            <p class="topbar-sub">ISGIS Admin</p>
+        </div>
+        <div class="topbar-right">
+            <span class="live-dot"></span>
+            <span class="live-label">Temps réel</span>
+            <div class="avatar">A</div>
+        </div>
+    </header>
+
+    <div class="content">
+        <div class="stat-row">
+            <div class="stat-card">
+                <div class="stat-label">Anciens recensés</div>
+                <div class="stat-val">{{ oldStudents.length }}</div>
+                <div class="stat-sub">dans la base</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Invitations envoyées</div>
+                <div class="stat-val">{{ invitedCount }}</div>
+                <div class="stat-sub">emails partis</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Réponses reçues</div>
+                <div class="stat-val">{{ respondedCount }}</div>
+                <div class="stat-sub">taux : {{ responseRate }}%</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn" [class.active]="activeTab === 'anciens'" (click)="setActiveTab('anciens')">
+                Anciens diplômés
+            </button>
+            <button class="tab-btn" [class.active]="activeTab === 'retours'" (click)="setActiveTab('retours')">
+                Dashboard insertion
+            </button>
+        </div>
+
+        @if (activeTab === 'anciens') {
+        <div class="tab-panel active">
+            <div class="toolbar">
+                <div class="search-box">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.4"></circle>
+                        <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+                    </svg>
+                    <input type="text" [(ngModel)]="searchTerm" placeholder="Rechercher un ancien diplômé..." />
+                </div>
+
+                <div class="toolbar-right">
+                    <button class="btn btn-ghost" type="button" (click)="openAddStudentModal()">Ajouter</button>
+                    <button class="btn btn-orange" type="button" (click)="openSendEmailModal()">Envoyer email à tous</button>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th (click)="setSort('fullName')" class="sortable">Nom</th>
+                            <th (click)="setSort('email')" class="sortable">Email</th>
+                            <th (click)="setSort('promotion')" class="sortable">Promotion</th>
+                            <th (click)="setSort('status')" class="sortable">Statut invitation</th>
+                            <th>Réponse</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (student of filteredStudents; track trackById($index, student)) {
+                        <tr>
+                            <td class="cell-name">{{ student.fullName }}</td>
+                            <td>{{ student.email }}</td>
+                            <td>
+                                <span class="cell-promo">{{ student.promotion }}</span>
+                            </td>
+                            <td>
+                                <span class="badge" [ngClass]="statusBadgeClass(student.status)">
+                                    {{ student.status }}
+                                </span>
+                            </td>
+                            <td>
+                                @if (student.status === 'À répondu') {
+                                <span class="badge badge-green">Répondu</span>
+                                } @else {
+                                <span class="badge badge-orange">En attente</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="actions-cell">
+                                    <button class="btn btn-ghost btn-sm" type="button" (click)="viewProfile(student.id)">Profil</button>
+                                    @if (student.status === 'Non contacté') {
+                                    <button class="btn btn-ghost btn-sm" type="button" (click)="sendInvitation(student.id)">Envoyer</button>
+                                    }
+                                    <button class="btn btn-danger btn-sm" type="button" (click)="deleteStudent(student.id)">Suppr.</button>
+                                </div>
+                            </td>
+                        </tr>
+                        } @empty {
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty">
+                                    <div class="empty-icon">Aucun résultat</div>
+                                    <h3>Aucun ancien diplômé</h3>
+                                </div>
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        } @else {
+        <div class="tab-panel active">
+            <div class="promo-filter">
+                <button class="promo-pill" [class.active]="selectedPromo === null" (click)="setPromoFilter(null)">Toutes promotions</button>
+                @for (promo of promotions; track promo) {
+                <button class="promo-pill" [class.active]="selectedPromo === promo" (click)="setPromoFilter(promo)">
+                    {{ promo }}
+                </button>
+                }
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card" style="--accent:#1D9E75">
+                    <div class="kpi-k">TI_promotion</div>
+                    <div class="kpi-v">{{ insertionRate }}%</div>
+                    <div class="kpi-s">taux d'insertion</div>
+                </div>
+                <div class="kpi-card" style="--accent:#7F77DD">
+                    <div class="kpi-k">DI_moyen</div>
+                    <div class="kpi-v">{{ averageDelayMonths }}</div>
+                    <div class="kpi-s">mois délai premier emploi</div>
+                </div>
+                <div class="kpi-card" style="--accent:#2563EB">
+                    <div class="kpi-k">IPE_promotion</div>
+                    <div class="kpi-v">{{ averageRating }}%</div>
+                    <div class="kpi-s">adéquation poste/formation</div>
+                </div>
+                <div class="kpi-card" style="--accent:#F5A623">
+                    <div class="kpi-k">NPS</div>
+                    <div class="kpi-v">{{ npsScore }}</div>
+                    <div class="kpi-s">score de satisfaction</div>
+                </div>
+                <div class="kpi-card" style="--accent:#EF4444">
+                    <div class="kpi-k">Répondants</div>
+                    <div class="kpi-v">{{ feedbackCount }}</div>
+                    <div class="kpi-s">réponses traitées</div>
+                </div>
+            </div>
+
+            <div class="charts-2">
+                <div class="chart-card">
+                    <div class="chart-head">Statut d'emploi</div>
+                    <div class="chart-sub">Distribution par statut</div>
+                    <div class="chart-body chart-wide">
+                        <canvas id="employment-status-chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-head">Fourchette salariale</div>
+                    <div class="chart-sub">Répartition en TND</div>
+                    <div class="chart-body">
+                        <canvas id="salary-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-3">
+                <div class="chart-card">
+                    <div class="chart-head">Délai premier emploi</div>
+                    <div class="chart-sub">Distribution des délais</div>
+                    <div class="chart-body">
+                        <canvas id="delay-chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-head">NPS — Recommandation</div>
+                    <div class="chart-sub">Score de satisfaction</div>
+                    <div class="nps-center">
+                        <div class="nps-big" [class.nps-negative]="npsScore < 0">{{ npsScore }}</div>
+                        <div class="nps-lbl" [ngClass]="npsToneClass">{{ npsLabel }}</div>
+                        <div class="nps-row">
+                            <span><b>{{ npsBreakdown.promoters }}</b>Promoteurs</span>
+                            <span><b>{{ npsBreakdown.neutrals }}</b>Neutres</span>
+                            <span><b>{{ npsBreakdown.detractors }}</b>Détracteurs</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-head">Canal recrutement</div>
+                    <div class="chart-sub">Canal dominant : <b>{{ dominantChannel }}</b></div>
+                    <div class="chart-body">
+                        <canvas id="recruitment-channel-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-2">
+                <div class="chart-card">
+                    <div class="chart-head">Adéquation poste / formation</div>
+                    <div class="chart-sub">IPE détaillé</div>
+                    <div class="chart-body">
+                        <canvas id="adequation-chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-head">Détail des statuts</div>
+                    <div class="chart-sub">Avec score d'employabilité pondéré</div>
+                    <ul class="statut-list">
+                        @for (item of employmentStatusRows; track item.label) {
+                        <li class="s-item">
+                            <span class="s-dot" [style.background]="item.color"></span>
+                            <span class="s-label">{{ item.label }}</span>
+                            <div class="s-bar-wrap">
+                                <div class="s-bar" [style.width.%]="item.percent" [style.background]="item.color"></div>
+                            </div>
+                            <span class="s-pct">{{ item.percent }}%</span>
+                        </li>
+                        }
+                    </ul>
+                    <div class="weighted-score-box">
+                        <span>Score pondéré global</span>
+                        <strong>{{ weightedEmployabilityScore }}/100</strong>
+                    </div>
+                    <div class="last-update">Mis à jour : {{ dashboardLastUpdate }}</div>
+                </div>
+            </div>
+        </div>
+        }
+    </div>
+
+    @if (showProfileModal && selectedStudent) {
+    <div class="modal-overlay" (click)="closeProfileModal()">
+        <div class="profile-modal-card" (click)="$event.stopPropagation()">
+            <header class="modal-header">
+                <h3 class="modal-title">{{ selectedStudent.fullName }}</h3>
+                <button class="close-btn" (click)="closeProfileModal()">Fermer</button>
+            </header>
+
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h4>Informations générales</h4>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Email</span>
+                            <span class="info-value">{{ selectedStudent.email }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Promotion</span>
+                            <span class="info-value">{{ selectedStudent.promotion }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Statut</span>
+                            <span class="info-value">{{ selectedStudent.status }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                @if (selectedStudent.status === 'À répondu') {
+                <div class="modal-section">
+                    <h4>Parcours professionnel</h4>
+                    <div class="info-grid">
+                        <div class="info-item full-width">
+                            <span class="info-label">Entreprise</span>
+                            <span class="info-value">{{ selectedStudent.company || '-' }}</span>
+                        </div>
+                        <div class="info-item full-width">
+                            <span class="info-label">Poste actuel</span>
+                            <span class="info-value">{{ selectedStudent.position || '-' }}</span>
+                        </div>
+                        <div class="info-item full-width">
+                            <span class="info-label">Date du feedback</span>
+                            <span class="info-value">{{ selectedStudent.feedbackDate || '-' }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <h4>Évaluation</h4>
+                    <div class="rating-section">
+                        <span class="stars-large">{{ renderStars(selectedStudent.rating || 0) }}</span>
+                        <span class="rating-text">{{ selectedStudent.rating || 0 }}/5</span>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <h4>Compétences pertinentes acquises à l'ISGI</h4>
+                    <div class="competence-list">
+                        @for (competence of selectedStudent.competenceFeedback || []; track competence) {
+                        <span class="competence-tag">{{ competence }}</span>
+                        }
+                    </div>
+                </div>
+                }
+            </div>
+        </div>
+    </div>
+    }
+
+    @if (showAddStudentModal) {
+    <div class="modal-overlay" (click)="closeAddStudentModal()">
+        <div class="email-modal-card" (click)="$event.stopPropagation()">
+            <header class="modal-header">
+                <h3 class="modal-title">Ajouter un ancien diplômé</h3>
+                <button class="close-btn" (click)="closeAddStudentModal()">Fermer</button>
+            </header>
+
+            <div class="modal-body">
+                <div class="email-form-section">
+                    <label class="form-label">Nom et prénom</label>
+                    <input type="text" class="form-input" [(ngModel)]="newStudentForm.fullName" placeholder="Ex: Ahmed Benali" />
+                </div>
+
+                <div class="email-form-section">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-input" [(ngModel)]="newStudentForm.email" placeholder="Ex: ahmed.benali@gmail.com" />
+                </div>
+
+                <div class="email-form-section">
+                    <label class="form-label">Promotion</label>
+                    <input type="text" class="form-input" [(ngModel)]="newStudentForm.promotion" placeholder="Ex: 2026" />
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-ghost" (click)="closeAddStudentModal()">Annuler</button>
+                <button class="btn btn-orange" (click)="confirmAddStudent()">Ajouter</button>
+            </div>
+        </div>
+    </div>
+    }
+
+    @if (showSendEmailModal) {
+    <div class="modal-overlay" (click)="closeSendEmailModal()">
+        <div class="email-modal-card" (click)="$event.stopPropagation()">
+            <header class="modal-header">
+                <h3 class="modal-title">Envoyer une invitation par email</h3>
+                <button class="close-btn" (click)="closeSendEmailModal()">Fermer</button>
+            </header>
+
+            <div class="modal-body">
+                <div class="email-form-section">
+                    <label class="form-label">Objet de l'email</label>
+                    <input type="text" class="form-input" [(ngModel)]="emailSubject" placeholder="Ex: Partagez votre expérience professionnelle" />
+                </div>
+
+                <div class="email-form-section">
+                    <label class="form-label">Message</label>
+                    <textarea class="form-textarea" [(ngModel)]="emailMessage" placeholder="Écrivez votre message..." rows="6"></textarea>
+                </div>
+
+                <div class="recipients-info">
+                    <strong>Destinataires:</strong>
+                    <p>{{ getUncontactedStudents().length }} ancien(s) diplômé(s) non contacté(s) seront notifiés</p>
+                    <div class="recipient-list">
+                        @for (student of getUncontactedStudents(); track student.id) {
+                        <span class="recipient-badge">{{ student.fullName }}</span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-ghost" (click)="closeSendEmailModal()">Annuler</button>
+                <button class="btn btn-orange" (click)="confirmSendEmail()">Envoyer {{ getUncontactedStudents().length }} email(s)</button>
+            </div>
+        </div>
+    </div>
+    }
+
+    @if (showSuccessNotification) {
+    <div class="toast show success" [@fadeInOut]>
+        {{ successMessage }}
+    </div>
+    }
+</section>

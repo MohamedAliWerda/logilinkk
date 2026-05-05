@@ -62,12 +62,6 @@ export class SidebarAdmin implements OnInit, OnDestroy {
       exact: false,
     },
     {
-      key: 'metier',
-      label: 'Métier par parcours',
-      route: '/admin/metier',
-      exact: false,
-    },
-    {
       key: 'gaps',
       label: 'Gaps',
       route: '/admin/gaps',
@@ -83,6 +77,24 @@ export class SidebarAdmin implements OnInit, OnDestroy {
       key: 'etud',
       label: 'Gestion des étudiants',
       route: '/admin/etud',
+      exact: false,
+    },
+    {
+      key: 'validation',
+      label: 'Validation Recommandations',
+      route: '/admin/validation',
+      exact: false,
+    },
+    {
+      key: 'feedback',
+      label: 'Feedback anciens étudiants',
+      route: '/admin/feedback',
+      exact: false,
+    },
+        {
+      key: 'gestion-entreprise',
+      label: 'Gestion des entreprises',
+      route: '/admin/gestion-entreprise',
       exact: false,
     },
     {

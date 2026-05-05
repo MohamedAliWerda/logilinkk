@@ -1,30 +1,20 @@
 ﻿import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class SidebarService {
-  // Open by default
-  private _isOpen = new BehaviorSubject<boolean>(true);
-  private _activeItem = new BehaviorSubject<string>('dashboard');
+  private isOpenSubject = new BehaviorSubject<boolean>(true);
+  isOpen$ = this.isOpenSubject.asObservable();
 
-  isOpen$ = this._isOpen.asObservable();
-  activeItem$ = this._activeItem.asObservable();
-
-  toggle() {
-    this._isOpen.next(!this._isOpen.value);
+  toggle(): void {
+    this.isOpenSubject.next(!this.isOpenSubject.value);
   }
 
-  open() {
-    this._isOpen.next(true);
+  close(): void {
+    this.isOpenSubject.next(false);
   }
 
-  close() {
-    this._isOpen.next(false);
-  }
-
-  setActiveItem(item: string) {
-    this._activeItem.next(item);
+  open(): void {
+    this.isOpenSubject.next(true);
   }
 }

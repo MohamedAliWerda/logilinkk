@@ -1,0 +1,353 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { getSupabase } from '../config/supabase.client';
+
+export interface TopGapItem {
+  label: string;
+  marketPct: number;
+  coverPct: number;
+  count: number;
+}
+
+export interface DashboardStudent {
+  id: string;
+  authId: string;
+  name: string;
+  speciality: string;
+  score: number;
+  employabilityScore: number;
+  details: {
+    matchings: string[];
+    gaps: string[];
+    recommendations: string[];
+  };
+}
+
+@Injectable()
+export class DashboardService {
+  private readonly logger = new Logger(DashboardService.name);
+  private readonly supabase = getSupabase();
+
+  async getTopGaps(): Promise<TopGapItem[]> {
+    const [{ data: competenceData, error: competenceError }, { data: metierData, error: metierError }] = await Promise.all([
+      this.supabase
+        .from('cv_matching_competence_results')
+        .select('auth_id, competence_name, status, similarity_score, is_top_metier')
+        .eq('is_top_metier', true),
+      this.supabase
+        .from('cv_matching_metier_scores')
+        .select('auth_id')
+        .eq('rank_position', 1),
+    ]);
+
+    if (competenceError) {
+      this.logger.error('top-gaps competence fetch failed: ' + competenceError.message);
+      throw new Error(competenceError.message);
+    }
+    if (metierError) {
+      this.logger.error('top-gaps metier fetch failed: ' + metierError.message);
+      throw new Error(metierError.message);
+    }
+
+    const totalStudents = new Set((metierData ?? []).map((row: any) => String(row.auth_id ?? ''))).size;
+    if (totalStudents === 0) return [];
+
+    const grouped = new Map<string, { authIds: Set<string>; sumSimilarity: number; count: number; gapAuthIds: Set<string> }>();
+    for (const row of competenceData ?? []) {
+      const label = String(row.competence_name ?? '').trim();
+      if (!label) continue;
+      const authId = String(row.auth_id ?? '');
+      const entry = grouped.get(label) ?? {
+        authIds: new Set<string>(),
+        sumSimilarity: 0,
+        count: 0,
+        gapAuthIds: new Set<string>(),
+      };
+      entry.authIds.add(authId);
+      entry.sumSimilarity += Math.max(0, Math.min(1, Number(row.similarity_score ?? 0)));
+      entry.count += 1;
+      if (row.status === 'gap') {
+        entry.gapAuthIds.add(authId);
+      }
+      grouped.set(label, entry);
+    }
+
+    const items: TopGapItem[] = [];
+    for (const [label, info] of grouped.entries()) {
+      const marketPct = this.round1((info.authIds.size / totalStudents) * 100);
+      const coverPct = info.count > 0 ? this.round1((info.sumSimilarity / info.count) * 100) : 0;
+      items.push({ label, marketPct, coverPct, count: info.gapAuthIds.size });
+    }
+
+    items.sort((a, b) => b.marketPct - a.marketPct || b.count - a.count);
+    return items.slice(0, 6);
+  }
+
+  async getRecentStudents(limit = 5): Promise<DashboardStudent[]> {
+    const { data: cvRows, error: cvError } = await this.supabase
+      .from('cv_submissions')
+      .select('id, auth_id, ats_score, professional_title, specialization, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(Math.max(1, Math.min(2000, limit * 4)));
+    if (cvError) {
+      this.logger.error('cv_submissions fetch failed: ' + cvError.message);
+      throw new Error(cvError.message);
+    }
+
+    const submissions = cvRows ?? [];
+    if (submissions.length === 0) return [];
+
+    const authIds = Array.from(new Set(submissions.map((row: any) => String(row.auth_id ?? '')).filter(Boolean)));
+
+    const [users, metierScores, competenceResults, recommendationTargets, recommendations] = await Promise.all([
+      this.fetchUsers(authIds),
+      this.fetchTopMetierScores(authIds),
+      this.fetchCompetenceResults(authIds),
+      this.fetchRecommendationTargets(authIds),
+      this.fetchRecommendationRows(),
+    ]);
+
+    const userByAuth = new Map<string, { id: string; cinPassport: string; email: string; nom: string; prenom: string; filiere: string }>();
+    for (const u of users) {
+      userByAuth.set(u.authId, u);
+    }
+
+    const profileByCin = await this.fetchProfilesByCin(Array.from(userByAuth.values()).map((u) => u.cinPassport).filter(Boolean));
+
+    const employabilityByEtudiant = await this.fetchEmployabilityScores(Array.from(userByAuth.values()).map((u) => u.id).filter(Boolean));
+
+    const metierByAuth = new Map<string, any[]>();
+    for (const row of metierScores) {
+      const list = metierByAuth.get(String(row.auth_id)) ?? [];
+      list.push(row);
+      metierByAuth.set(String(row.auth_id), list);
+    }
+    for (const list of metierByAuth.values()) {
+      list.sort((a, b) => Number(a.rank_position ?? 99) - Number(b.rank_position ?? 99));
+    }
+
+    const competenceByAuth = new Map<string, any[]>();
+    for (const row of competenceResults) {
+      const list = competenceByAuth.get(String(row.auth_id)) ?? [];
+      list.push(row);
+      competenceByAuth.set(String(row.auth_id), list);
+    }
+
+    const recommendationsById = new Map<string, any>();
+    for (const r of recommendations) {
+      recommendationsById.set(String(r.id), r);
+    }
+
+    const recommendationLabelsByAuth = new Map<string, string[]>();
+    for (const target of recommendationTargets) {
+      const authId = String(target.auth_id ?? '');
+      const recommendation = recommendationsById.get(String(target.recommendation_id ?? ''));
+      if (!authId || !recommendation) continue;
+      const label =
+        String(recommendation.cert_title ?? '').trim() ||
+        String(recommendation.gap_title ?? '').trim() ||
+        String(recommendation.competence_name ?? '').trim();
+      if (!label) continue;
+      const list = recommendationLabelsByAuth.get(authId) ?? [];
+      if (!list.includes(label)) list.push(label);
+      recommendationLabelsByAuth.set(authId, list);
+    }
+
+    const seenAuthIds = new Set<string>();
+    const result: DashboardStudent[] = [];
+
+    for (const submission of submissions) {
+      if (result.length >= limit) break;
+      const authId = String(submission.auth_id ?? '');
+      if (!authId || seenAuthIds.has(authId)) continue;
+      seenAuthIds.add(authId);
+
+      const userInfo = userByAuth.get(authId);
+      const profile = userInfo?.cinPassport ? profileByCin.get(String(userInfo.cinPassport)) : undefined;
+
+      const userName = `${(userInfo?.prenom ?? '').trim()} ${(userInfo?.nom ?? '').trim()}`.trim();
+      const profileName = `${(profile?.prenom ?? '').trim()} ${(profile?.nom ?? '').trim()}`.trim();
+      const fullName =
+        userName ||
+        profileName ||
+        this.deriveNameFromEmail(userInfo?.email ?? '') ||
+        'Étudiant';
+
+      const filiere =
+        (userInfo?.filiere ?? '').trim() ||
+        (profile?.filiere ?? '').trim() ||
+        String(submission.specialization ?? submission.professional_title ?? '').trim() ||
+        'Non renseignée';
+
+      const studentId = String(profile?.cin_passport ?? userInfo?.cinPassport ?? userInfo?.id ?? submission.id ?? '').trim();
+
+      const matchings = (metierByAuth.get(authId) ?? [])
+        .slice(0, 3)
+        .map((row) => String(row.metier_name ?? '').trim())
+        .filter(Boolean);
+
+      const gaps = (competenceByAuth.get(authId) ?? [])
+        .filter((row) => row.status === 'gap')
+        .sort((a, b) => Number(a.similarity_score ?? 0) - Number(b.similarity_score ?? 0))
+        .slice(0, 3)
+        .map((row) => String(row.competence_name ?? '').trim())
+        .filter(Boolean);
+
+      const recos = (recommendationLabelsByAuth.get(authId) ?? []).slice(0, 3);
+
+      const employabilityRaw = userInfo?.id ? employabilityByEtudiant.get(String(userInfo.id)) : undefined;
+
+      result.push({
+        id: studentId || authId,
+        authId,
+        name: fullName,
+        speciality: filiere,
+        score: this.roundScore(submission.ats_score),
+        employabilityScore: this.roundScore(employabilityRaw),
+        details: {
+          matchings: matchings.length ? matchings : ['Aucun métier identifié'],
+          gaps: gaps.length ? gaps : ['Aucun gap critique'],
+          recommendations: recos.length ? recos : ['Aucune recommandation disponible'],
+        },
+      });
+    }
+
+    return result;
+  }
+
+  private async fetchUsers(authIds: string[]): Promise<Array<{ authId: string; id: string; cinPassport: string; email: string; nom: string; prenom: string; filiere: string }>> {
+    if (!authIds.length) return [];
+    const { data, error } = await this.supabase
+      .from('user')
+      .select('*')
+      .in('auth_id', authIds);
+    if (error) {
+      this.logger.warn('user fetch failed: ' + error.message);
+      return [];
+    }
+    return (data ?? []).map((row: any) => ({
+      authId: String(row.auth_id ?? ''),
+      id: row.id != null ? String(row.id) : '',
+      cinPassport: row.cin_passport != null ? String(row.cin_passport) : '',
+      email: String(row.email ?? ''),
+      nom: String(row.nom ?? row.last_name ?? ''),
+      prenom: String(row.prenom ?? row.first_name ?? ''),
+      filiere: String(row.filiere ?? row.specialite ?? row.specialty ?? row.specialization ?? ''),
+    }));
+  }
+
+  private async fetchProfilesByCin(cinList: string[]): Promise<Map<string, { nom: string; prenom: string; filiere: string; cin_passport: string }>> {
+    const result = new Map<string, { nom: string; prenom: string; filiere: string; cin_passport: string }>();
+    if (!cinList.length) return result;
+    const { data, error } = await this.supabase
+      .from('profils_etudiant')
+      .select('cin_passport, nom, prenom, filiere')
+      .in('cin_passport', cinList);
+    if (error) {
+      this.logger.warn('profils_etudiant fetch failed: ' + error.message);
+      return result;
+    }
+    for (const row of data ?? []) {
+      result.set(String(row.cin_passport), {
+        nom: String(row.nom ?? ''),
+        prenom: String(row.prenom ?? ''),
+        filiere: String(row.filiere ?? ''),
+        cin_passport: String(row.cin_passport ?? ''),
+      });
+    }
+    return result;
+  }
+
+  private async fetchTopMetierScores(authIds: string[]): Promise<any[]> {
+    if (!authIds.length) return [];
+    const { data, error } = await this.supabase
+      .from('cv_matching_metier_scores')
+      .select('auth_id, metier_name, rank_position, coverage_pct')
+      .in('auth_id', authIds);
+    if (error) {
+      this.logger.warn('cv_matching_metier_scores fetch failed: ' + error.message);
+      return [];
+    }
+    return data ?? [];
+  }
+
+  private async fetchCompetenceResults(authIds: string[]): Promise<any[]> {
+    if (!authIds.length) return [];
+    const { data, error } = await this.supabase
+      .from('cv_matching_competence_results')
+      .select('auth_id, competence_name, status, similarity_score, is_top_metier')
+      .in('auth_id', authIds)
+      .eq('is_top_metier', true);
+    if (error) {
+      this.logger.warn('cv_matching_competence_results fetch failed: ' + error.message);
+      return [];
+    }
+    return data ?? [];
+  }
+
+  private async fetchRecommendationTargets(authIds: string[]): Promise<any[]> {
+    if (!authIds.length) return [];
+    const { data, error } = await this.supabase
+      .from('ai_recommendation_targets')
+      .select('auth_id, recommendation_id')
+      .in('auth_id', authIds);
+    if (error) {
+      this.logger.warn('ai_recommendation_targets fetch failed: ' + error.message);
+      return [];
+    }
+    return data ?? [];
+  }
+
+  private async fetchRecommendationRows(): Promise<any[]> {
+    const { data, error } = await this.supabase
+      .from('ai_recommendations')
+      .select('id, cert_title, gap_title, competence_name, status')
+      .neq('status', 'rejected');
+    if (error) {
+      this.logger.warn('ai_recommendations fetch failed: ' + error.message);
+      return [];
+    }
+    return data ?? [];
+  }
+
+  private async fetchEmployabilityScores(etudiantIds: string[]): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    if (!etudiantIds.length) return result;
+    const { data, error } = await this.supabase
+      .from('score_employabilité')
+      .select('etudiant, score_final')
+      .in('etudiant', etudiantIds);
+    if (error) {
+      this.logger.warn('score_employabilité fetch failed: ' + error.message);
+      return result;
+    }
+    for (const row of data ?? []) {
+      const key = String(row.etudiant ?? '');
+      if (!key) continue;
+      const score = Number(row.score_final);
+      if (Number.isFinite(score)) result.set(key, score);
+    }
+    return result;
+  }
+
+  private deriveNameFromEmail(email: string): string {
+    const local = String(email ?? '').split('@')[0]?.trim() ?? '';
+    if (!local) return '';
+    const parts = local
+      .split(/[._-]+/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase());
+    return parts.join(' ');
+  }
+
+  private roundScore(value: unknown): number {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, Math.min(100, Math.round(n)));
+  }
+
+  private round1(value: number): number {
+    if (!Number.isFinite(value)) return 0;
+    return Number(Math.max(0, Math.min(100, value)).toFixed(1));
+  }
+}

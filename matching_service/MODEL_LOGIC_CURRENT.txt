@@ -1,0 +1,360 @@
+MATCHING MODEL LOGIC (CURRENT - PFE EXTENDED)
+==============================================
+
+Purpose of this document
+------------------------
+This file is a presentation-ready description of the current matching system.
+It explains architecture, formulas, metrics, persistence, fallback behavior,
+and interpretation rules used in production.
+
+
+1) EXECUTIVE SUMMARY
+====================
+
+The system ranks metiers and identifies competence gaps by comparing:
+- Student CV hard skills
+- Reference competences from liste_competences
+
+Core principles:
+1) Semantic similarity decides match/gap status (raw score threshold).
+2) Skill level (niveau) affects ranking and coverage via weighted scores.
+3) Traceability is persisted in normalized SQL tables for analysis and reporting.
+4) If Python BERT service is unavailable, backend computes a local fallback.
+
+
+2) END-TO-END ARCHITECTURE
+===========================
+
+Step-by-step runtime flow:
+1) Frontend requests matching analysis endpoint on backend.
+2) Backend loads latest cv_submission + skills + reference competences.
+3) Backend calls Python service POST /analyze with normalized payload.
+4) Python computes matches/gaps/metier ranking and returns JSON.
+5) Backend normalizes payload and persists:
+  - full snapshot (cv_matching_analysis)
+  - trace rows (cv_matching_metier_scores, cv_matching_competence_results)
+6) Frontend displays summary, metier cards, and gap tables from trace/analysis.
+
+Failure path:
+1) If Python call fails or times out, backend uses local fallback scorer.
+2) Fallback output follows same business semantics (raw threshold for match/gap,
+  weighted coverage for differentiation).
+
+
+3) PYTHON MATCHING SERVICE (PRIMARY ENGINE)
+============================================
+
+File: matching_service/main.py
+Endpoint: POST /analyze
+
+3.1 Input contract
+------------------
+- cv_submission_id: optional string
+- match_threshold: float in [0, 1], default 0.72
+- student_skills: list of { nom, niveau, type }
+- reference_competences: list of {
+   domaine, metier, competence, type_competence, mots_cles
+  }
+
+3.2 Main configuration
+----------------------
+- BERT_MODEL_NAME default: paraphrase-multilingual-MiniLM-L12-v2
+- MATCH_THRESHOLD default: 0.72
+- MAX_GLOBAL_GAPS default: 5000
+- MAX_TOP_METIER_GAPS default: 40
+- FALLBACK_MODEL_NAME: lexical-hash-embedding
+
+3.3 Text normalization
+----------------------
+Applied to skills and competences:
+1) lowercase
+2) remove accents/diacritics
+3) collapse repeated spaces
+
+3.4 Niveau weighting
+--------------------
+Weighted score formula:
+
+weighted_score = raw_similarity_score * niveau_weight
+
+Niveau map:
+- Avance / Expert -> 1.00
+- Intermediaire -> 0.50
+- Debutant -> 0.20
+- Missing/unknown -> 0.50
+
+3.5 Skill deduplication
+-----------------------
+Skills are deduplicated by normalized skill name.
+If duplicates exist, the highest niveau weight is kept.
+
+3.6 Similarity computation
+--------------------------
+Preferred mode:
+- SentenceTransformer embeddings with normalize_embeddings=True
+- sim_matrix = dot(cv_embeddings, ref_embeddings.T)
+
+Fallback mode (Python service internal fallback):
+- Lexical hash embedding if sentence-transformers cannot be loaded
+
+3.7 Decision logic per reference competence
+-------------------------------------------
+For each reference competence j:
+1) Choose best CV skill by max weighted similarity.
+2) Keep both:
+  - raw score (semantic)
+  - weighted score (semantic * niveau)
+3) Match/gap status uses RAW threshold:
+
+status = match if best_raw_score >= threshold else gap
+
+Why raw threshold?
+- Prevents all-Debutant profiles from being forced to 0 matches.
+- Keeps semantic decision stable and interpretable.
+
+3.8 Per-entry output fields
+---------------------------
+Each competence result includes:
+- ref_competence, ref_metier, ref_domaine, ref_type, ref_mots_cles
+- best_cv_skill, best_cv_niveau
+- raw_similarity_score
+- niveau_weight
+- similarity_score (weighted)
+- status
+
+3.9 Metier ranking metrics
+--------------------------
+For each metier:
+- n_competences = number of reference competences in that metier
+- matched_count = count(max_raw_per_competence >= threshold)
+- coverage_pct = mean(max_weighted_per_competence) * 100
+- avg_score = mean(max_raw_per_competence)
+
+Interpretation:
+- matched_count is semantic strictness
+- coverage_pct is level-aware competitiveness
+- avg_score is pure semantic closeness baseline
+
+3.10 Sorting and caps
+---------------------
+- metier_ranking sorted by (coverage_pct desc, avg_score desc)
+- top_metier = first item after sort
+- gaps sorted by weighted similarity_score desc
+- top_metier_gaps limited to 40
+- global gaps list limited to 5000
+
+3.11 Summary block
+------------------
+- n_skills = number of deduplicated normalized CV skills
+- n_matches = number of reference competences with status=match
+- n_gaps = number of reference competences with status=gap
+- match_rate_pct = n_matches / (n_matches + n_gaps) * 100
+
+
+4) BACKEND LOCAL FALLBACK (WHEN PYTHON UNAVAILABLE)
+====================================================
+
+File: backend/src/cv_submission/cv-submission.service.ts
+
+4.1 Trigger condition
+---------------------
+Fallback is used when Python call fails, times out, or aborts.
+
+4.2 Similarity formula (token-based)
+------------------------------------
+Token overlap approach:
+- overlap = intersection / size(reference_tokens)
+- jaccard = intersection / union
+- rawScore = 0.7 * overlap + 0.3 * jaccard
+
+4.3 Weighting and decision rules (aligned with Python)
+------------------------------------------------------
+- weightedScore = rawScore * niveauWeight
+- status uses rawScore threshold (not weighted threshold)
+- coveragePct uses weighted mean * 100
+- avgScore uses raw mean
+- ranking sort: coveragePct desc, then avgScore desc
+
+4.4 Fallback niveau map
+-----------------------
+- Avance/Expert -> 1.0
+- Intermediaire -> 0.5
+- Debutant/Notions -> 0.2
+- default -> 0.5
+
+
+5) BACKEND ORCHESTRATION DETAILS
+================================
+
+5.1 Data sourcing
+-----------------
+- Latest cv_submission for auth user
+- Student skills from cv_skills (hard category preferred)
+- Reference competences from liste_competences (limit 5000)
+
+5.2 Python service call controls
+--------------------------------
+- URL: MATCHING_PYTHON_SERVICE_URL
+- Timeout: MATCHING_PYTHON_TIMEOUT_MS
+- Default timeout: 120000 ms
+
+5.3 Cache + recompute strategy
+------------------------------
+- Fingerprint format:
+  MATCHING_ANALYSIS_VERSION:cv_submission_id:updatedAt
+- If fingerprint unchanged and force=false, cached/persisted analysis reused
+- force=true triggers recomputation and persistence refresh
+
+Current version key:
+- MATCHING_ANALYSIS_VERSION = v4-traceable-persistence
+
+
+6) SQL PERSISTENCE AND TRACEABILITY
+===================================
+
+6.1 Snapshot table: cv_matching_analysis
+----------------------------------------
+Stores one current analysis per cv_submission_id.
+Main fields:
+- id (UUID)
+- cv_submission_id
+- auth_id
+- metier_id
+- analysis_fingerprint
+- model_name
+- match_threshold
+- analysis_result (JSONB full payload)
+- generated_at, updated_at
+
+6.2 Trace metier table: cv_matching_metier_scores
+--------------------------------------------------
+One row per metier in an analysis:
+- analysis_id, cv_submission_id, auth_id
+- rank_position
+- metier_name, domaine_name
+- n_competences, matched_competences
+- coverage_pct, avg_score
+- top_skills (JSONB)
+
+6.3 Trace competence table: cv_matching_competence_results
+-----------------------------------------------------------
+One row per competence result in an analysis:
+- analysis_id, cv_submission_id, auth_id
+- metier_name, domaine_name, metier_rank
+- is_top_metier
+- status (match/gap)
+- source_bucket
+- competence_name, competence_type, keywords
+- best_cv_skill, best_cv_level
+- similarity_score
+
+6.4 Security
+------------
+All three tables use RLS policies scoped by auth_id.
+
+
+7) FRONTEND KPI INTERPRETATION (IMPORTANT FOR PRESENTATION)
+============================================================
+
+7.1 Why users may see surprising numbers
+----------------------------------------
+Example confusion:
+- "Competences analysees = 56"
+- "Matches = 56"
+- "Gaps = 102"
+
+This is normal because:
+- Competences analysees = CV skill count (n_skills)
+- Matches/Gaps = counts over reference competences
+
+So n_skills is not expected to equal n_matches + n_gaps.
+
+7.2 Difference between ranking metrics
+--------------------------------------
+- matched: semantic strict count by threshold
+- coverage_pct: weighted competitiveness (level-aware)
+- avg_score: raw semantic average
+
+To reduce confusion in UI, the "Score moyen" label was hidden from the
+metier card while keeping the metric in backend data.
+
+
+8) MATHEMATICAL SUMMARY (SLIDE-FRIENDLY)
+========================================
+
+Let i index CV skills, j index reference competences.
+
+Raw semantic similarity:
+s_raw(i, j)
+
+Niveau weighting:
+w(i) in {1.00, 0.50, 0.20, default 0.50}
+
+Weighted similarity:
+s_weighted(i, j) = s_raw(i, j) * w(i)
+
+Best skill for competence j:
+i*(j) = argmax_i s_weighted(i, j)
+
+Status decision:
+match_j if s_raw(i*(j), j) >= threshold
+gap_j otherwise
+
+Metier m metrics:
+- matched_m = count_j_in_m [max_i s_raw(i, j) >= threshold]
+- coverage_m = mean_j_in_m [max_i s_weighted(i, j)] * 100
+- avg_m = mean_j_in_m [max_i s_raw(i, j)]
+
+
+9) KNOWN LIMITATIONS
+====================
+
+1) Reference table read is capped to 5000 rows.
+2) Generic BERT model may need domain-specific fine-tuning for best precision.
+3) No explicit per-domain threshold calibration yet.
+4) Lexical fallback is less semantically rich than transformer mode.
+5) Very short/ambiguous skills can reduce matching quality.
+
+
+10) RECOMMENDED NEXT IMPROVEMENTS (PFE ROADMAP)
+================================================
+
+1) Domain-adaptive threshold tuning per metier.
+2) Calibration curve on labeled dataset (precision/recall, F1).
+3) Add explainability payload:
+  - top contributing tokens
+  - nearest neighbors in embedding space
+4) Add confidence buckets for easier recruiter interpretation.
+5) Evaluate multilingual normalization and synonym expansion.
+
+
+11) DEMO SCRIPT FOR PRESENTATION
+================================
+
+1) Start Python service:
+  python -m uvicorn main:app --host 127.0.0.1 --port 8001
+2) Start backend.
+3) Trigger force recompute for a selected user.
+4) Show returned summary and metier ranking.
+5) Query trace endpoint and show normalized rows in DB.
+6) Demonstrate fallback by stopping Python service and recomputing.
+
+
+12) KEY DEFENSE TALKING POINTS
+===============================
+
+1) "We separate decision score from ranking score":
+  - raw score for match/gap correctness
+  - weighted score for level-aware ranking
+
+2) "We designed for robustness":
+  - Python transformer primary path
+  - deterministic local fallback on failures
+
+3) "We designed for traceability":
+  - JSON snapshot + normalized SQL trace rows
+  - reproducibility via fingerprint versioning
+
+4) "We designed for user clarity":
+  - reduced confusing UI indicators
+  - explicit distinction between CV skills and reference competences
