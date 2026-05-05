@@ -25,9 +25,17 @@ export class RecommendationsService {
     this.pythonTimeoutMs = Number.isFinite(timeout) ? Math.max(60_000, timeout) : 900_000;
   }
 
-  private normalizeConcernRate(row: RecommendationRow): RecommendationRow {
+  private normalizeConcernRate(
+    row: RecommendationRow,
+    forcedTotalStudents?: number | null,
+  ): RecommendationRow {
     const studentsImpacted = Number(row?.students_impacted ?? 0);
-    const totalStudents = Number(row?.total_students ?? row?.cohort_size ?? 0);
+    const forcedTotal = Number(forcedTotalStudents ?? 0);
+    const totalFromRow = Number(row?.total_students ?? row?.cohort_size ?? 0);
+    const totalStudents =
+      Number.isFinite(forcedTotal) && forcedTotal > 0
+        ? Math.trunc(forcedTotal)
+        : totalFromRow;
 
     if (!Number.isFinite(studentsImpacted) || !Number.isFinite(totalStudents) || totalStudents <= 0) {
       return row;
@@ -39,6 +47,24 @@ export class RecommendationsService {
       total_students: totalStudents,
       concern_rate: concernRate,
     };
+  }
+
+  private async getGlobalCvStudentsCount(): Promise<number | null> {
+    const { count, error } = await this.supabase
+      .from('cv_submissions')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      this.logger.warn(`Unable to count cv_submissions: ${error.message}`);
+      return null;
+    }
+
+    const total = Number(count ?? 0);
+    if (!Number.isFinite(total) || total <= 0) {
+      return null;
+    }
+
+    return Math.trunc(total);
   }
 
   private async pythonPost(path: string, body: any): Promise<any> {
@@ -112,9 +138,10 @@ export class RecommendationsService {
 
   async listRecommendations(status?: string): Promise<RecommendationRow[]> {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
+    const globalTotalStudents = await this.getGlobalCvStudentsCount();
 
     if (normalizedStatus === 'approved') {
-      return this.listApprovedRecommendationsForAdmin();
+      return this.listApprovedRecommendationsForAdmin(globalTotalStudents);
     }
 
     let query = this.supabase
@@ -129,20 +156,24 @@ export class RecommendationsService {
     const { data, error } = await query;
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
 
-    const rows = ((data ?? []) as RecommendationRow[]).map((row) => this.normalizeConcernRate(row));
+    const rows = ((data ?? []) as RecommendationRow[]).map((row) =>
+      this.normalizeConcernRate(row, globalTotalStudents),
+    );
     if (normalizedStatus) {
       return rows;
     }
 
     // For "all", include approved rows from the confirmed table (source of truth)
     // so previously validated recommendations remain visible even after regeneration.
-    const approvedRows = await this.listApprovedRecommendationsForAdmin();
+    const approvedRows = await this.listApprovedRecommendationsForAdmin(globalTotalStudents);
     const approvedIds = new Set(approvedRows.map((r) => String(r.id).trim()));
     const nonApproved = rows.filter((r) => !approvedIds.has(String(r?.id ?? '').trim()));
     return [...approvedRows, ...nonApproved];
   }
 
-  private async listApprovedRecommendationsForAdmin(): Promise<RecommendationRow[]> {
+  private async listApprovedRecommendationsForAdmin(
+    globalTotalStudents?: number | null,
+  ): Promise<RecommendationRow[]> {
     const confirmedRows = await this.listAllConfirmedRecommendations();
     return confirmedRows
       .map((row: any) => ({
@@ -152,7 +183,7 @@ export class RecommendationsService {
         created_at: row?.created_at ?? row?.confirmed_at ?? null,
         updated_at: row?.updated_at ?? row?.confirmed_at ?? null,
       }))
-      .map((row: RecommendationRow) => this.normalizeConcernRate(row))
+        .map((row: RecommendationRow) => this.normalizeConcernRate(row, globalTotalStudents))
       .filter((row: RecommendationRow) => !!row.id);
   }
 
@@ -163,12 +194,14 @@ export class RecommendationsService {
     const targetJob = await this.getStudentTargetJob(resolvedAuthId);
     if (!targetJob) return [];
 
+    const globalTotalStudents = await this.getGlobalCvStudentsCount();
+
     // Requirement: student recommendations come from confirmed rows only, mapped by
     // ai_confirmed_recommendations.metier <-> cv_submissions.professional_title.
     const allConfirmed = await this.listAllConfirmedRecommendations();
     const byTargetJob = allConfirmed.filter((row) => this.isMetierMatch(row?.metier, targetJob));
 
-    return byTargetJob.map((row) => this.toStudentRecommendation(row));
+    return byTargetJob.map((row) => this.toStudentRecommendation(row, globalTotalStudents));
   }
 
   private async listAllConfirmedRecommendations(): Promise<any[]> {
@@ -244,12 +277,15 @@ export class RecommendationsService {
     return commonTokenCount >= 2;
   }
 
-  private toStudentRecommendation(row: any): RecommendationRow {
+  private toStudentRecommendation(row: any, globalTotalStudents?: number | null): RecommendationRow {
     const recommendationId = String(row?.recommendation_id ?? row?.id ?? '').trim();
-    return this.normalizeConcernRate({
-      ...row,
-      id: recommendationId,
-    });
+    return this.normalizeConcernRate(
+      {
+        ...row,
+        id: recommendationId,
+      },
+      globalTotalStudents,
+    );
   }
 
   async getRecommendation(id: string): Promise<RecommendationRow> {
@@ -260,7 +296,8 @@ export class RecommendationsService {
       .maybeSingle();
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     if (!data) throw new HttpException('Recommendation not found', HttpStatus.NOT_FOUND);
-    return this.normalizeConcernRate(data as RecommendationRow);
+    const globalTotalStudents = await this.getGlobalCvStudentsCount();
+    return this.normalizeConcernRate(data as RecommendationRow, globalTotalStudents);
   }
 
   async updateRecommendation(
@@ -316,7 +353,8 @@ export class RecommendationsService {
     // until an explicit re-approval happens.
     await this.removeConfirmedMirror(id);
 
-    return this.normalizeConcernRate(data as RecommendationRow);
+    const globalTotalStudents = await this.getGlobalCvStudentsCount();
+    return this.normalizeConcernRate(data as RecommendationRow, globalTotalStudents);
   }
 
   async rejectRecommendation(id: string, adminId: string | null, comment?: string): Promise<void> {

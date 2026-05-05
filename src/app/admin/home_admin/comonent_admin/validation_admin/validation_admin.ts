@@ -14,7 +14,7 @@ import {
 } from './validation-admin.service';
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'edited';
-type LevelFilter = 'all' | 'CRITIQUE' | 'HAUTE' | 'MOYENNE' | 'FAIBLE';
+type LevelFilter = 'all' | 'CRITIQUE' | 'MOYENNE' | 'FAIBLE';
 
 @Component({
   selector: 'app-validation-admin',
@@ -221,7 +221,6 @@ export class ValidationAdmin implements OnInit, OnDestroy {
     return {
       total,
       critique: byLevel('CRITIQUE'),
-      haute: byLevel('HAUTE'),
       moyenne: byLevel('MOYENNE'),
       faible: byLevel('FAIBLE'),
     };
@@ -259,6 +258,55 @@ export class ValidationAdmin implements OnInit, OnDestroy {
   keywordsLabel(keywords: string[] | null | undefined): string {
     if (!keywords || !Array.isArray(keywords) || keywords.length === 0) return '';
     return keywords.slice(0, 4).join(', ');
+  }
+
+  displayCompetenceName(reco: Recommendation): string {
+    const raw = String(reco.gap_title ?? reco.competence_name ?? '').trim();
+    if (!raw) return '';
+
+    const typePrefixes = new Set([
+      'comportementale',
+      'comportemental',
+      'technique',
+      'physique',
+      'organisationnelle',
+      'organisationnel',
+    ]);
+
+    const normalize = (value: string): string =>
+      value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    let value = raw;
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+
+      const bracketMatch = value.match(/^\[([^\]]+)\]\s*(.+)$/);
+      if (bracketMatch) {
+        const prefix = normalize(bracketMatch[1]);
+        if (typePrefixes.has(prefix)) {
+          value = bracketMatch[2].trim();
+          changed = true;
+          continue;
+        }
+      }
+
+      const separatorMatch = value.match(/^([^:\-]+)\s*[:\-]\s*(.+)$/);
+      if (separatorMatch) {
+        const prefix = normalize(separatorMatch[1]);
+        if (typePrefixes.has(prefix)) {
+          value = separatorMatch[2].trim();
+          changed = true;
+        }
+      }
+    }
+
+    return value;
   }
 
   totalStudentsForDisplay(reco: Recommendation): number {
