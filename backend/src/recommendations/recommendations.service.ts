@@ -25,6 +25,22 @@ export class RecommendationsService {
     this.pythonTimeoutMs = Number.isFinite(timeout) ? Math.max(60_000, timeout) : 900_000;
   }
 
+  private normalizeConcernRate(row: RecommendationRow): RecommendationRow {
+    const studentsImpacted = Number(row?.students_impacted ?? 0);
+    const totalStudents = Number(row?.total_students ?? row?.cohort_size ?? 0);
+
+    if (!Number.isFinite(studentsImpacted) || !Number.isFinite(totalStudents) || totalStudents <= 0) {
+      return row;
+    }
+
+    const concernRate = Number(((studentsImpacted / totalStudents) * 100).toFixed(1));
+    return {
+      ...row,
+      total_students: totalStudents,
+      concern_rate: concernRate,
+    };
+  }
+
   private async pythonPost(path: string, body: any): Promise<any> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.pythonTimeoutMs);
@@ -113,7 +129,7 @@ export class RecommendationsService {
     const { data, error } = await query;
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
 
-    const rows = (data ?? []) as RecommendationRow[];
+    const rows = ((data ?? []) as RecommendationRow[]).map((row) => this.normalizeConcernRate(row));
     if (normalizedStatus) {
       return rows;
     }
@@ -136,6 +152,7 @@ export class RecommendationsService {
         created_at: row?.created_at ?? row?.confirmed_at ?? null,
         updated_at: row?.updated_at ?? row?.confirmed_at ?? null,
       }))
+      .map((row: RecommendationRow) => this.normalizeConcernRate(row))
       .filter((row: RecommendationRow) => !!row.id);
   }
 
@@ -229,10 +246,10 @@ export class RecommendationsService {
 
   private toStudentRecommendation(row: any): RecommendationRow {
     const recommendationId = String(row?.recommendation_id ?? row?.id ?? '').trim();
-    return {
+    return this.normalizeConcernRate({
       ...row,
       id: recommendationId,
-    };
+    });
   }
 
   async getRecommendation(id: string): Promise<RecommendationRow> {
@@ -243,7 +260,7 @@ export class RecommendationsService {
       .maybeSingle();
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     if (!data) throw new HttpException('Recommendation not found', HttpStatus.NOT_FOUND);
-    return data;
+    return this.normalizeConcernRate(data as RecommendationRow);
   }
 
   async updateRecommendation(
@@ -299,7 +316,7 @@ export class RecommendationsService {
     // until an explicit re-approval happens.
     await this.removeConfirmedMirror(id);
 
-    return data;
+    return this.normalizeConcernRate(data as RecommendationRow);
   }
 
   async rejectRecommendation(id: string, adminId: string | null, comment?: string): Promise<void> {

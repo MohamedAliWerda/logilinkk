@@ -261,6 +261,23 @@ export class ValidationAdmin implements OnInit, OnDestroy {
     return keywords.slice(0, 4).join(', ');
   }
 
+  totalStudentsForDisplay(reco: Recommendation): number {
+    const totalFromReco = Number(reco.total_students ?? 0);
+    if (Number.isFinite(totalFromReco) && totalFromReco > 0) {
+      return Math.trunc(totalFromReco);
+    }
+
+    const globalTotal = this.recommendations
+      .map((item) => Number(item.total_students ?? 0))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    if (globalTotal.length > 0) {
+      return Math.trunc(Math.max(...globalTotal));
+    }
+
+    const cohortFallback = Number(reco.cohort_size ?? 0);
+    return Number.isFinite(cohortFallback) && cohortFallback > 0 ? Math.trunc(cohortFallback) : 0;
+  }
+
   trackById(_index: number, item: Recommendation): string {
     return item.id;
   }
