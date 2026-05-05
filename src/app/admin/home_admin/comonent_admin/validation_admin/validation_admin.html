@@ -59,15 +59,6 @@
     </button>
     <button
       type="button"
-      class="stat-card lvl-haute"
-      [class.active]="levelFilter === 'HAUTE'"
-      (click)="setLevelFilter('HAUTE')"
-    >
-      <span class="stat-label">Haute</span>
-      <span class="stat-value">{{ stats.haute }}</span>
-    </button>
-    <button
-      type="button"
       class="stat-card lvl-moyenne"
       [class.active]="levelFilter === 'MOYENNE'"
       (click)="setLevelFilter('MOYENNE')"
@@ -145,7 +136,7 @@
           <span class="badge level-badge" [ngClass]="levelClass(reco.level)">{{ reco.level }}</span>
           <span class="badge category-badge">{{ reco.category }}</span>
           <span class="badge status-badge" [ngClass]="statusClass(reco.status)">{{ reco.status }}</span>
-          <h3>{{ reco.gap_title || reco.competence_name }}</h3>
+          <h3>{{ displayCompetenceName(reco) }}</h3>
         </div>
         <div class="reco-metrics">
           <span class="metric"><strong>{{ reco.concern_rate ?? 0 }}%</strong> concernes</span>
@@ -156,7 +147,7 @@
 
       <section class="reco-body" *ngIf="editingId !== reco.id">
         <div class="reco-gap">
-          <strong>{{ reco.competence_name }}</strong>
+          <strong>{{ displayCompetenceName(reco) }}</strong>
           <span *ngIf="keywordsLabel(reco.keywords)"> — {{ keywordsLabel(reco.keywords) }}</span>
           <span *ngIf="reco.domaine"> · {{ reco.domaine }}</span>
         </div>
@@ -247,6 +238,7 @@
         </ng-container>
         <ng-template #readActions>
           <button
+            *ngIf="statusFilter !== 'approved'"
             type="button"
             class="btn-primary"
             [disabled]="reco.status === 'approved'"

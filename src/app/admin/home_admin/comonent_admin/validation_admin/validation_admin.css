@@ -151,7 +151,7 @@
 
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 1.25rem;
 }
@@ -324,6 +324,7 @@
 .reco-card-head {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
   flex-wrap: wrap;
   margin-bottom: 0.75rem;
@@ -399,7 +400,10 @@
   gap: 0.15rem;
   font-size: 0.82rem;
   color: #4b5563;
+  margin-left: auto;
   align-items: flex-end;
+  text-align: right;
+  min-width: max-content;
 }
 
 .reco-metrics strong {
@@ -547,7 +551,9 @@
     grid-column: span 1;
   }
   .reco-metrics {
-    align-items: flex-start;
+    align-items: flex-end;
+    text-align: right;
+    width: 100%;
   }
   .search-input-wrap {
     min-width: 100%;
