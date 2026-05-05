@@ -1,0 +1,163 @@
+<div class="page-wrapper" *ngIf="!submitSuccess; else successTpl">
+  <!-- Header Banner -->
+  <div class="page-header">
+    <h1>Formulaire d'Évaluation Entreprise</h1>
+    <p>Donnez votre retour pour améliorer l'adequation formation-emploi.</p>
+  </div>
+
+  <!-- Progress Steps Tabs -->
+  <div class="steps-nav">
+    <div class="steps-tabs">
+      <button
+        *ngFor="let step of steps; let index = index"
+        class="tab-item"
+        [class.active]="index === currentStep"
+        [class.completed]="index < currentStep"
+        (click)="goToStep(index)"
+        type="button"
+      >
+        <span class="tab-dot"></span>
+        <span class="tab-label">Étape {{ index + 1 }}</span>
+      </button>
+    </div>
+    <div class="steps-progress">
+      <div class="progress-fill" [style.width.%]="progressPercent"></div>
+    </div>
+  </div>
+
+  <!-- Form Card -->
+  <div class="form-card">
+    <div class="form-group question-block">
+      <h2 class="question-title">
+        {{ steps[currentStep].question }}
+      </h2>
+      <p class="question-hint" *ngIf="steps[currentStep].hint">
+        {{ steps[currentStep].hint }}
+      </p>
+    </div>
+
+    <ng-container [ngSwitch]="steps[currentStep].type">
+      <!-- Radio Options -->
+      <div *ngSwitchCase="'radio'" class="checkbox-group">
+        <div class="checkbox-item" *ngFor="let option of steps[currentStep].options">
+          <input
+            type="radio"
+            [id]="'radio-' + option"
+            [name]="'step-' + currentStep"
+            [checked]="isRadioSelected(option)"
+            (change)="setRadio(option)"
+          />
+          <label [for]="'radio-' + option">{{ option }}</label>
+        </div>
+      </div>
+
+      <!-- Checkbox Options -->
+      <div *ngSwitchCase="'checkbox'" class="checkbox-group">
+        <div class="checkbox-item" *ngFor="let option of steps[currentStep].options">
+          <input
+            type="checkbox"
+            [id]="'check-' + option"
+            [checked]="isGapSelected(option)"
+            [disabled]="!isGapSelected(option) && selectedGapCount >= 3"
+            (change)="toggleGap(option)"
+          />
+          <label [for]="'check-' + option">{{ option }}</label>
+        </div>
+        <input
+          *ngIf="isGapSelected('Autre')"
+          class="other-gap-input"
+          type="text"
+          [value]="form.otherGap"
+          (input)="onOtherGapInput($event)"
+          placeholder="Précisez (Autre)..."
+        />
+      </div>
+
+      <!-- Star Rating -->
+      <div *ngSwitchCase="'stars'" class="form-group">
+        <div class="rating-matrix">
+          <div class="rating-matrix-head">
+            <div class="rating-label-cell"></div>
+            <div class="rating-value-head" *ngFor="let value of ratingScale">{{ value }}</div>
+          </div>
+
+          <div class="rating-row" *ngFor="let label of ratingLabels; let index = index">
+            <div class="rating-label-cell">{{ label }}</div>
+            <button
+              *ngFor="let value of ratingScale"
+              type="button"
+              class="rating-circle"
+              [class.selected]="form.ratings[ratingKeys[index]] === value"
+              [attr.aria-label]="label + ' : note ' + value"
+              (click)="setRating(ratingKeys[index], value)"
+            ></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Satisfaction Scale -->
+      <div *ngSwitchCase="'satisfaction'" class="form-group">
+        <div class="satisfaction-labels">
+          <span>Très insatisfait</span>
+          <span>Extrêmement satisfait</span>
+        </div>
+        <div class="satisfaction-scale">
+          <button
+            *ngFor="let value of satisfactionScale"
+            type="button"
+            class="satisfaction-btn"
+            [class.selected]="form.q7 === value"
+            (click)="setSatisfaction(value)"
+          >
+            {{ value }}
+          </button>
+        </div>
+        <div class="satisfaction-text">{{ satisfactionText() }}</div>
+      </div>
+    </ng-container>
+
+    <div class="error-text" *ngIf="submitError">
+      {{ submitError }}
+    </div>
+
+    <div class="form-actions">
+      <button 
+        class="btn btn-secondary" 
+        type="button" 
+        (click)="previousStep()" 
+        [style.visibility]="currentStep === 0 ? 'hidden' : 'visible'"
+      >
+        ← Précédent
+      </button>
+
+      <button 
+        class="btn btn-primary" 
+        type="button" 
+        (click)="nextStep()" 
+        [disabled]="isSubmitting"
+      >
+        {{ isSubmitting ? 'Enregistrement...' : (isLastStep ? 'Soumettre ✓' : 'Suivant →') }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Success Template -->
+<ng-template #successTpl>
+  <div class="page-wrapper">
+    <div class="page-header">
+      <h1>Formulaire d'Évaluation Entreprise</h1>
+      <p>Donnez votre retour pour améliorer l'adequation formation-emploi.</p>
+    </div>
+
+    <div class="form-card success-card">
+      <div class="success-icon">
+        ✓
+      </div>
+      <h2 class="success-title">Évaluation enregistrée</h2>
+      <p class="success-description">
+        ISGI vous remercie de votre confiance et de votre contribution à l'amélioration continue de nos services.
+      </p>
+    </div>
+  </div>
+</ng-template>
