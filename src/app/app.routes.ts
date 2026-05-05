@@ -111,6 +111,11 @@ export const routes: Routes = [
       { path: 'offres', component: Offres },
       { path: 'candidatures', component: CandidaturesComponent },
       { path: 'fiche-signaletique', component: FicheSignaletique },
+      {
+        path: 'feedback',
+        loadComponent: () =>
+          import('./entreprise/home/feedback/feedback-entreprise').then(m => m.FeedbackEntreprise),
+      },
     ],
   },
 ];

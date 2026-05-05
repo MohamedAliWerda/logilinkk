@@ -56,6 +56,12 @@ export class SidebarEntreprise implements OnInit, OnDestroy {
     exact: false,
   },
   {
+    key: 'feedback',
+    label: 'Feedback',
+    route: '/entreprise/feedback',
+    exact: false,
+  },
+  {
     key: 'fiche-signaletique',
     label: 'Fiche signalétique',
     route: '/entreprise/fiche-signaletique',
