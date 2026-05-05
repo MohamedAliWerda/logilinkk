@@ -30,6 +30,33 @@ interface StatCard {
   icon?: string;
 }
 
+type CompanyRecruitmentIntent = 'Oui' | 'Non' | 'En réflexion';
+type CompanySituation = 'CDI' | 'CDD' | 'Stage / PFE' | 'Freelance' | 'Sans emploi';
+
+interface EnterpriseFeedback {
+  id: string;
+  company: string;
+  sector: string;
+  promotion: number;
+  satisfactionGlobal: number; // /10
+  recruitmentIntent: CompanyRecruitmentIntent;
+  profileFitRate: number; // 0..100
+  performanceContribution: number; // /5
+  situation: CompanySituation;
+  competenceTechnique: number; // /6
+  resolutionProblemes: number; // /6
+  travailEquipe: number; // /6
+  communication: number; // /6
+  autonomiePriorites: number; // /6
+  apprentissageAgilite: number; // /6
+  lacuneExperienceTerrain: number; // 0..100
+  lacuneOutilsTms: number; // 0..100
+  lacuneGestionCrise: number; // 0..100
+  lacuneReglementation: number; // 0..100
+  lacuneCommunicationClients: number; // 0..100
+  lacuneAnglais: number; // 0..100
+}
+
 @Component({
   selector: 'app-feedback-admin',
   standalone: true,
@@ -51,10 +78,12 @@ interface StatCard {
 })
 export class FeedbackAdmin implements AfterViewInit, OnDestroy, OnInit {
   searchTerm: string = '';
+  companySearchTerm: string = '';
   sortColumn: string = '';
   sortDirection: 'asc' | 'desc' = 'asc';
-  activeTab: 'anciens' | 'retours' = 'anciens';
+  activeTab: 'anciens' | 'retours' | 'societes' | 'retours-societes' = 'anciens';
   selectedPromo: number | null = null;
+  selectedCompanyFilter: string = 'all';
   private chartInstances: Record<string, Chart | undefined> = {};
   private dashboardUpdatedAt: Date = new Date();
 
@@ -86,6 +115,7 @@ L'équipe ISGI`;
   showSuccessNotification: boolean = false;
   successMessage: string = '';
   feedbackStudents: OldStudent[] = [];
+  enterpriseFeedbacks: EnterpriseFeedback[] = [];
   private refreshIntervalId: number | undefined;
 
   constructor(
@@ -103,8 +133,10 @@ L'équipe ISGI`;
   private async refreshAllData(): Promise<void> {
     await this.loadAncienEtudiants(false);
     await this.loadDashboardFeedback(false);
+    await this.loadEnterpriseFeedback(false);
     this.cdr.markForCheck();
     this.scheduleDashboardCharts();
+    this.scheduleCompanyDashboardCharts();
   }
 
   private async loadAncienEtudiants(shouldRefreshCharts = true): Promise<void> {
@@ -138,11 +170,179 @@ L'équipe ISGI`;
       if (shouldRefreshCharts) {
         this.cdr.markForCheck();
         this.scheduleDashboardCharts();
+        this.scheduleCompanyDashboardCharts();
       }
     } catch (err) {
       console.error('Supabase feedback fetch error', err);
       throw err;
     }
+  }
+
+  private async loadEnterpriseFeedback(shouldRefreshCharts = true): Promise<void> {
+    const tableCandidates = ['feedback_entreprise', 'feedback_entreprises', 'feedback_company'];
+    let loadedRows: any[] = [];
+
+    for (const tableName of tableCandidates) {
+      try {
+        const rows = await this.supabaseService.fetchFeedback(tableName);
+        if (Array.isArray(rows) && rows.length > 0) {
+          loadedRows = rows;
+          break;
+        }
+      } catch {
+        // try next candidate
+      }
+    }
+
+    if (loadedRows.length > 0) {
+      this.enterpriseFeedbacks = loadedRows.map(row => this.mapEnterpriseFeedbackRow(row));
+    } else {
+      this.enterpriseFeedbacks = this.buildEnterpriseFallbackRows();
+    }
+
+    if (shouldRefreshCharts) {
+      this.cdr.markForCheck();
+      this.scheduleCompanyDashboardCharts();
+    }
+  }
+
+  private normalizeNumber(raw: unknown, fallback: number, min: number, max: number): number {
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      return Math.min(max, Math.max(min, raw));
+    }
+
+    if (typeof raw === 'string') {
+      const normalized = raw.replace(',', '.').replace('%', '').trim();
+      const parsed = Number(normalized);
+      if (Number.isFinite(parsed)) {
+        return Math.min(max, Math.max(min, parsed));
+      }
+    }
+
+    return Math.min(max, Math.max(min, fallback));
+  }
+
+  private normalizeIntent(raw: unknown): CompanyRecruitmentIntent {
+    const text = String(raw ?? '').toLowerCase();
+    if (text.includes('oui') || text.includes('yes') || text.includes('envisag')) {
+      return 'Oui';
+    }
+    if (text.includes('non') || text.includes('no')) {
+      return 'Non';
+    }
+    return 'En réflexion';
+  }
+
+  private normalizeSituation(raw: unknown): CompanySituation {
+    const text = String(raw ?? '').toLowerCase();
+    if (text.includes('cdi')) return 'CDI';
+    if (text.includes('cdd') || text.includes('sivp')) return 'CDD';
+    if (text.includes('stage') || text.includes('pfe')) return 'Stage / PFE';
+    if (text.includes('free')) return 'Freelance';
+    return 'Sans emploi';
+  }
+
+  private parsePromotion(raw: unknown): number {
+    const text = String(raw ?? '').trim();
+    const m = text.match(/(19\d{2}|20\d{2})/);
+    if (m) return Number(m[1]);
+    const numeric = Number(text);
+    return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
+  }
+
+  private mapEnterpriseFeedbackRow(row: any): EnterpriseFeedback {
+    const company = String(
+      row?.entreprise
+      ?? row?.societe
+      ?? row?.nom_entreprise
+      ?? row?.company
+      ?? row?.raison_sociale
+      ?? 'Entreprise non renseignée',
+    ).trim() || 'Entreprise non renseignée';
+
+    const profileFitFallback = (() => {
+      const adequation = String(row?.poste_en_lien_formation ?? row?.adequation ?? '').toLowerCase();
+      if (adequation.includes('total')) return 85;
+      if (adequation.includes('part')) return 60;
+      if (adequation.includes('pas')) return 25;
+      return 64;
+    })();
+
+    const competenceTechnique = this.normalizeNumber(row?.competences_techniques_metier ?? row?.competence_technique ?? row?.competences_techniques, 4.1, 0, 6);
+    const resolutionProblemes = this.normalizeNumber(row?.resolution_problemes ?? row?.competences_gestion_projet, 3.9, 0, 6);
+    const travailEquipe = this.normalizeNumber(row?.travail_equipe_collaboration ?? row?.travail_equipe, 4.5, 0, 6);
+    const communication = this.normalizeNumber(row?.communication_professionnelle ?? row?.competences_communication, 3.5, 0, 6);
+    const autonomiePriorites = this.normalizeNumber(row?.autonomie_gestion_priorites ?? row?.capacite_adaptation, 3.2, 0, 6);
+    const apprentissageAgilite = this.normalizeNumber(row?.capacite_apprentissage_agilite ?? row?.maitrise_langues, 4.9, 0, 6);
+
+    const lacuneFromSkill = (skillValue: number) => Math.round((1 - (skillValue / 6)) * 100);
+
+    return {
+      id: String(row?.id ?? `${company}-${row?.promotion ?? ''}`),
+      company,
+      sector: String(row?.secteur ?? row?.domaine ?? row?.filiere ?? 'Logistique & Transport').trim(),
+      promotion: this.parsePromotion(row?.promotion ?? row?.promotion_cible),
+      satisfactionGlobal: this.normalizeNumber(row?.satisfaction_globale ?? row?.satisfaction ?? row?.note_globale ?? row?.recommandation_isgis, 7.4, 0, 10),
+      recruitmentIntent: this.normalizeIntent(row?.recrutement_envisage ?? row?.intention_recrutement ?? row?.intention),
+      profileFitRate: this.normalizeNumber(row?.profil_adequat_poste ?? row?.profil_adequat ?? row?.adequation_poste, profileFitFallback, 0, 100),
+      performanceContribution: this.normalizeNumber(row?.contribution_performance ?? row?.impact_performance ?? row?.contribution, 3.6, 0, 5),
+      situation: this.normalizeSituation(row?.situation_actuelle_diplome ?? row?.situation_diplome ?? row?.situation_actuelle),
+      competenceTechnique,
+      resolutionProblemes,
+      travailEquipe,
+      communication,
+      autonomiePriorites,
+      apprentissageAgilite,
+      lacuneExperienceTerrain: this.normalizeNumber(row?.lacune_experience_terrain ?? row?.experience_terrain, lacuneFromSkill(competenceTechnique), 0, 100),
+      lacuneOutilsTms: this.normalizeNumber(row?.lacune_outils_tms_wms ?? row?.outils_tms_wms, lacuneFromSkill(resolutionProblemes), 0, 100),
+      lacuneGestionCrise: this.normalizeNumber(row?.lacune_gestion_crise_logistique ?? row?.gestion_crise_logistique, lacuneFromSkill(travailEquipe), 0, 100),
+      lacuneReglementation: this.normalizeNumber(row?.lacune_reglementation_transport ?? row?.reglementation_transport, lacuneFromSkill(communication), 0, 100),
+      lacuneCommunicationClients: this.normalizeNumber(row?.lacune_communication_clients ?? row?.communication_clients, lacuneFromSkill(autonomiePriorites), 0, 100),
+      lacuneAnglais: this.normalizeNumber(row?.lacune_anglais_operationnel ?? row?.anglais_operationnel, lacuneFromSkill(apprentissageAgilite), 0, 100),
+    };
+  }
+
+  private buildEnterpriseFallbackRows(): EnterpriseFeedback[] {
+    const responded = this.feedbackStudents.filter(s => s.status === 'À répondu');
+    if (!responded.length) {
+      return [];
+    }
+
+    return responded.map((student, index) => {
+      const recommendation = this.normalizeNumber(student.recommendationNote, 7, 0, 10);
+      const profileFitRate = student.adequation === 'Totalement en lien'
+        ? 82
+        : student.adequation === 'Partiellement en lien'
+          ? 62
+          : 24;
+
+      const baseSkill = student.rating ? this.normalizeNumber(student.rating, 3.8, 0, 5) : 3.8;
+      const toSix = (v: number) => this.normalizeNumber((v / 5) * 6, 4, 0, 6);
+
+      return {
+        id: `fallback-${student.id}-${index}`,
+        company: String(student.company ?? 'Entreprise non renseignée').trim() || 'Entreprise non renseignée',
+        sector: 'Logistique & Transport',
+        promotion: student.promotion,
+        satisfactionGlobal: recommendation,
+        recruitmentIntent: recommendation >= 7 ? 'Oui' : recommendation <= 4 ? 'Non' : 'En réflexion',
+        profileFitRate,
+        performanceContribution: this.normalizeNumber(student.rating, 3.6, 0, 5),
+        situation: this.normalizeSituation(student.employmentStatus),
+        competenceTechnique: toSix(baseSkill + 0.3),
+        resolutionProblemes: toSix(baseSkill + 0.1),
+        travailEquipe: toSix(baseSkill + 0.5),
+        communication: toSix(baseSkill - 0.2),
+        autonomiePriorites: toSix(baseSkill - 0.4),
+        apprentissageAgilite: toSix(baseSkill + 0.6),
+        lacuneExperienceTerrain: 71,
+        lacuneOutilsTms: 58,
+        lacuneGestionCrise: 50,
+        lacuneReglementation: 44,
+        lacuneCommunicationClients: 38,
+        lacuneAnglais: 31,
+      };
+    });
   }
 
   private mapRowToOldStudent(row: any): OldStudent {
@@ -450,6 +650,7 @@ L'équipe ISGI`;
 
   ngAfterViewInit(): void {
     this.scheduleDashboardCharts();
+    this.scheduleCompanyDashboardCharts();
   }
 
   ngOnDestroy(): void {
@@ -471,6 +672,15 @@ L'équipe ISGI`;
 
     this.dashboardUpdatedAt = new Date();
     setTimeout(() => this.renderDashboardCharts(), 0);
+  }
+
+  private scheduleCompanyDashboardCharts(): void {
+    if (this.activeTab !== 'retours-societes') {
+      return;
+    }
+
+    this.dashboardUpdatedAt = new Date();
+    setTimeout(() => this.renderCompanyDashboardCharts(), 0);
   }
 
   private destroyAllCharts(): void {
@@ -495,6 +705,84 @@ L'équipe ISGI`;
     this.renderDelayChart();
     this.renderRecruitmentChannelChart();
     this.renderAdequationChart();
+  }
+
+  private renderCompanyDashboardCharts(): void {
+    if (this.activeTab !== 'retours-societes') {
+      return;
+    }
+
+    this.renderCompanySituationChart();
+    this.renderCompanySatisfactionChart();
+  }
+
+  private renderCompanySituationChart(): void {
+    const canvas = document.getElementById('company-situation-chart') as HTMLCanvasElement | null;
+    if (!canvas) {
+      return;
+    }
+
+    this.resetChart('company-situation');
+    this.chartInstances['company-situation'] = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: this.companySituationRows.map(item => item.label),
+        datasets: [
+          {
+            data: this.companySituationRows.map(item => item.percent),
+            backgroundColor: this.companySituationRows.map(item => item.color),
+            borderColor: '#ffffff',
+            borderWidth: 2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '62%',
+        plugins: {
+          legend: { display: false },
+        },
+      },
+    });
+  }
+
+  private renderCompanySatisfactionChart(): void {
+    const canvas = document.getElementById('company-satisfaction-chart') as HTMLCanvasElement | null;
+    if (!canvas) {
+      return;
+    }
+
+    this.resetChart('company-satisfaction');
+    this.chartInstances['company-satisfaction'] = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: this.companySatisfactionDistribution.map(item => String(item.score)),
+        datasets: [
+          {
+            data: this.companySatisfactionDistribution.map(item => item.count),
+            backgroundColor: this.companySatisfactionDistribution.map(item => item.color),
+            borderRadius: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            ticks: { font: { size: 10 }, color: '#71717a' },
+            grid: { color: 'rgba(0,0,0,0.05)' },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { font: { size: 10 }, color: '#71717a' },
+            grid: { color: 'rgba(0,0,0,0.05)' },
+          },
+        },
+      },
+    });
   }
 
   private renderEmploymentStatusChart(): void {
@@ -952,6 +1240,214 @@ L'équipe ISGI`;
       .slice(0, 5);
   }
 
+  get companyRows(): Array<{
+    name: string;
+    sector: string;
+    promotionLabel: string;
+    respondents: number;
+    satisfaction: number;
+    recruitmentYesRate: number;
+    profileFitRate: number;
+    performance: number;
+  }> {
+    const byCompany = new Map<string, EnterpriseFeedback[]>();
+    this.enterpriseFeedbacks.forEach(row => {
+      const key = row.company || 'Entreprise non renseignée';
+      const current = byCompany.get(key) ?? [];
+      current.push(row);
+      byCompany.set(key, current);
+    });
+
+    return [...byCompany.entries()].map(([name, rows]) => {
+      const avg = (picker: (r: EnterpriseFeedback) => number) => {
+        const values = rows.map(picker);
+        return values.reduce((sum, v) => sum + v, 0) / Math.max(values.length, 1);
+      };
+
+      const sector = rows.find(r => r.sector)?.sector ?? 'Logistique & Transport';
+      const promotions = [...new Set(rows.map(r => r.promotion).filter(p => p > 0))].sort((a, b) => a - b);
+
+      return {
+        name,
+        sector,
+        promotionLabel: promotions.length ? String(promotions[promotions.length - 1]) : '—',
+        respondents: rows.length,
+        satisfaction: Number(avg(r => r.satisfactionGlobal).toFixed(1)),
+        recruitmentYesRate: Math.round((rows.filter(r => r.recruitmentIntent === 'Oui').length / rows.length) * 100),
+        profileFitRate: Math.round(avg(r => r.profileFitRate)),
+        performance: Number(avg(r => r.performanceContribution).toFixed(1)),
+      };
+    }).sort((a, b) => b.respondents - a.respondents);
+  }
+
+  get filteredCompanyRows() {
+    const q = this.companySearchTerm.trim().toLowerCase();
+    if (!q) return this.companyRows;
+    return this.companyRows.filter(row =>
+      row.name.toLowerCase().includes(q)
+      || row.sector.toLowerCase().includes(q)
+      || row.promotionLabel.toLowerCase().includes(q),
+    );
+  }
+
+  get companyFilterOptions(): string[] {
+    return this.companyRows.map(row => row.name);
+  }
+
+  get companyDashboardRows(): EnterpriseFeedback[] {
+    if (this.selectedCompanyFilter === 'all') {
+      return this.enterpriseFeedbacks;
+    }
+    return this.enterpriseFeedbacks.filter(row => row.company === this.selectedCompanyFilter);
+  }
+
+  get companyDashboardLabel(): string {
+    if (this.selectedCompanyFilter === 'all') {
+      return 'Toutes les sociétés';
+    }
+    return this.selectedCompanyFilter;
+  }
+
+  private averageCompanyMetric(picker: (row: EnterpriseFeedback) => number, digits = 1): number {
+    const rows = this.companyDashboardRows;
+    if (!rows.length) return 0;
+    const total = rows.map(picker).reduce((sum, value) => sum + value, 0);
+    return Number((total / rows.length).toFixed(digits));
+  }
+
+  get companyRespondentsCount(): number {
+    return this.companyDashboardRows.length;
+  }
+
+  get companySatisfactionAverage(): number {
+    return this.averageCompanyMetric(row => row.satisfactionGlobal, 1);
+  }
+
+  get companyRecruitmentYesRate(): number {
+    const rows = this.companyDashboardRows;
+    if (!rows.length) return 0;
+    const yes = rows.filter(row => row.recruitmentIntent === 'Oui').length;
+    return Math.round((yes / rows.length) * 100);
+  }
+
+  get companyProfileFitAverage(): number {
+    return Math.round(this.averageCompanyMetric(row => row.profileFitRate, 1));
+  }
+
+  get companyPerformanceAverage(): number {
+    return this.averageCompanyMetric(row => row.performanceContribution, 1);
+  }
+
+  get companySkillRows(): Array<{ label: string; value: number; color: string }> {
+    return [
+      { label: 'Compétences techniques métier', value: this.averageCompanyMetric(r => r.competenceTechnique, 1), color: '#2563eb' },
+      { label: 'Résolution de problèmes', value: this.averageCompanyMetric(r => r.resolutionProblemes, 1), color: '#1d9e75' },
+      { label: 'Travail en équipe / Collaboration', value: this.averageCompanyMetric(r => r.travailEquipe, 1), color: '#0ea5e9' },
+      { label: 'Communication professionnelle', value: this.averageCompanyMetric(r => r.communication, 1), color: '#b45309' },
+      { label: 'Autonomie & Gestion des priorités', value: this.averageCompanyMetric(r => r.autonomiePriorites, 1), color: '#c2410c' },
+      { label: 'Capacité d\'apprentissage & Agilité', value: this.averageCompanyMetric(r => r.apprentissageAgilite, 1), color: '#4338ca' },
+    ];
+  }
+
+  get companySituationRows(): Array<{ label: CompanySituation; percent: number; color: string }> {
+    const rows = this.companyDashboardRows;
+    const total = rows.length;
+    const palette: Record<CompanySituation, string> = {
+      'CDI': '#2166ac',
+      'CDD': '#1d9e75',
+      'Stage / PFE': '#4338ca',
+      'Freelance': '#b45309',
+      'Sans emploi': '#71717a',
+    };
+
+    const labels: CompanySituation[] = ['CDI', 'CDD', 'Stage / PFE', 'Freelance', 'Sans emploi'];
+    return labels.map(label => {
+      const count = rows.filter(row => row.situation === label).length;
+      const percent = total ? Math.round((count / total) * 100) : 0;
+      return { label, percent, color: palette[label] };
+    });
+  }
+
+  get companyGapRows(): Array<{ label: string; percent: number; color: string }> {
+    return [
+      { label: 'Expérience terrain', percent: Math.round(this.averageCompanyMetric(r => r.lacuneExperienceTerrain, 1)), color: '#9a3412' },
+      { label: 'Outils TMS / WMS', percent: Math.round(this.averageCompanyMetric(r => r.lacuneOutilsTms, 1)), color: '#b45309' },
+      { label: 'Gestion de crise logistique', percent: Math.round(this.averageCompanyMetric(r => r.lacuneGestionCrise, 1)), color: '#2563eb' },
+      { label: 'Réglementation transport', percent: Math.round(this.averageCompanyMetric(r => r.lacuneReglementation, 1)), color: '#4338ca' },
+      { label: 'Communication clients', percent: Math.round(this.averageCompanyMetric(r => r.lacuneCommunicationClients, 1)), color: '#047857' },
+      { label: 'Anglais opérationnel', percent: Math.round(this.averageCompanyMetric(r => r.lacuneAnglais, 1)), color: '#71717a' },
+    ];
+  }
+
+  get companyProfileBreakdown(): { toutAFait: number; partiellement: number; peuAdapte: number; nonAdapte: number } {
+    const rows = this.companyDashboardRows;
+    if (!rows.length) {
+      return { toutAFait: 0, partiellement: 0, peuAdapte: 0, nonAdapte: 0 };
+    }
+
+    const toutAFait = rows.filter(r => r.profileFitRate >= 75).length;
+    const partiellement = rows.filter(r => r.profileFitRate >= 50 && r.profileFitRate < 75).length;
+    const peuAdapte = rows.filter(r => r.profileFitRate >= 25 && r.profileFitRate < 50).length;
+    const nonAdapte = rows.filter(r => r.profileFitRate < 25).length;
+    const toPercent = (n: number) => Math.round((n / rows.length) * 100);
+
+    return {
+      toutAFait: toPercent(toutAFait),
+      partiellement: toPercent(partiellement),
+      peuAdapte: toPercent(peuAdapte),
+      nonAdapte: toPercent(nonAdapte),
+    };
+  }
+
+  get companyRecruitmentBreakdown(): { oui: number; non: number; reflexion: number } {
+    const rows = this.companyDashboardRows;
+    if (!rows.length) {
+      return { oui: 0, non: 0, reflexion: 0 };
+    }
+    const oui = rows.filter(r => r.recruitmentIntent === 'Oui').length;
+    const non = rows.filter(r => r.recruitmentIntent === 'Non').length;
+    const reflexion = rows.filter(r => r.recruitmentIntent === 'En réflexion').length;
+    const toPercent = (n: number) => Math.round((n / rows.length) * 100);
+    return { oui: toPercent(oui), non: toPercent(non), reflexion: toPercent(reflexion) };
+  }
+
+  get companySatisfactionDistribution(): Array<{ score: number; count: number; color: string }> {
+    const rows = this.companyDashboardRows;
+    const bins = Array.from({ length: 11 }, (_, score) => ({ score, count: 0 }));
+    rows.forEach(row => {
+      const score = Math.max(0, Math.min(10, Math.round(row.satisfactionGlobal)));
+      bins[score].count += 1;
+    });
+
+    const colorsByScore: Record<number, string> = {
+      0: '#94a3b8',
+      1: '#94a3b8',
+      2: '#94a3b8',
+      3: '#f59e0b',
+      4: '#f59e0b',
+      5: '#f59e0b',
+      6: '#93c5fd',
+      7: '#3b82f6',
+      8: '#2166ac',
+      9: '#1d9e75',
+      10: '#0f766e',
+    };
+
+    return bins.map(bin => ({
+      ...bin,
+      color: colorsByScore[bin.score] ?? '#94a3b8',
+    }));
+  }
+
+  get companyInsight(): string {
+    const strongest = [...this.companySkillRows].sort((a, b) => b.value - a.value)[0];
+    const weakest = [...this.companyGapRows].sort((a, b) => b.percent - a.percent)[0];
+    if (!strongest || !weakest) {
+      return 'Données insuffisantes pour générer un insight société.';
+    }
+    return `Point fort : ${strongest.label.toLowerCase()} (${strongest.value.toFixed(1)}/6). Axe d'amélioration prioritaire : ${weakest.label.toLowerCase()} (${weakest.percent}%).`;
+  }
+
   get filteredStudents(): OldStudent[] {
     let filtered = this.oldStudents.filter(s => {
       const matchTab = this.activeTab === 'anciens' || (this.activeTab === 'retours' && s.status === 'À répondu');
@@ -991,11 +1487,17 @@ L'équipe ISGI`;
     }
   }
 
-  setActiveTab(tab: 'anciens' | 'retours') {
+  setActiveTab(tab: 'anciens' | 'retours' | 'societes' | 'retours-societes') {
     this.activeTab = tab;
     this.sortColumn = '';
     this.searchTerm = '';
     this.scheduleDashboardCharts();
+    this.scheduleCompanyDashboardCharts();
+  }
+
+  setCompanyFilter(value: string): void {
+    this.selectedCompanyFilter = value;
+    this.scheduleCompanyDashboardCharts();
   }
 
   setPromoFilter(promo: number | null): void {

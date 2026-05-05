@@ -71,7 +71,7 @@ TOP_K_RAG = int(os.getenv("TOP_K_RAG", "5"))
 # Optional hard cap on LLM calls per job (0 = unlimited). Useful pour economiser le quota Gemini.
 MAX_LLM_CALLS = int(os.getenv("MAX_LLM_CALLS", "0"))
 
-# Seuils priorite sur % cohorte
+# Seuils priorite sur % des etudiants avec CV
 PRIORITY_THRESHOLDS = {"CRITIQUE": 70, "HAUTE": 40, "MOYENNE": 20, "FAIBLE": 0}
 
 
@@ -464,7 +464,7 @@ def _build_prompt(gap: dict[str, Any], rag_results: list[dict[str, Any]]) -> str
 - Competence manquante : {gap['competence_name']}
 - Type : {gap['competence_type']}
 - Mots-cles : {gap['keywords']}
-- Etudiants concernes : {gap['n_students']} / {gap['cohort_size']} ({gap['pct']}%)
+- Etudiants concernes : {gap['n_students']} / {gap['cohort_size']} ({gap['pct']}% des etudiants avec CV)
 - Priorite calculee : {gap['priority']}
 - Rang popularite metier : #{gap['popularity_rank']}
 - Score similarite moyen : {gap['avg_similarity']:.3f}
@@ -579,7 +579,7 @@ def _rag_only_recommendation(gap: dict[str, Any], rag_results: list[dict[str, An
     metier = gap.get("metier_name", "")
     out["llm_recommendation"] = (
         f"[Mode RAG-only] Gap de priorite {priority} detecte sur '{gap['competence_name']}' "
-        f"(metier: {metier}) touchant {pct}% de la cohorte. "
+        f"(metier: {metier}) touchant {pct}% des etudiants avec CV. "
         f"Ressource la plus pertinente du referentiel : {out['cert_title']}. "
         f"Verification manuelle par l'admin recommandee."
     )
@@ -653,6 +653,10 @@ def load_and_aggregate_gaps() -> tuple[pd.DataFrame, int]:
         columns={"id": "cv_submission_id", "metier_id": "target_metier_id", "professional_title": "target_metier_name"},
     )[["cv_submission_id", "auth_id", "target_metier_id", "target_metier_name"]]
 
+    # Global denominator requested by admin: all students who created CVs.
+    total_students = int(df_sub["auth_id"].dropna().nunique())
+    denom_students = max(total_students, 1)
+
     df_res = pd.DataFrame(results)
 
     df = df_res.merge(df_sub, on=["cv_submission_id", "auth_id"], how="left")
@@ -661,9 +665,7 @@ def load_and_aggregate_gaps() -> tuple[pd.DataFrame, int]:
 
     df_gaps = df[df["status"] == "gap"].copy()
     if df_gaps.empty:
-        return pd.DataFrame(), 0
-
-    n_students = int(df_gaps["auth_id"].nunique())
+        return pd.DataFrame(), total_students
 
     # Popularite du metier vise
     popularity = (
@@ -676,7 +678,6 @@ def load_and_aggregate_gaps() -> tuple[pd.DataFrame, int]:
     )
     popularity["rank"] = popularity.index + 1
     rank_map = dict(zip(popularity["target_metier_name"], popularity["rank"]))
-    cohort_map = dict(zip(popularity["target_metier_name"], popularity["n_students"]))
 
     group_cols = ["metier_name", "domaine_name", "competence_name", "competence_type", "keywords"]
     df_gaps["similarity_score"] = df_gaps["similarity_score"].apply(_to_float)
@@ -693,8 +694,8 @@ def load_and_aggregate_gaps() -> tuple[pd.DataFrame, int]:
             .reset_index()
             .rename(columns={"target_metier_id": "metier_id"})
         )
-        agg_t["cohort_size"] = agg_t["metier_name"].map(cohort_map).fillna(1).astype(int)
-        agg_t["pct"] = (agg_t["n_students"] / agg_t["cohort_size"] * 100).round(1)
+        agg_t["cohort_size"] = denom_students
+        agg_t["pct"] = (agg_t["n_students"] / denom_students * 100).round(1)
         agg_t["priority"] = agg_t["pct"].apply(priority_label)
         agg_t["bucket"] = "TARGET_METIER"
         agg_t["popularity_rank"] = agg_t["metier_name"].map(rank_map).fillna(99).astype(int)
@@ -713,8 +714,8 @@ def load_and_aggregate_gaps() -> tuple[pd.DataFrame, int]:
             .reset_index()
         )
         agg_o["metier_id"] = None
-        agg_o["cohort_size"] = n_students
-        agg_o["pct"] = (agg_o["n_students"] / n_students * 100).round(1)
+        agg_o["cohort_size"] = denom_students
+        agg_o["pct"] = (agg_o["n_students"] / denom_students * 100).round(1)
         agg_o["priority"] = agg_o["pct"].apply(priority_label)
         agg_o["bucket"] = "OTHER_METIER"
         agg_o["popularity_rank"] = agg_o["metier_name"].map(rank_map).fillna(99).astype(int)
@@ -727,7 +728,7 @@ def load_and_aggregate_gaps() -> tuple[pd.DataFrame, int]:
 
     frames = [f[cols] for f in (agg_t, agg_o) if not f.empty]
     if not frames:
-        return pd.DataFrame(), n_students
+        return pd.DataFrame(), total_students
 
     df_agg = pd.concat(frames, ignore_index=True)
     df_agg["bucket_order"] = df_agg["bucket"].map({"TARGET_METIER": 0, "OTHER_METIER": 1})
@@ -736,7 +737,7 @@ def load_and_aggregate_gaps() -> tuple[pd.DataFrame, int]:
         .drop(columns=["bucket_order"])
         .reset_index(drop=True)
     )
-    return df_agg, n_students
+    return df_agg, total_students
 
 
 def _iso_now() -> str:
@@ -761,15 +762,15 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
     )
 
     try:
-        df_agg, n_students = load_and_aggregate_gaps()
+        df_agg, total_students = load_and_aggregate_gaps()
         total = len(df_agg)
-        LOGGER.info("Job %s: %d gaps aggreges / %d etudiants", job_id, total, n_students)
+        LOGGER.info("Job %s: %d gaps aggreges / %d etudiants", job_id, total, total_students)
 
         supabase_upsert(
             "recommendation_jobs",
             [{
                 "id": job_id,
-                "stats": {"stage": "generating", "total": total, "n_students": n_students},
+                "stats": {"stage": "generating", "total": total, "n_students": total_students},
             }],
             on_conflict="id",
         )
@@ -838,7 +839,7 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
                 "concern_rate": float(gap["pct"]),
                 "students_impacted": int(gap["n_students"]),
                 "cohort_size": int(gap["cohort_size"]),
-                "total_students": int(n_students),
+                "total_students": int(total_students),
                 "popularity_rank": int(gap["popularity_rank"]),
                 "llm_recommendation": reco.get("llm_recommendation", ""),
                 "cert_title": reco.get("cert_title", ""),
@@ -865,7 +866,7 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
                         "recommendation_jobs",
                         [{
                             "id": job_id,
-                            "stats": {"stage": "generating", "total": total, "done": idx + 1, "n_students": n_students},
+                            "stats": {"stage": "generating", "total": total, "done": idx + 1, "n_students": total_students},
                         }],
                         on_conflict="id",
                     )
@@ -921,7 +922,7 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
             "preserved_non_pending": len(preserved_ids),
             "pruned_stale_pending": pruned_pending,
             "pruned_stale_targets": pruned_targets,
-            "n_students": n_students,
+            "n_students": total_students,
             "elapsed_sec": elapsed,
             "daily_cap_hit": daily_cap_hit,
         }

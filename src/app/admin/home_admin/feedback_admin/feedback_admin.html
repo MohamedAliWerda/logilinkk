@@ -1,7 +1,7 @@
 <section class="admin-page-container">
     <header class="topbar">
         <div>
-            <h1 class="topbar-title">Feedback Anciens Diplômés</h1>
+            <h1 class="topbar-title">Ingestion Professionnelle</h1>
             <p class="topbar-sub">ISGIS Admin</p>
         </div>
         <div class="topbar-right">
@@ -35,7 +35,13 @@
                 Anciens diplômés
             </button>
             <button class="tab-btn" [class.active]="activeTab === 'retours'" (click)="setActiveTab('retours')">
-                Dashboard insertion
+                Tableau de bord diplomés
+            </button>
+            <button class="tab-btn" [class.active]="activeTab === 'societes'" (click)="setActiveTab('societes')">
+                Sociétés
+            </button>
+            <button class="tab-btn" [class.active]="activeTab === 'retours-societes'" (click)="setActiveTab('retours-societes')">
+                Tableau de bord société
             </button>
         </div>
 
@@ -52,7 +58,7 @@
 
                 <div class="toolbar-right">
                     <button class="btn btn-ghost" type="button" (click)="openAddStudentModal()">Ajouter</button>
-                    <button class="btn btn-orange" type="button" (click)="openSendEmailModal()">Envoyer email à tous</button>
+                    <button class="btn btn-orange" type="button" (click)="openSendEmailModal()">Diffusion email</button>
                 </div>
             </div>
 
@@ -63,10 +69,6 @@
                             <th (click)="setSort('fullName')" class="sortable">Nom</th>
                             <th (click)="setSort('email')" class="sortable">Email</th>
                             <th (click)="setSort('promotion')" class="sortable">Promotion</th>
-                            <th (click)="setSort('status')" class="sortable">Statut invitation</th>
-                            <th>Réponse</th>
-                            <th>Actions</th>
-                        </tr>
                     </thead>
                     <tbody>
                         @for (student of filteredStudents; track trackById($index, student)) {
@@ -112,7 +114,7 @@
                 </table>
             </div>
         </div>
-        } @else {
+        } @else if (activeTab === 'retours') {
         <div class="tab-panel active">
             <div class="promo-filter">
                 <button class="promo-pill" [class.active]="selectedPromo === null" (click)="setPromoFilter(null)">Toutes promotions</button>
@@ -228,6 +230,186 @@
                     <div class="last-update">Mis à jour : {{ dashboardLastUpdate }}</div>
                 </div>
             </div>
+        </div>
+        } @else if (activeTab === 'societes') {
+        <div class="tab-panel active">
+            <div class="toolbar">
+                <div class="search-box company-search-box">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.4"></circle>
+                        <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+                    </svg>
+                    <input type="text" [(ngModel)]="companySearchTerm" placeholder="Rechercher une société, secteur, promotion..." />
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Société</th>
+                            <th>Secteur</th>
+                            <th>Promotion</th>
+                            <th>Répondants</th>
+                            <th>Satisfaction</th>
+                            <th>Recrutement</th>
+                            <th>Profil adéquat</th>
+                            <th>Contribution</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (row of filteredCompanyRows; track row.name) {
+                        <tr>
+                            <td class="cell-name">{{ row.name }}</td>
+                            <td>{{ row.sector }}</td>
+                            <td><span class="cell-promo">{{ row.promotionLabel }}</span></td>
+                            <td>{{ row.respondents }}</td>
+                            <td>{{ row.satisfaction }}/10</td>
+                            <td><span class="badge badge-green">{{ row.recruitmentYesRate }}%</span></td>
+                            <td><span class="badge badge-blue">{{ row.profileFitRate }}%</span></td>
+                            <td>{{ row.performance }}/5</td>
+                        </tr>
+                        } @empty {
+                        <tr>
+                            <td colspan="8">
+                                <div class="empty">
+                                    <div class="empty-icon">Aucun résultat</div>
+                                    <h3>Aucune société trouvée</h3>
+                                </div>
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        } @else {
+        <div class="tab-panel active company-dashboard-panel">
+            <div class="company-dashboard-header">
+                <div class="company-dashboard-filters">
+                    <select [value]="selectedCompanyFilter" (change)="setCompanyFilter($any($event.target).value)">
+                        <option value="all">Toutes les sociétés</option>
+                        @for (company of companyFilterOptions; track company) {
+                        <option [value]="company">{{ company }}</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="company-score-grid">
+                <article class="kpi-card company-score-card" style="--accent:#1D9E75">
+                    <div class="kpi-k">Satisfaction globale</div>
+                    <div class="kpi-v">{{ companySatisfactionAverage }} /10</div>
+                    <div class="kpi-s">Moyenne pondérée</div>
+                </article>
+                <article class="kpi-card company-score-card" style="--accent:#2563EB">
+                    <div class="kpi-k">Recrutement envisagé</div>
+                    <div class="kpi-v">{{ companyRecruitmentYesRate }}%</div>
+                    <div class="kpi-s">des entreprises</div>
+                </article>
+                <article class="kpi-card company-score-card" style="--accent:#16a34a">
+                    <div class="kpi-k">Profil adéquat au poste</div>
+                    <div class="kpi-v">{{ companyProfileFitAverage }}%</div>
+                    <div class="kpi-s">Oui ou partiellement</div>
+                </article>
+                <article class="kpi-card company-score-card" style="--accent:#b45309">
+                    <div class="kpi-k">Contribution performance</div>
+                    <div class="kpi-v">{{ companyPerformanceAverage }} /5</div>
+                    <div class="kpi-s">Score moyen</div>
+                </article>
+            </div>
+
+            <div class="company-visual-grid">
+                <article class="chart-card company-card-wide">
+                    <div class="chart-head">Évaluation par compétence (moyenne /6)</div>
+                    <div class="company-competence-list">
+                        @for (skill of companySkillRows; track skill.label) {
+                        <div class="company-competence-row">
+                            <div class="company-competence-label">{{ skill.label }}</div>
+                            <div class="company-competence-track">
+                                <div class="company-competence-fill" [style.width.%]="(skill.value / 6) * 100" [style.background]="skill.color"></div>
+                            </div>
+                            <div class="company-competence-value">{{ skill.value }}</div>
+                        </div>
+                        }
+                    </div>
+                </article>
+
+                <article class="chart-card company-card-side">
+                    <div class="chart-head">Situation actuelle du diplômé</div>
+                    <div class="company-situation-wrap">
+                        <div class="chart-body company-donut">
+                            <canvas id="company-situation-chart"></canvas>
+                        </div>
+                        <div class="company-situation-legend">
+                            @for (item of companySituationRows; track item.label) {
+                            <div class="company-situation-item">
+                                <span class="s-dot" [style.background]="item.color"></span>
+                                <span>{{ item.label }}</span>
+                                <strong>{{ item.percent }}%</strong>
+                            </div>
+                            }
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="company-visual-grid">
+                <article class="chart-card company-card-side">
+                    <div class="chart-head">Lacunes observées à l'arrivée</div>
+                    <div class="company-gap-list">
+                        @for (gap of companyGapRows; track gap.label) {
+                        <div class="company-gap-row">
+                            <div class="company-gap-label">{{ gap.label }}</div>
+                            <div class="company-gap-track">
+                                <div class="company-gap-fill" [style.width.%]="gap.percent" [style.background]="gap.color"></div>
+                            </div>
+                            <div class="company-gap-value">{{ gap.percent }}%</div>
+                        </div>
+                        }
+                    </div>
+                </article>
+
+                <article class="chart-card company-card-wide">
+                    <div class="chart-head">Profil académique vs. exigences du poste</div>
+                    <div class="company-profile-grid">
+                        <div class="company-profile-pill is-good">
+                            <strong>{{ companyProfileBreakdown.toutAFait }}%</strong>
+                            <span>Tout à fait</span>
+                        </div>
+                        <div class="company-profile-pill is-mid">
+                            <strong>{{ companyProfileBreakdown.partiellement }}%</strong>
+                            <span>Partiellement</span>
+                        </div>
+                        <div class="company-profile-pill is-warn">
+                            <strong>{{ companyProfileBreakdown.peuAdapte }}%</strong>
+                            <span>Peu adapté</span>
+                        </div>
+                        <div class="company-profile-pill is-risk">
+                            <strong>{{ companyProfileBreakdown.nonAdapte }}%</strong>
+                            <span>Non adapté</span>
+                        </div>
+                    </div>
+
+                    <div class="chart-head company-subhead">Intention de recruter</div>
+                    <div class="company-recruit-grid">
+                        <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.oui }}%</strong><span>Oui</span></div>
+                        <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.non }}%</strong><span>Non</span></div>
+                        <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.reflexion }}%</strong><span>En réflexion</span></div>
+                    </div>
+
+                    <div class="company-insight">
+                        {{ companyInsight }}
+                    </div>
+                </article>
+            </div>
+
+            <article class="chart-card">
+                <div class="chart-head">Distribution de la satisfaction globale (0–10)</div>
+                <div class="chart-body company-satisfaction-chart">
+                    <canvas id="company-satisfaction-chart"></canvas>
+                </div>
+            </article>
         </div>
         }
     </div>

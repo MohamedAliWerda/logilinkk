@@ -1,5 +1,5 @@
 .val-main {
-  padding: 1.5rem 2rem;
+  padding: 0 2rem 1.5rem;
   font-family: 'Segoe UI', Arial, sans-serif;
   color: #1f2937;
 }
@@ -7,27 +7,41 @@
 .val-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 1.5rem;
   flex-wrap: wrap;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+  background: linear-gradient(135deg, #fff7eb 0%, #ffe7c5 58%, #ffd9a0 100%);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  border: 1px solid rgba(224, 120, 0, 0.18);
+  box-shadow: 0 4px 14px rgba(80, 58, 12, 0.08);
+}
+
+.val-header-text {
+  min-width: 260px;
+  flex: 1;
 }
 
 .val-header h1 {
   margin: 0;
-  font-size: 1.7rem;
-  color: #1f2937;
+  font-size: 1.3rem;
+  color: #4f3314;
+  font-weight: 800;
+  line-height: 1.15;
 }
 
 .val-header p {
   margin: 0.35rem 0 0;
-  color: #6b7280;
-  font-size: 0.95rem;
+  color: #6f4d24;
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .val-header-actions {
   display: flex;
   gap: 0.75rem;
+  align-self: center;
 }
 
 .btn-primary,
@@ -62,6 +76,7 @@
   background: #fff;
   border: 1px solid #d1d5db;
   color: #374151;
+  margin-left: 19px;
 }
 
 .btn-ghost:hover {
@@ -72,6 +87,7 @@
   background: #dc2626;
   color: #fff;
 }
+
 
 .btn-danger-outline {
   background: #fff;
@@ -509,7 +525,17 @@
 
 @media (max-width: 768px) {
   .val-main {
-    padding: 1rem;
+    padding: 0 1rem 1rem;
+  }
+  .val-header {
+    padding: 0.9rem 1rem;
+    align-items: flex-start;
+  }
+  .val-header h1 {
+    font-size: 1.3rem;
+  }
+  .val-header p {
+    font-size: 0.92rem;
   }
   .stats-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));

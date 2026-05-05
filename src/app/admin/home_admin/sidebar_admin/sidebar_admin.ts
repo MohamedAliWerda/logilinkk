@@ -87,7 +87,7 @@ export class SidebarAdmin implements OnInit, OnDestroy {
     },
     {
       key: 'feedback',
-      label: 'Feedback anciens étudiants',
+      label: 'Ingestion Professionnelle',
       route: '/admin/feedback',
       exact: false,
     },

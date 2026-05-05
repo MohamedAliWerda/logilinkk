@@ -1,6 +1,6 @@
 <main class="val-main">
   <header class="val-header">
-    <div>
+    <div class="val-header-text">
       <h1>Validation de recommandation</h1>
       <p>
         Generez les recommandations de formation, puis validez, modifiez ou rejetez chaque ligne
@@ -149,7 +149,7 @@
         </div>
         <div class="reco-metrics">
           <span class="metric"><strong>{{ reco.concern_rate ?? 0 }}%</strong> concernes</span>
-          <span class="metric">{{ reco.students_impacted ?? 0 }} / {{ reco.cohort_size ?? 0 }} etudiants</span>
+          <span class="metric">{{ reco.students_impacted ?? 0 }} / {{ totalStudentsForDisplay(reco) }} etudiants</span>
           <span class="metric">Metier: {{ reco.metier }}</span>
         </div>
       </header>
