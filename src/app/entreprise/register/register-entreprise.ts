@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { EntrepriseApiService } from '../services/entreprise-api.service';
+import { SupabaseService } from '../../services/supabase.service';
 
 @Component({
   selector: 'app-register-entreprise',
@@ -20,16 +20,15 @@ export class RegisterEntreprise {
   constructor(
     private readonly fb: FormBuilder,
     private readonly router: Router,
-    private readonly entrepriseApiService: EntrepriseApiService,
+    private readonly supabaseService: SupabaseService,
   ) {
     this.registerForm = this.fb.group({
-      denominationsociale: ['', Validators.required],
+      nomEntreprise: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
       telephone: ['', Validators.required],
       password: ['', [Validators.required, Validators.minLength(8)]],
       adresse: ['', Validators.required],
-      secteuractivité: ['', Validators.required],
-      
+      description: ['', Validators.required],
     });
   }
 
@@ -39,7 +38,9 @@ export class RegisterEntreprise {
   }
 
   async onSubmit(): Promise<void> {
+    console.log('📋 onSubmit called');
     if (this.registerForm.invalid) {
+      console.log('📋 Form invalid');
       this.registerForm.markAllAsTouched();
       this.formError = 'Veuillez remplir tous les champs obligatoires.';
       return;
@@ -48,16 +49,29 @@ export class RegisterEntreprise {
     this.formError = null;
     this.isSubmitting = true;
 
+    const timeoutHandle = window.setTimeout(() => {
+      console.error('❌ Submit timed out after 15 seconds');
+      this.isSubmitting = false;
+      this.formError = 'Délai d\'attente dépassé. Vérifiez votre connexion et réessayez.';
+    }, 15000);
+
     try {
-      const payload = this.registerForm.value;
-      const response = await this.entrepriseApiService.register(payload);
-      localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('entreprise', JSON.stringify(response.data.entreprise));
-      localStorage.setItem('role', 'entreprise');
-      await this.router.navigate(['/entreprise/offres']);
+      const payload = this.registerForm.getRawValue();
+      console.log('📋 Payload:', payload);
+      console.log('📋 Calling createSociete...');
+      await this.supabaseService.createSociete(payload);
+      clearTimeout(timeoutHandle);
+      console.log('✅ createSociete succeeded, navigating...');
+      await this.router.navigate(['/entreprise/loginen']);
     } catch (error: any) {
-      const msg = error?.error?.message;
-      this.formError = typeof msg === 'string' ? msg : 'Une erreur est survenue. Veuillez réessayer.';
+      clearTimeout(timeoutHandle);
+      console.error('❌ Error in onSubmit:', error);
+      const msg = error?.message ?? error?.error?.message ?? String(error);
+      const details = error?.details;
+      const hint = error?.hint;
+      const fullError = [msg, details, hint].filter(Boolean).join(' | ');
+      this.formError = fullError || 'Impossible d\'enregistrer la societe pour le moment. Verifiez la connexion et reessayez.';
+      console.log('❌ Form error set:', this.formError);
     } finally {
       this.isSubmitting = false;
     }

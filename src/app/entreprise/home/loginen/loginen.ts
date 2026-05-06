@@ -3,12 +3,13 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { SupabaseService } from '../../../services/supabase.service';
 @Component({
   selector: 'app-login-entreprise',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
-  templateUrl: './loginen.html',  // ← changer ici
-  styleUrl: './loginen.css',      // ← changer ici aussi
+  templateUrl: './loginen.html',
+  styleUrls: ['./loginen.css'],
 })
 export class LoginEntrepriseComponent {
   loginForm: FormGroup;
@@ -16,7 +17,7 @@ export class LoginEntrepriseComponent {
   isSubmitting = false;
   authError = '';
 
-  constructor(private fb: FormBuilder, private router: Router) {
+  constructor(private fb: FormBuilder, private router: Router, private readonly supabase: SupabaseService) {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', Validators.required],
@@ -27,20 +28,46 @@ export class LoginEntrepriseComponent {
     this.hidePassword = !this.hidePassword;
   }
 
-  onSubmit(): void {
+  async onSubmit(): Promise<void> {
     if (this.loginForm.invalid) {
       this.authError = 'Veuillez remplir tous les champs correctement.';
       return;
     }
+
     this.isSubmitting = true;
     this.authError = '';
 
-    // TODO: Appeler votre AuthService pour entreprise
-    // this.authService.loginEntreprise(this.loginForm.value).subscribe(...)
+    const { email, password } = this.loginForm.value;
 
-    setTimeout(() => {
+    try {
+      const societe: any = await this.supabase.findSocieteByCredentials(email, password);
+      if (!societe) {
+        this.authError = 'Email ou mot de passe incorrect.';
+        return;
+      }
+
+      const situation = (societe.situation ?? '').toString().toLowerCase();
+      if (situation.includes('en attente') || situation.includes('en_attente')) {
+        // Block access until admin validation
+        window.alert('Votre compte est en attente de validation par un administrateur. L\'accès est bloqué jusqu\'à la validation.');
+        return;
+      }
+
+      if (situation.includes('valid') || situation.includes('validée') || situation.includes('validee')) {
+        // Successful login — persist minimal info and navigate
+        localStorage.setItem('entreprise', JSON.stringify(societe));
+        localStorage.setItem('role', 'entreprise');
+        await this.router.navigate(['/entreprise/offres']);
+        return;
+      }
+
+      // Fallback: deny access
+      window.alert('Votre compte n\'est pas autorisé à accéder pour le moment.');
+    } catch (err: any) {
+      console.error('Login error', err);
+      this.authError = 'Erreur lors de la connexion. Veuillez réessayer.';
+    } finally {
       this.isSubmitting = false;
-      this.router.navigate(['/entreprise/offres']);
-    }, 1000);
+    }
   }
 }

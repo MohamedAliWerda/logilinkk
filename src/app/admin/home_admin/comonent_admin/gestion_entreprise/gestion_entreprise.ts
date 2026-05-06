@@ -1,6 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SupabaseService } from '../../../../services/supabase.service';
+import { Router, NavigationEnd } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
+import { ChangeDetectorRef } from '@angular/core';
 
 export interface Poste {
   id: number;
@@ -32,168 +37,21 @@ export interface Entreprise {
   templateUrl: './gestion_entreprise.html',
   styleUrls: ['./gestion_entreprise.css']
 })
-export class GestionEntrepriseComponent implements OnInit {
+export class GestionEntrepriseComponent implements OnInit, OnDestroy {
 
   searchQuery = '';
-  activeTab: 'en_attente' | 'validées' = 'validées';
+  activeTab: 'en_attente' | 'validées' = 'en_attente';
+  isLoading = false;
 
   selectedEntreprise: Entreprise | null = null;
   showPostesModal = false;
   showConfirmSupp = false;
   entrepriseToSupp: Entreprise | null = null;
 
-  entreprisesEnAttente: Entreprise[] = [
-    {
-      id: 101,
-      initiales: 'SE',
-      couleur: '#a855f7',
-      nom: 'Sfax Express',
-      secteur: 'Transport routier',
-      nbPostes: 0,
-      dateDepuis: '',
-      statut: 'en_attente',
-      localisation: 'Sfax, Tunisie',
-      dateAjout: 'il y a 2h'
-    },
-    {
-      id: 102,
-      initiales: 'MC',
-      couleur: '#10b981',
-      nom: 'MedLog Cargo',
-      secteur: 'Logistique maritime',
-      nbPostes: 0,
-      dateDepuis: '',
-      statut: 'en_attente',
-      localisation: 'Tunis',
-      dateAjout: 'il y a 5h'
-    },
-    {
-      id: 103,
-      initiales: 'R',
-      couleur: '#3b82f6',
-      nom: 'RapidStock',
-      secteur: 'Gestion d\'entrepôt',
-      nbPostes: 0,
-      dateDepuis: '',
-      statut: 'en_attente',
-      localisation: 'Bizerte',
-      dateAjout: 'Hier'
-    }
-  ];
+  // Start empty - load from Supabase in ngOnInit
+  entreprisesEnAttente: Entreprise[] = [];
+  entreprisesValidees: Entreprise[] = [];
 
-  entreprisesValidees: Entreprise[] = [
-    {
-      id: 1,
-      initiales: 'L',
-      couleur: '#0ea5e9',
-      nom: 'LogiTrans',
-      secteur: 'Supply Chain',
-      nbPostes: 8,
-      dateDepuis: 'Mars 2025',
-      statut: 'validée',
-      postes: [
-        { id: 1, titre: 'Responsable logistique', description: 'Gestion des flux logistiques', nbEtudiants: 3, statut: 'ouvert', dateCreation: '01/03/2025' },
-        { id: 2, titre: 'Chef de projet supply chain', description: 'Coordination des projets SC', nbEtudiants: 5, statut: 'ouvert', dateCreation: '10/03/2025' },
-        { id: 3, titre: 'Analyste transport', description: 'Analyse des coûts transport', nbEtudiants: 2, statut: 'ouvert', dateCreation: '15/03/2025' },
-        { id: 4, titre: 'Gestionnaire entrepôt', description: 'Supervision des opérations entrepôt', nbEtudiants: 4, statut: 'ouvert', dateCreation: '20/03/2025' },
-        { id: 5, titre: 'Technicien SAV', description: 'Support après vente clients', nbEtudiants: 1, statut: 'fermé', dateCreation: '22/03/2025' },
-        { id: 6, titre: 'Coordinateur douane', description: 'Gestion des formalités douanières', nbEtudiants: 2, statut: 'ouvert', dateCreation: '25/03/2025' },
-        { id: 7, titre: 'Opérateur de saisie', description: 'Saisie des données logistiques', nbEtudiants: 0, statut: 'ouvert', dateCreation: '28/03/2025' },
-        { id: 8, titre: 'Responsable planning', description: 'Planification des livraisons', nbEtudiants: 3, statut: 'ouvert', dateCreation: '30/03/2025' },
-      ]
-    },
-    {
-      id: 2,
-      initiales: 'CC',
-      couleur: '#10b981',
-      nom: 'Carthage Cargo',
-      secteur: 'Transport maritime',
-      nbPostes: 5,
-      dateDepuis: 'Févr. 2025',
-      statut: 'validée',
-      postes: [
-        { id: 1, titre: 'Agent maritime', description: 'Gestion des escales navires', nbEtudiants: 2, statut: 'ouvert', dateCreation: '05/02/2025' },
-        { id: 2, titre: 'Transitaire', description: 'Organisation des expéditions', nbEtudiants: 4, statut: 'ouvert', dateCreation: '10/02/2025' },
-        { id: 3, titre: 'Acconier', description: 'Opérations de manutention portuaire', nbEtudiants: 1, statut: 'ouvert', dateCreation: '15/02/2025' },
-        { id: 4, titre: 'Responsable fret', description: 'Coordination fret maritime', nbEtudiants: 3, statut: 'ouvert', dateCreation: '20/02/2025' },
-        { id: 5, titre: 'Documentaliste export', description: 'Gestion documentaire export', nbEtudiants: 0, statut: 'fermé', dateCreation: '25/02/2025' },
-      ]
-    },
-    {
-      id: 3,
-      initiales: 'NL',
-      couleur: '#a855f7',
-      nom: 'Numidia Logistics',
-      secteur: 'Distribution',
-      nbPostes: 12,
-      dateDepuis: 'Janv. 2025',
-      statut: 'validée',
-      postes: [
-        { id: 1, titre: 'Livreur', description: 'Livraisons derniers kilomètres', nbEtudiants: 6, statut: 'ouvert', dateCreation: '05/01/2025' },
-        { id: 2, titre: 'Responsable réseau', description: 'Gestion réseau distribution', nbEtudiants: 2, statut: 'ouvert', dateCreation: '10/01/2025' },
-        { id: 3, titre: 'Préparateur commandes', description: 'Préparation des commandes clients', nbEtudiants: 5, statut: 'ouvert', dateCreation: '12/01/2025' },
-        { id: 4, titre: 'Superviseur entrepôt', description: 'Supervision équipe entrepôt', nbEtudiants: 1, statut: 'ouvert', dateCreation: '15/01/2025' },
-        { id: 5, titre: 'Commercial terrain', description: 'Développement réseau commercial', nbEtudiants: 3, statut: 'ouvert', dateCreation: '18/01/2025' },
-        { id: 6, titre: 'Chauffeur PL', description: 'Transport poids lourds national', nbEtudiants: 4, statut: 'ouvert', dateCreation: '20/01/2025' },
-        { id: 7, titre: 'Technicien informatique', description: 'Maintenance systèmes info', nbEtudiants: 0, statut: 'fermé', dateCreation: '22/01/2025' },
-        { id: 8, titre: 'Gestionnaire stock', description: 'Gestion et inventaire des stocks', nbEtudiants: 2, statut: 'ouvert', dateCreation: '25/01/2025' },
-        { id: 9, titre: 'Agent de quai', description: 'Réception et expédition marchandises', nbEtudiants: 1, statut: 'ouvert', dateCreation: '27/01/2025' },
-        { id: 10, titre: 'Responsable qualité', description: 'Contrôle qualité des livraisons', nbEtudiants: 2, statut: 'ouvert', dateCreation: '28/01/2025' },
-        { id: 11, titre: 'Coordinateur hub', description: 'Coordination hub logistique', nbEtudiants: 0, statut: 'ouvert', dateCreation: '29/01/2025' },
-        { id: 12, titre: 'Planificateur tournées', description: 'Optimisation tournées livreurs', nbEtudiants: 3, statut: 'ouvert', dateCreation: '30/01/2025' },
-      ]
-    },
-    {
-      id: 4,
-      initiales: 'SR',
-      couleur: '#ec4899',
-      nom: 'Sahara Routes',
-      secteur: 'Transport routier',
-      nbPostes: 3,
-      dateDepuis: 'Déc. 2024',
-      statut: 'validée',
-      postes: [
-        { id: 1, titre: 'Chauffeur longue distance', description: 'Transport international routier', nbEtudiants: 2, statut: 'ouvert', dateCreation: '01/12/2024' },
-        { id: 2, titre: 'Dispatcher', description: 'Gestion et suivi des véhicules', nbEtudiants: 1, statut: 'ouvert', dateCreation: '10/12/2024' },
-        { id: 3, titre: 'Mécanicien PL', description: 'Maintenance parc véhicules', nbEtudiants: 0, statut: 'fermé', dateCreation: '15/12/2024' },
-      ]
-    },
-    {
-      id: 5,
-      initiales: 'BS',
-      couleur: '#0ea5e9',
-      nom: 'BlueWave Shipping',
-      secteur: 'Logistique maritime',
-      nbPostes: 7,
-      dateDepuis: 'Nov. 2024',
-      statut: 'validée',
-      postes: [
-        { id: 1, titre: 'Capitaine de port', description: 'Supervision opérations portuaires', nbEtudiants: 1, statut: 'ouvert', dateCreation: '01/11/2024' },
-        { id: 2, titre: 'Officier de navigation', description: 'Navigation et sécurité maritime', nbEtudiants: 2, statut: 'ouvert', dateCreation: '05/11/2024' },
-        { id: 3, titre: 'Agent de fret', description: 'Gestion fret international', nbEtudiants: 3, statut: 'ouvert', dateCreation: '10/11/2024' },
-        { id: 4, titre: 'Responsable conteneurs', description: 'Gestion parc conteneurs', nbEtudiants: 1, statut: 'ouvert', dateCreation: '15/11/2024' },
-        { id: 5, titre: 'Inspecteur maritime', description: 'Contrôle conformité navires', nbEtudiants: 0, statut: 'fermé', dateCreation: '18/11/2024' },
-        { id: 6, titre: 'Shipchandler', description: 'Approvisionnement navires', nbEtudiants: 2, statut: 'ouvert', dateCreation: '20/11/2024' },
-        { id: 7, titre: 'Courtier maritime', description: 'Négociation affrètement', nbEtudiants: 1, statut: 'ouvert', dateCreation: '25/11/2024' },
-      ]
-    },
-    {
-      id: 6,
-      initiales: 'T',
-      couleur: '#f59e0b',
-      nom: 'TerraStock',
-      secteur: 'Entreposage',
-      nbPostes: 4,
-      dateDepuis: 'Oct. 2024',
-      statut: 'validée',
-      postes: [
-        { id: 1, titre: 'Magasinier', description: 'Gestion des stocks entrepôt', nbEtudiants: 4, statut: 'ouvert', dateCreation: '01/10/2024' },
-        { id: 2, titre: 'Cariste', description: 'Manutention chariots élévateurs', nbEtudiants: 2, statut: 'ouvert', dateCreation: '05/10/2024' },
-        { id: 3, titre: 'Chef d\'entrepôt', description: 'Supervision équipe entrepôt', nbEtudiants: 1, statut: 'ouvert', dateCreation: '10/10/2024' },
-        { id: 4, titre: 'Inventoriste', description: 'Inventaire et suivi des stocks', nbEtudiants: 0, statut: 'fermé', dateCreation: '15/10/2024' },
-      ]
-    }
-  ];
 
   // ✅ Getters utilisés dans le HTML
   get nbEnAttente(): number {
@@ -267,27 +125,200 @@ export class GestionEntrepriseComponent implements OnInit {
     this.entrepriseToSupp = null;
   }
 
-  // ✅ Valide une entreprise en attente → la déplace vers validées
-  validerEntreprise(entreprise: Entreprise): void {
-    this.entreprisesEnAttente = this.entreprisesEnAttente.filter(
-      e => e.id !== entreprise.id
-    );
-    const validated: Entreprise = {
-      ...entreprise,
-      statut: 'validée',
-      nbPostes: 0,
-      dateDepuis: new Date().toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }),
-      postes: []
-    };
-    this.entreprisesValidees = [...this.entreprisesValidees, validated];
+  // ✅ Load companies pending validation from Supabase
+  private async loadEnAttente(): Promise<void> {
+    try {
+      console.log('🔄 Fetching entreprises en attente from Supabase...');
+      const rows: any[] = await this.supabase.fetchSocietesBySituation('En attente');
+      console.log('📥 Raw response for en attente:', rows);
+      console.log('📥 Loaded entreprises en attente:', rows.length, 'rows');
+      
+      if (!rows || rows.length === 0) {
+        console.warn('⚠️ No rows returned for "En attente"');
+        this.entreprisesEnAttente = [];
+        return;
+      }
+      
+      this.entreprisesEnAttente = rows.map(r => {
+        console.log('📦 Mapping row:', { id: r.id, nom: r.denomination_sociale, date: r.date_creation });
+        return {
+          id: Number(r.id),
+          initiales: (r.denomination_sociale || '').split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase() || '??',
+          couleur: '#a855f7',
+          nom: r.denomination_sociale ?? r.raison_sociale ?? 'Entreprise',
+          secteur: r.secteur_activite ?? r.secteur ?? '',
+          nbPostes: Number(r.nb_postes ?? 0),
+          dateDepuis: r.date_creation ? new Date(r.date_creation).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '',
+          statut: 'en_attente',
+          localisation: r.adresse ?? '',
+          dateAjout: r.date_creation ? new Date(r.date_creation).toLocaleString('fr-FR') : ''
+        };
+      });
+      console.log('✅ Mapped', this.entreprisesEnAttente.length, 'entreprises en attente');
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('❌ Failed to load entreprises en attente:', err);
+      this.entreprisesEnAttente = [];
+    }
   }
 
-  // ✅ Rejette une entreprise en attente
-  rejeterEntreprise(entreprise: Entreprise): void {
-    this.entreprisesEnAttente = this.entreprisesEnAttente.filter(
-      e => e.id !== entreprise.id
-    );
+  // ✅ Load validated companies from Supabase
+  private async loadValidees(): Promise<void> {
+    try {
+      console.log('🔄 Fetching entreprises validées from Supabase...');
+      const validRows: any[] = await this.supabase.fetchSocietesBySituations(['Validée', 'validée', 'VALIDÉE']);
+      console.log('📥 Raw response for validées:', validRows);
+      console.log('📥 Loaded entreprises validées:', validRows.length, 'rows');
+      
+      if (!validRows || validRows.length === 0) {
+        console.warn('⚠️ No rows returned for validées');
+        this.entreprisesValidees = [];
+        return;
+      }
+      
+      this.entreprisesValidees = validRows.map(r => {
+        console.log('📦 Mapping row:', { id: r.id, nom: r.denomination_sociale, date: r.date_creation });
+        return {
+          id: Number(r.id),
+          initiales: (r.denomination_sociale || '').split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase() || '??',
+          couleur: '#0ea5e9',
+          nom: r.denomination_sociale ?? r.raison_sociale ?? 'Entreprise',
+          secteur: r.secteur_activite ?? r.secteur ?? '',
+          nbPostes: Number(r.nb_postes ?? 0),
+          dateDepuis: r.date_creation ? new Date(r.date_creation).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '',
+          statut: 'validée',
+          localisation: r.adresse ?? '',
+          dateAjout: r.date_creation ? new Date(r.date_creation).toLocaleString('fr-FR') : '',
+          postes: []
+        };
+      });
+      console.log('✅ Mapped', this.entreprisesValidees.length, 'entreprises validées');
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('❌ Failed to load entreprises validées:', err);
+      this.entreprisesValidees = [];
+    }
   }
 
-  ngOnInit(): void {}
+  // ✅ Verify Supabase connection and show all data in the table
+  async verifySupabaseConnection(): Promise<void> {
+    try {
+      console.log('🔗 Verifying Supabase connection...');
+      const allRows: any[] = await this.supabase.fetchAllSocietes();
+      
+      if (allRows.length === 0) {
+        console.warn('⚠️ IMPORTANT: Supabase "Societe" table is EMPTY!');
+        console.log('Please register a company first through the registration form.');
+        return;
+      }
+      
+      console.log('✅ Supabase connection OK');
+      console.log('📊 Total companies in table:', allRows.length);
+      
+      // Log each record with all details
+      allRows.forEach((r, idx) => {
+        console.log(`Record ${idx + 1}:`, {
+          id: r.id,
+          denomination_sociale: r.denomination_sociale,
+          situation: r.situation,
+          date_creation: r.date_creation,
+          email: r.email,
+          secteur_activite: r.secteur_activite,
+          adresse: r.adresse
+        });
+      });
+      
+      // Show breakdown by situation
+      const bySituation: { [key: string]: number } = {};
+      allRows.forEach(r => {
+        const sit = r.situation || 'NULL';
+        bySituation[sit] = (bySituation[sit] || 0) + 1;
+      });
+      console.log('📊 Breakdown by situation:', bySituation);
+    } catch (err) {
+      console.error('❌ Supabase connection error:', err);
+    }
+  }
+
+  // ✅ Refresh data from Supabase (called on init and manually)
+  async refreshData(): Promise<void> {
+    console.log('🔄 Refreshing all data from Supabase...');
+    this.isLoading = true;
+    try {
+      await this.loadEnAttente();
+      await this.loadValidees();
+      console.log('✅ Data refresh complete');
+      console.log('📊 Summary - En Attente:', this.entreprisesEnAttente.length, '| Validées:', this.entreprisesValidees.length);
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('❌ Error during data refresh:', err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // ✅ Valide une entreprise en attente → met à jour la DB et rafraîchit les listes
+  async validerEntreprise(entreprise: Entreprise): Promise<void> {
+    try {
+      // Optimistically remove from en_attente list (instant UI feedback)
+      this.entreprisesEnAttente = this.entreprisesEnAttente.filter(e => e.id !== entreprise.id);
+      console.log('🔵 Updating situation to "Validée" for entreprise:', entreprise.id);
+      
+      // Update DB
+      await this.supabase.updateSocieteSituation(entreprise.id, 'Validée');
+      console.log('✅ Successfully validated');
+      
+      // Reload validées list to show the newly validated company
+      await this.loadValidees();
+    } catch (err) {
+      console.error('❌ Failed to validate entreprise:', err);
+      // Reload both lists to restore correct state on error
+      await this.refreshData();
+    }
+  }
+
+  // ✅ Rejette une entreprise en attente → met à jour la DB
+  async rejeterEntreprise(entreprise: Entreprise): Promise<void> {
+    try {
+      // Optimistically remove from en_attente list
+      this.entreprisesEnAttente = this.entreprisesEnAttente.filter(e => e.id !== entreprise.id);
+      console.log('🔵 Updating situation to "Rejetée" for entreprise:', entreprise.id);
+      
+      // Update DB
+      await this.supabase.updateSocieteSituation(entreprise.id, 'Rejetée');
+      console.log('✅ Successfully rejected');
+    } catch (err) {
+      console.error('❌ Failed to reject entreprise:', err);
+      // Reload list to restore correct state on error
+      await this.refreshData();
+    }
+  }
+
+  private routerSub: Subscription | null = null;
+
+  constructor(private readonly supabase: SupabaseService, private readonly router: Router, private readonly cdr: ChangeDetectorRef) {
+    // Refresh when returning to this route (covers navigation back / route reuse)
+    this.routerSub = this.router.events.pipe(
+      filter(e => e instanceof NavigationEnd)
+    ).subscribe((e: any) => {
+      const url = e.urlAfterRedirects || e.url;
+      if (url && url.includes('/admin/gestion-entreprise')) {
+        // small delay to ensure component is active
+        setTimeout(() => this.refreshData(), 0);
+      }
+    });
+  }
+
+  async ngOnInit(): Promise<void> {
+    console.log('🚀 Component initializing, fetching latest data from Supabase...');
+    await this.verifySupabaseConnection();
+    await this.refreshData();
+  }
+
+  ngOnDestroy(): void {
+    if (this.routerSub) {
+      this.routerSub.unsubscribe();
+      this.routerSub = null;
+    }
+  }
 }
