@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { SupabaseService } from '../../../services/supabase.service';
 
 export interface Entreprise {
   nomEntreprise: string;
@@ -20,6 +21,7 @@ export interface Entreprise {
 })
 export class FicheSignaletique implements OnInit {
   profil: Entreprise | null = null;
+  societeId: number | null = null;
   isLoading = false;
   isSaving = false;
   isEditing = false;
@@ -28,7 +30,12 @@ export class FicheSignaletique implements OnInit {
 
   profilForm: FormGroup;
 
-  constructor(private fb: FormBuilder, private router: Router) {
+  constructor(
+    private fb: FormBuilder,
+    private router: Router,
+    private readonly supabaseService: SupabaseService,
+    private readonly ngZone: NgZone,
+  ) {
     this.profilForm = this.fb.group({
       nomEntreprise: ['', [Validators.required, Validators.maxLength(200)]],
       email: ['', [Validators.required, Validators.email]],
@@ -43,14 +50,72 @@ export class FicheSignaletique implements OnInit {
   }
 
   loadProfil() {
-    this.isLoading = true;
+    this.ngZone.run(() => {
+      this.isLoading = true;
+    });
 
+    try {
+      this.ngZone.run(() => {
+        this.errorMessage = '';
+      });
+      const entrepriseRaw = localStorage.getItem('entreprise');
+      const entreprise = entrepriseRaw ? JSON.parse(entrepriseRaw) : null;
+      const id = Number(entreprise?.id ?? 0);
+
+      if (!Number.isInteger(id) || id <= 0) {
+        throw new Error('Compte entreprise introuvable. Veuillez vous reconnecter.');
+      }
+
+      this.societeId = id;
+
+      this.ngZone.run(() => {
+        this.applySocieteToForm(entreprise);
+      });
+
+      // Refresh from DB in background without blocking the page render.
+      this.refreshSocieteData(id);
+    } catch (error: any) {
+      this.ngZone.run(() => {
+        this.errorMessage = error?.message || 'Impossible de charger les informations entreprise.';
+      });
+    } finally {
+      this.ngZone.run(() => {
+        this.isLoading = false;
+      });
+    }
+  }
+
+  private async refreshSocieteData(id: number): Promise<void> {
+    try {
+      const societe = await this.withTimeout(
+        this.supabaseService.fetchSocieteById(id),
+        10000,
+        'Le chargement du profil a depasse le delai. Veuillez reessayer.',
+      );
+
+      if (!societe) {
+        return;
+      }
+
+      this.ngZone.run(() => {
+        this.applySocieteToForm(societe);
+      });
+
+      const entrepriseRaw = localStorage.getItem('entreprise');
+      const entreprise = entrepriseRaw ? JSON.parse(entrepriseRaw) : {};
+      localStorage.setItem('entreprise', JSON.stringify({ ...entreprise, ...societe }));
+    } catch {
+      // Keep localStorage profile already shown; avoid blocking UX on refresh failure.
+    }
+  }
+
+  private applySocieteToForm(societe: any): void {
     this.profil = {
-      nomEntreprise: 'LogiLink',
-      email: 'contact@logilink.tn',
-      telephone: '+216 71 234 567',
-      adresse: 'Sfax, Tunisie',
-      description: 'Entreprise spécialisée dans la logistique et le transport.'
+      nomEntreprise: String(societe?.denomination_sociale ?? societe?.nomEntreprise ?? '').trim(),
+      email: String(societe?.email ?? '').trim(),
+      telephone: String(societe?.telephone ?? '').trim(),
+      adresse: String(societe?.adresse ?? '').trim(),
+      description: String(societe?.secteur_activite ?? societe?.description ?? '').trim(),
     };
 
     this.profilForm.patchValue({
@@ -60,8 +125,24 @@ export class FicheSignaletique implements OnInit {
       adresse: this.profil.adresse,
       description: this.profil.description || ''
     });
+  }
 
-    this.isLoading = false;
+  private withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        reject(new Error(timeoutMessage));
+      }, timeoutMs);
+
+      promise
+        .then((value) => {
+          window.clearTimeout(timer);
+          resolve(value);
+        })
+        .catch((error) => {
+          window.clearTimeout(timer);
+          reject(error);
+        });
+    });
   }
 
   enableEdit() {
@@ -83,17 +164,47 @@ export class FicheSignaletique implements OnInit {
     }
   }
 
-  saveProfil() {
+  async saveProfil() {
     if (this.profilForm.invalid) return;
     this.isSaving = true;
     this.successMessage = '';
     this.errorMessage = '';
 
-    this.profil = { ...this.profilForm.value };
-    this.isEditing = false;
-    this.isSaving = false;
-    this.successMessage = 'Profil mis à jour avec succès !';
-    setTimeout(() => this.successMessage = '', 3000);
+    try {
+      const payload = {
+        nomEntreprise: String(this.profilForm.value.nomEntreprise ?? '').trim(),
+        email: String(this.profilForm.value.email ?? '').trim(),
+        telephone: String(this.profilForm.value.telephone ?? '').trim(),
+        adresse: String(this.profilForm.value.adresse ?? '').trim(),
+        description: String(this.profilForm.value.description ?? '').trim(),
+      };
+
+      if (!this.societeId) {
+        throw new Error('Compte entreprise introuvable. Veuillez vous reconnecter.');
+      }
+
+      const updated = await this.supabaseService.updateSocieteProfile(this.societeId, payload);
+
+      this.profil = {
+        nomEntreprise: String(updated?.denomination_sociale ?? payload.nomEntreprise),
+        email: String(updated?.email ?? payload.email),
+        telephone: String(updated?.telephone ?? payload.telephone),
+        adresse: String(updated?.adresse ?? payload.adresse),
+        description: String(updated?.secteur_activite ?? payload.description),
+      };
+
+      const entrepriseRaw = localStorage.getItem('entreprise');
+      const entreprise = entrepriseRaw ? JSON.parse(entrepriseRaw) : {};
+      localStorage.setItem('entreprise', JSON.stringify({ ...entreprise, ...updated }));
+
+      this.isEditing = false;
+      this.successMessage = 'Profil mis à jour avec succès !';
+      setTimeout(() => this.successMessage = '', 3000);
+    } catch (error: any) {
+      this.errorMessage = error?.message || 'Impossible de mettre à jour le profil.';
+    } finally {
+      this.isSaving = false;
+    }
   }
 
   getInitials(): string {

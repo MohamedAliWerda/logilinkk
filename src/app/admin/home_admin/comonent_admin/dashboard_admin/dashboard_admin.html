@@ -90,9 +90,9 @@
 
     <div class="dashboard-stack">
 
-        <!-- ── Répartition par Domaine ── -->
+        <!-- ── Répartition des sociétés validées par région ── -->
         <div class="chart-card domain-card">
-            <h3 class="chart-title">Répartition par<br />Domaine</h3>
+            <h3 class="chart-title">Répartition des sociétés validées par<br />région</h3>
             <div class="donut-container" style="flex: 1; justify-content: center; margin-top: 1.5rem;">
                 <svg viewBox="0 0 200 200" class="donut-svg" xmlns="http://www.w3.org/2000/svg">
           <circle *ngFor="let seg of domainPieSegments" cx="100" cy="100" r="50" fill="none" [attr.stroke]="seg.color"

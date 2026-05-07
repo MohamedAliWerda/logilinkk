@@ -72,6 +72,28 @@ export class OffresService {
       );
   }
 
+  fetchCompanyCandidaturesCount(): Observable<number> {
+    const societeId = this.getSocieteIdFromStorage();
+    if (!societeId) {
+      return of(0);
+    }
+
+    return this.http
+      .get<any>(`${this.apiUrl}/company/${societeId}/candidatures`)
+      .pipe(
+        timeout(15000),
+        map((response) => {
+          const normalized = this.normalizeResponse(response);
+          if (!normalized.success) {
+            return 0;
+          }
+          const rows = Array.isArray(normalized.data) ? normalized.data : [];
+          return rows.length;
+        }),
+        catchError(() => of(0)),
+      );
+  }
+
   loadActiveOffres(): void {
     this.loadingSubject.next(true);
     this.fetchCompanyOffres()

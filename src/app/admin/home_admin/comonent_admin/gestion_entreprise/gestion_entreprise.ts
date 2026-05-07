@@ -45,6 +45,8 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
 
   selectedEntreprise: Entreprise | null = null;
   showPostesModal = false;
+  isPostesLoading = false;
+  postesError = '';
   showConfirmSupp = false;
   entrepriseToSupp: Entreprise | null = null;
 
@@ -89,15 +91,47 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
   }
 
   // ✅ Ouvre la modale postes
-  ouvrirPostes(entreprise: Entreprise): void {
+  async ouvrirPostes(entreprise: Entreprise): Promise<void> {
     this.selectedEntreprise = entreprise;
     this.showPostesModal = true;
+    this.postesError = '';
+    this.isPostesLoading = true;
+
+    try {
+      const rows = await this.supabase.fetchCompanyPosts(entreprise.id);
+      const postes: Poste[] = (rows || []).map((row: any) => {
+        const rawStatus = String(row?.status ?? 'active').toLowerCase();
+        return {
+          id: Number(row?.id_line ?? row?.id ?? 0),
+          titre: String(row?.titre_poste ?? row?.titre ?? '').trim() || 'Poste',
+          description: String(row?.exigences ?? row?.description ?? '').trim() || 'Description indisponible',
+          nbEtudiants: Number(row?.candidaturesCount ?? 0) || 0,
+          statut: rawStatus === 'closed' || rawStatus === 'fermé' || rawStatus === 'ferme' ? 'fermé' : 'ouvert',
+          dateCreation: String(row?.date_creation ?? new Date().toISOString()),
+        };
+      });
+
+      entreprise.postes = postes;
+      entreprise.nbPostes = postes.length;
+      this.selectedEntreprise = { ...entreprise };
+      this.cdr.detectChanges();
+    } catch (error: any) {
+      this.postesError = error?.message || 'Impossible de charger les postes de cette entreprise.';
+      entreprise.postes = [];
+      this.selectedEntreprise = { ...entreprise };
+      this.cdr.detectChanges();
+    } finally {
+      this.isPostesLoading = false;
+      this.cdr.detectChanges();
+    }
   }
 
   // ✅ Ferme la modale postes
   fermerModal(): void {
     this.showPostesModal = false;
     this.selectedEntreprise = null;
+    this.isPostesLoading = false;
+    this.postesError = '';
   }
 
   // ✅ Déclenche la confirmation de suppression

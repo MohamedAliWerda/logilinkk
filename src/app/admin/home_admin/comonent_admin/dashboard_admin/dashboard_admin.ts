@@ -43,11 +43,7 @@ export class DashboardAdmin implements OnInit, OnDestroy {
 
   donutLegend: { color: string; label: string; pct: number }[] = [];
 
-  domainPieLegend: { color: string; label: string; pct: number }[] = [
-    { color: '#e06456', label: 'SCM & Achat', pct: 0 },
-    { color: '#2a9d8f', label: 'Transport Global', pct: 0 },
-    { color: '#e9c46a', label: 'Logistique d\'Entrepôt', pct: 0 },
-  ];
+  domainPieLegend: { color: string; label: string; pct: number }[] = [];
 
   radarAxes = ['Techniques', 'Organisation', 'Comportement', 'Physiques'];
   radarReq = [85, 80, 85, 75];
@@ -149,42 +145,8 @@ export class DashboardAdmin implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private http: HttpClient,
   ) {
-    // ── Domain Pie chart ─────────────────────────────────────────────
-    const CPie = 2 * Math.PI * 50; // ≈ 314.16
-    const rawPieSegs = [
-      { color: '#e06456', pct: 0.45 },
-      { color: '#2a9d8f', pct: 0.35 },
-      { color: '#e9c46a', pct: 0.20 },
-    ];
-    let coveredPie = 0;
-    this.domainPieSegments = rawPieSegs.map((s) => {
-      const arcLength = +(s.pct * CPie).toFixed(2);
-      const seg = {
-        color: s.color,
-        dashArray: `${arcLength} ${+CPie.toFixed(2)}`,
-        dashOffset: +(-coveredPie).toFixed(2),
-      };
-      coveredPie += arcLength;
-      return seg;
-    });
-
-    // attach pct to legend entries
-    this.domainPieLegend = this.domainPieLegend.map((d, i) => ({ ...d, pct: rawPieSegs[i]?.pct ?? 0 }));
-
-    // compute label positions for domain pie
+    this.domainPieSegments = [];
     this.domainPieLabels = [];
-    let cumPct = 0;
-    const labelR = 70;
-    for (const s of rawPieSegs) {
-      const mid = cumPct + s.pct / 2;
-      const angle = mid * Math.PI * 2 - Math.PI / 2; // account for rotate(-90)
-      const x = +(100 + Math.cos(angle) * labelR).toFixed(2);
-      const y = +(100 + Math.sin(angle) * labelR).toFixed(2);
-      const text = `${Math.round(s.pct * 100)}%`;
-      const color = this.getContrastColor(s.color);
-      this.domainPieLabels.push({ x, y, text, color });
-      cumPct += s.pct;
-    }
 
     // ── Top Gaps chart data — populated from backend ─────────────
     this.marketColor = '#1e2d5a';
@@ -206,6 +168,7 @@ export class DashboardAdmin implements OnInit, OnDestroy {
     this.fetchAndUpdateMatiereCount();
     this.fetchAndUpdateScoredProfilesCount();
     this.fetchAndUpdateFiliereChart();
+    this.fetchAndUpdateSocieteRegionsChart();
     this.fetchAndUpdateEmployabilityDistribution();
     this.fetchAndUpdateAtsDistribution();
     void this.fetchTopGaps();
@@ -353,6 +316,130 @@ export class DashboardAdmin implements OnInit, OnDestroy {
     });
 
     this.cdr.detectChanges();
+  }
+
+  async fetchAndUpdateSocieteRegionsChart() {
+    const supabase = this.supabaseService.adminClient;
+    const { data, error } = await supabase
+      .from('Societe')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching Societe regions:', error);
+      this.domainPieLegend = [];
+      this.domainPieSegments = [];
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const rows = (Array.isArray(data) ? data : []).filter((row: any) => this.isSocieteValidated(row));
+    const counts = new Map<string, number>();
+
+    rows.forEach((row: any) => {
+      const region = this.extractSocieteRegion(row);
+      counts.set(region, (counts.get(region) ?? 0) + 1);
+    });
+
+    const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+    const topEntries = sorted.slice(0, 5);
+    const othersCount = sorted.slice(5).reduce((sum, [, count]) => sum + count, 0);
+    if (othersCount > 0) {
+      topEntries.push(['Autres', othersCount]);
+    }
+
+    const total = topEntries.reduce((sum, [, count]) => sum + count, 0);
+    if (total <= 0) {
+      this.domainPieLegend = [];
+      this.domainPieSegments = [];
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const palette = ['#e06456', '#2a9d8f', '#e9c46a', '#4f77ff', '#9b5de5', '#84a59d'];
+    const segs = topEntries.map(([label, count], index) => ({
+      color: palette[index % palette.length],
+      label,
+      pct: count / total,
+    }));
+
+    this.domainPieLegend = segs;
+
+    const cPie = 2 * Math.PI * 50;
+    let coveredPie = 0;
+    this.domainPieSegments = segs.map((s) => {
+      const arcLength = +(s.pct * cPie).toFixed(2);
+      const seg = {
+        color: s.color,
+        dashArray: `${arcLength} ${+cPie.toFixed(2)}`,
+        dashOffset: +(-coveredPie).toFixed(2),
+      };
+      coveredPie += arcLength;
+      return seg;
+    });
+
+    this.cdr.detectChanges();
+  }
+
+  private extractSocieteRegion(row: any): string {
+    const direct = [
+      row?.region,
+      row?.gouvernorat,
+      row?.governorat,
+      row?.ville,
+      row?.city,
+    ]
+      .map((value) => String(value ?? '').trim())
+      .find((value) => value.length > 0);
+
+    if (direct) {
+      return direct;
+    }
+
+    const adresse = String(row?.adresse ?? '').trim();
+    if (adresse) {
+      const parts = adresse
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts.length > 0) {
+        return parts[parts.length - 1];
+      }
+    }
+
+    return 'Non renseignée';
+  }
+
+  private isSocieteValidated(row: any): boolean {
+    const boolCandidates = [
+      row?.is_validated,
+      row?.is_valide,
+      row?.validated,
+    ];
+
+    if (boolCandidates.some((value) => value === true)) {
+      return true;
+    }
+
+    const statusRaw = [
+      row?.situation,
+      row?.statut,
+      row?.status,
+      row?.validation_status,
+      row?.etat_validation,
+    ]
+      .map((value) => String(value ?? '').trim())
+      .find((value) => value.length > 0);
+
+    if (!statusRaw) {
+      return false;
+    }
+
+    const normalized = statusRaw
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+    return normalized === 'validee' || normalized === 'valide' || normalized === 'approved' || normalized === 'active';
   }
 
   async fetchAndUpdateEmployabilityDistribution() {

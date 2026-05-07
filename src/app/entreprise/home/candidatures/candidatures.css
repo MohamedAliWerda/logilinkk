@@ -135,6 +135,27 @@
   border-color: #e67e22;
 }
 
+.state-info,
+.state-error {
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 10px 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.state-info {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+}
+
+.state-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
 /* ===== SECTION HEADER ===== */
 .section-header {
   display: flex;

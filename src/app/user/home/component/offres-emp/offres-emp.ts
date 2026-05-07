@@ -1,8 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { OffresEmpService, StudentOffre } from './offres-emp.service';
 
 interface Job {
+  id: string;
+  societeId?: number;
   title: string;
   type: string;
   selected: boolean;
@@ -13,111 +18,141 @@ interface Job {
   salaryMax: string;
   description: string;
   skills: string[];
+  createdAt?: string;
+}
+
+interface CompanyJobs {
+  company: string;
+  location: string;
+  jobs: Job[];
 }
 
 @Component({
   selector: 'app-offres-emp',
   standalone: true,
-  imports: [CommonModule, FormsModule],  // ✅ FormsModule ajouté
+  imports: [CommonModule, FormsModule],
   templateUrl: './offres-emp.html',
   styleUrls: ['./offres-emp.css']
 })
-export class OffresEmpComponent {
+export class OffresEmpComponent implements OnInit, OnDestroy {
+  searchQuery = '';
+  isLoading = false;
+  errorMessage = '';
+  submitMessage = '';
+  submitMessageType: 'success' | 'error' = 'success';
+  jobs: Job[] = [];
+  selectedJob: Job | null = null;
+  private readonly offresEmpService = inject(OffresEmpService);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly ngZone = inject(NgZone);
 
-  searchQuery = '';  // ✅ ajouté pour la barre de recherche
+  private destroy$ = new Subject<void>();
+  private submitMessageTimer: number | null = null;
+  private loadWatchdog: number | null = null;
 
-  logitransJobs: Job[] = [
-    {
-      title: 'Gestionnaire de stock',
-      type: 'Stage PFE',
-      selected: false,
-      company: 'LogiTrans',
-      location: 'Tunis / Hybride',
-      source: 'Direct',
-      salaryMin: '600',
-      salaryMax: '900',
-      description: 'Assurer le suivi des stocks et optimiser les inventaires en temps réel au sein de notre entrepôt principal. Vous travaillerez en étroite collaboration avec l\'équipe logistique.',
-      skills: ['WMS', 'Excel', 'Inventaire', 'Rigueur']
-    },
-    {
-      title: 'Analyste Supply Chain',
-      type: 'CDI',
-      selected: false,
-      company: 'LogiTrans',
-      location: 'Tunis',
-      source: 'Direct',
-      salaryMin: '1800',
-      salaryMax: '2500',
-      description: 'Analyser et optimiser les processus de la chaîne d\'approvisionnement. Vous produirez des rapports de performance et proposerez des axes d\'amélioration continue.',
-      skills: ['ERP SAP', 'Power BI', 'Analyse de données', 'Excel avancé']
-    },
-    {
-      title: 'Coordinateur transport',
-      type: 'CDI',
-      selected: false,
-      company: 'LogiTrans',
-      location: 'Tunis',
-      source: 'Direct',
-      salaryMin: '1600',
-      salaryMax: '2200',
-      description: 'Coordonner les opérations de transport national et international. Suivi des livraisons, gestion des prestataires logistiques et optimisation des coûts de transport.',
-      skills: ['TMS', 'Douane', 'Anglais', 'Négociation']
-    }
-  ];
+  ngOnInit(): void {
+    this.loadOffres();
+  }
 
-  sfaxJobs: Job[] = [
-    {
-      title: 'Planificateur de tournées',
-      type: 'Stage',
-      selected: false,
-      company: 'Sfax Express',
-      location: 'Sfax',
-      source: 'Direct',
-      salaryMin: '500',
-      salaryMax: '700',
-      description: 'Optimiser les tournées de livraison en utilisant des outils de planification. Vous réduirez les coûts kilométriques et améliorerez les délais de livraison sur la région de Sfax.',
-      skills: ['Routage', 'Excel', 'Logistique urbaine', 'Analyse']
-    },
-    {
-      title: 'Responsable d\'exploitation',
-      type: 'CDI',
-      selected: false,
-      company: 'Sfax Express',
-      location: 'Sfax',
-      source: 'Direct',
-      salaryMin: '2200',
-      salaryMax: '3000',
-      description: 'Superviser l\'ensemble des opérations d\'exploitation du site de Sfax. Vous managerez une équipe de 15 personnes et serez garant de la qualité de service et des délais.',
-      skills: ['Management', 'Transport routier', 'KPI', 'Leadership']
-    }
-  ];
+  ngOnDestroy(): void {
+    this.clearLoadWatchdog();
+    this.clearSubmitMessageTimer();
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
-  selectedJob: Job | null = null;  // ✅ typé correctement
+  private loadOffres(): void {
+    this.ngZone.run(() => {
+      this.isLoading = true;
+      this.errorMessage = '';
+    });
 
-  // ✅ Getter pour les jobs sélectionnés
+    this.clearLoadWatchdog();
+    this.loadWatchdog = window.setTimeout(() => {
+      this.ngZone.run(() => {
+        this.isLoading = false;
+        if (!this.errorMessage) {
+          this.errorMessage = 'Le chargement des offres prend trop de temps. Veuillez reessayer.';
+        }
+        this.cdr.detectChanges();
+      });
+    }, 12000);
+
+    this.offresEmpService
+      .fetchActiveOffres()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (offres) => {
+          this.clearLoadWatchdog();
+          this.ngZone.run(() => {
+            this.jobs = (offres || []).map((offre) => this.toJob(offre));
+            this.isLoading = false;
+            this.cdr.detectChanges();
+          });
+        },
+        error: (error) => {
+          this.clearLoadWatchdog();
+          this.ngZone.run(() => {
+            this.jobs = [];
+            this.errorMessage = error?.message || 'Impossible de charger les offres pour le moment.';
+            this.isLoading = false;
+            this.cdr.detectChanges();
+          });
+        },
+      });
+  }
+
+  private toJob(offre: StudentOffre): Job {
+    return {
+      id: String(offre.id),
+      societeId: Number(offre.societe_id || 0) || undefined,
+      title: (offre.titre_poste || '').trim() || 'Poste sans titre',
+      type: (offre.typeContrat || '').trim() || 'Offre',
+      selected: false,
+      company: (offre.societe || '').trim() || 'Entreprise',
+      location: (offre.lieu || '').trim() || 'Tunisie',
+      source: 'Entreprise',
+      salaryMin: '',
+      salaryMax: '',
+      description: (offre.exigences || '').trim() || 'Aucune description fournie.',
+      skills: Array.isArray(offre.competences) ? offre.competences : [],
+      createdAt: offre.date_creation,
+    };
+  }
+
   get selectedJobs(): Job[] {
-    return [...this.logitransJobs, ...this.sfaxJobs].filter(j => j.selected);
+    return this.jobs.filter((j) => j.selected);
   }
 
-  // ✅ Getters filtrés par recherche
-  get filteredLogitransJobs(): Job[] {
-    if (!this.searchQuery.trim()) return this.logitransJobs;
+  get filteredJobs(): Job[] {
+    if (!this.searchQuery.trim()) return this.jobs;
     const q = this.searchQuery.toLowerCase();
-    return this.logitransJobs.filter(j =>
+    return this.jobs.filter((j) =>
       j.title.toLowerCase().includes(q) ||
       j.type.toLowerCase().includes(q) ||
-      j.company.toLowerCase().includes(q)
+      j.company.toLowerCase().includes(q) ||
+      j.description.toLowerCase().includes(q)
     );
   }
 
-  get filteredSfaxJobs(): Job[] {
-    if (!this.searchQuery.trim()) return this.sfaxJobs;
-    const q = this.searchQuery.toLowerCase();
-    return this.sfaxJobs.filter(j =>
-      j.title.toLowerCase().includes(q) ||
-      j.type.toLowerCase().includes(q) ||
-      j.company.toLowerCase().includes(q)
-    );
+  get groupedJobs(): CompanyJobs[] {
+    const groups = new Map<string, CompanyJobs>();
+
+    this.filteredJobs.forEach((job) => {
+      const key = job.company.trim().toLowerCase() || 'entreprise';
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          company: job.company,
+          location: job.location,
+          jobs: [],
+        });
+      }
+
+      groups.get(key)!.jobs.push(job);
+    });
+
+    return Array.from(groups.values());
   }
 
   toggleJob(job: Job): void {
@@ -125,7 +160,78 @@ export class OffresEmpComponent {
   }
 
   postuler(): void {
-    alert(`Vous avez postulé à ${this.selectedJobs.length} offre(s)`);
+    const selected = this.selectedJobs;
+    if (selected.length === 0) {
+      return;
+    }
+
+    const userRaw = localStorage.getItem('user');
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    const studentId = Number(user?.id);
+
+    if (!Number.isInteger(studentId) || studentId <= 0) {
+      this.showSubmitMessage('error', 'Impossible d\'identifier votre compte étudiant. Veuillez vous reconnecter.');
+      return;
+    }
+
+    const applications = selected
+      .map((job) => ({
+        id_post: Number(job.id),
+        id_societe: job.societeId,
+      }))
+      .filter((item) => Number.isInteger(item.id_post) && item.id_post > 0);
+
+    if (applications.length === 0) {
+      this.showSubmitMessage('error', 'Aucune offre valide sélectionnée.');
+      return;
+    }
+
+    this.offresEmpService
+      .applyToOffres({
+        id_etudiant: studentId,
+        applications,
+      })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (result) => {
+          this.jobs.forEach((job) => {
+            job.selected = false;
+          });
+          this.showSubmitMessage('success', 'Candidature(s) envoyée(s)');
+        },
+        error: (error) => {
+          this.showSubmitMessage('error', error?.message || 'Erreur lors de la candidature.');
+        },
+      });
+  }
+
+  closeSubmitMessage(): void {
+    this.submitMessage = '';
+    this.clearSubmitMessageTimer();
+  }
+
+  private showSubmitMessage(type: 'success' | 'error', message: string): void {
+    this.submitMessageType = type;
+    this.submitMessage = message;
+    this.clearSubmitMessageTimer();
+    this.submitMessageTimer = window.setTimeout(() => {
+      this.submitMessage = '';
+      this.submitMessageTimer = null;
+    }, 5000);
+  }
+
+  private clearSubmitMessageTimer(): void {
+    if (this.submitMessageTimer !== null) {
+      window.clearTimeout(this.submitMessageTimer);
+      this.submitMessageTimer = null;
+    }
+  }
+
+  private clearLoadWatchdog(): void {
+    if (this.loadWatchdog !== null) {
+      window.clearTimeout(this.loadWatchdog);
+      this.loadWatchdog = null;
+    }
   }
 
   openDetails(job: Job): void {
@@ -134,5 +240,16 @@ export class OffresEmpComponent {
 
   closeDetails(): void {
     this.selectedJob = null;
+  }
+
+  getCompanyInitials(company: string): string {
+    const words = (company || '').trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+      return 'E';
+    }
+    if (words.length === 1) {
+      return words[0].slice(0, 1).toUpperCase();
+    }
+    return `${words[0][0]}${words[1][0]}`.toUpperCase();
   }
 }

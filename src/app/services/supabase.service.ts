@@ -118,6 +118,69 @@ export class SupabaseService {
     return data ?? [];
   }
 
+  async fetchSocieteById(id: number) {
+    const { data, error } = await this.supabaseAdmin
+      .from('Societe')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? null;
+  }
+
+  async updateSocieteProfile(
+    id: number,
+    payload: {
+      nomEntreprise: string;
+      email: string;
+      telephone: string;
+      adresse: string;
+      description: string;
+    },
+  ) {
+    const { data, error } = await this.supabaseAdmin
+      .from('Societe')
+      .update({
+        denomination_sociale: payload.nomEntreprise,
+        email: payload.email,
+        telephone: payload.telephone,
+        adresse: payload.adresse,
+        secteur_activite: payload.description,
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? null;
+  }
+
+  async fetchCompanyPosts(societeId: number) {
+    const apiUrl = `${environment.apiUrl}/offres/company/${societeId}`;
+    const response = await firstValueFrom(this.http.get<any>(apiUrl));
+
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (Array.isArray(response?.data)) {
+      return response.data;
+    }
+
+    if (Array.isArray(response?.data?.data)) {
+      return response.data.data;
+    }
+
+    return [];
+  }
+
   async updateSocieteSituation(id: number, situation: string) {
     const { data, error } = await this.supabaseAdmin
       .from('Societe')

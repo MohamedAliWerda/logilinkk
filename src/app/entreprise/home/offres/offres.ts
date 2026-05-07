@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -38,6 +38,7 @@ export interface Offre {
 export class Offres implements OnInit, OnDestroy {
   offres: Offre[] = [];
   filteredOffres: Offre[] = [];
+  totalCandidaturesCount = 0;
   searchQuery = '';
   isLoading = false;
   isSaving = false;
@@ -52,11 +53,14 @@ export class Offres implements OnInit, OnDestroy {
   errorMessage = '';
 
   private destroy$ = new Subject<void>();
+  private loadWatchdog: number | null = null;
 
   constructor(
     private fb: FormBuilder,
     private router: Router,
     private offresService: OffresService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef,
   ) {
     this.offreForm = this.fb.group({
       titre_poste: ['', [Validators.required, Validators.minLength(3)]],
@@ -67,10 +71,12 @@ export class Offres implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.subscribeToService();
+    this.loadCandidaturesCount();
     this.loadOffres();
   }
 
   ngOnDestroy(): void {
+    this.clearLoadWatchdog();
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -79,71 +85,113 @@ export class Offres implements OnInit, OnDestroy {
     this.offresService.offres$
       .pipe(takeUntil(this.destroy$))
       .subscribe((offres) => {
-        this.offres = offres.map(o => ({
-          ...o,
-          titre: o.titre_poste,
-          description: o.exigences,
-          entreprise: o.societe,
-          createdAt: o.date_creation,
-        }));
-        this.filterOffres();
-      });
-
-    this.offresService.loading$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((loading) => {
-        this.isLoading = loading;
-      });
-
-    this.offresService.successMessage$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((message) => {
-        this.successMessage = message;
-      });
-
-    this.offresService.errorMessage$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((message) => {
-        this.errorMessage = message;
-      });
-  }
-
-  get totalCandidatures(): number {
-    return this.offres.reduce((sum, offre) => sum + (offre.candidaturesCount || 0), 0);
-  }
-
-  get totalCompetences(): number {
-    const allCompetences = new Set<string>();
-    this.offres.forEach(offre =>
-      offre.competences?.forEach((comp: string) => allCompetences.add(comp))
-    );
-    return allCompetences.size;
-  }
-
-  loadOffres(): void {
-    this.isLoading = true;
-    this.offresService.fetchCompanyOffres()
-      .pipe(finalize(() => {
-        this.isLoading = false;
-      }))
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (offres) => {
-          this.offres = (offres || []).map(o => ({
+        this.ngZone.run(() => {
+          this.offres = offres.map(o => ({
             ...o,
             titre: o.titre_poste,
             description: o.exigences,
             entreprise: o.societe,
             createdAt: o.date_creation,
           }));
-          this.offresService.setOffres(this.offres as any);
           this.filterOffres();
+          this.cdr.detectChanges();
+        });
+      });
+
+    this.offresService.loading$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((loading) => {
+        this.ngZone.run(() => {
+          this.isLoading = loading;
+        });
+      });
+
+    this.offresService.successMessage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((message) => {
+        this.ngZone.run(() => {
+          this.successMessage = message;
+        });
+      });
+
+    this.offresService.errorMessage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((message) => {
+        this.ngZone.run(() => {
+          this.errorMessage = message;
+        });
+      });
+  }
+
+  get totalCandidatures(): number {
+    return this.totalCandidaturesCount;
+  }
+
+  private loadCandidaturesCount(): void {
+    this.offresService.fetchCompanyCandidaturesCount()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((count) => {
+        this.ngZone.run(() => {
+          this.totalCandidaturesCount = Number.isFinite(count) ? count : 0;
+          this.cdr.detectChanges();
+        });
+      });
+  }
+
+  loadOffres(): void {
+    this.ngZone.run(() => {
+      this.isLoading = true;
+    });
+
+    this.clearLoadWatchdog();
+    this.loadWatchdog = window.setTimeout(() => {
+      this.ngZone.run(() => {
+        this.isLoading = false;
+        if (!this.errorMessage) {
+          this.errorMessage = 'Le chargement des offres prend trop de temps. Veuillez reessayer.';
+        }
+      });
+    }, 12000);
+
+    this.offresService.fetchCompanyOffres()
+      .pipe(finalize(() => {
+        this.clearLoadWatchdog();
+        this.ngZone.run(() => {
+          this.isLoading = false;
+        });
+      }))
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (offres) => {
+          this.ngZone.run(() => {
+            this.offres = (offres || []).map(o => ({
+              ...o,
+              titre: o.titre_poste,
+              description: o.exigences,
+              entreprise: o.societe,
+              createdAt: o.date_creation,
+            }));
+            this.offresService.setOffres(this.offres as any);
+            this.filterOffres();
+            this.cdr.detectChanges();
+          });
         },
         error: () => {
-          this.offres = [];
-          this.filteredOffres = [];
+          this.clearLoadWatchdog();
+          this.ngZone.run(() => {
+            this.offres = [];
+            this.filteredOffres = [];
+            this.cdr.detectChanges();
+          });
         },
       });
+  }
+
+  private clearLoadWatchdog(): void {
+    if (this.loadWatchdog !== null) {
+      window.clearTimeout(this.loadWatchdog);
+      this.loadWatchdog = null;
+    }
   }
 
   filterOffres(): void {

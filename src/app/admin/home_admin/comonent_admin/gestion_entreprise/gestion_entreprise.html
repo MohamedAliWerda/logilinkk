@@ -184,7 +184,13 @@
 
     <!-- Postes list -->
     <div class="postes-list">
-      <div *ngIf="!selectedEntreprise?.postes?.length" class="empty-postes">
+      <div *ngIf="isPostesLoading" class="empty-postes">
+        Chargement des postes...
+      </div>
+      <div *ngIf="!isPostesLoading && postesError" class="empty-postes">
+        {{ postesError }}
+      </div>
+      <div *ngIf="!isPostesLoading && !postesError && !selectedEntreprise?.postes?.length" class="empty-postes">
         Aucun poste disponible pour cette entreprise.
       </div>
       <div class="poste-row" *ngFor="let p of selectedEntreprise?.postes">

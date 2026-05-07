@@ -36,8 +36,14 @@
     </select>
   </div>
 
+  <div class="state-info" *ngIf="isLoading && filteredCandidatures.length === 0">Chargement des candidatures...</div>
+  <div class="state-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+  <div class="state-info" *ngIf="filteredCandidatures.length === 0 && !errorMessage && !isLoading">
+    Aucune candidature disponible pour le moment.
+  </div>
+
   <!-- ===== MODE "TOUS" : groupé par poste ===== -->
-  <ng-container *ngIf="selectedPoste === 'Tous'">
+  <ng-container *ngIf="!errorMessage && selectedPoste === 'Tous'">
     <div class="poste-group" *ngFor="let group of groupedCandidatures">
 
       <div class="poste-group-header">
@@ -80,7 +86,7 @@
   </ng-container>
 
   <!-- ===== MODE FILTRE PAR POSTE ===== -->
-  <ng-container *ngIf="selectedPoste !== 'Tous'">
+  <ng-container *ngIf="!errorMessage && selectedPoste !== 'Tous'">
 
     <div class="section-header">
       <span class="dot"></span>
