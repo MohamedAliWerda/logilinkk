@@ -79,7 +79,7 @@
             <small>N/A</small>
           </div>
         </div>
-        <button class="btn">Voir CV</button>
+        <button class="btn" type="button" (click)="openCandidateCv(c)">Voir CV</button>
       </div>
 
     </div>
@@ -120,9 +120,28 @@
           <small>N/A</small>
         </div>
       </div>
-      <button class="btn">Voir CV</button>
+      <button class="btn" type="button" (click)="openCandidateCv(c)">Voir CV</button>
     </div>
 
   </ng-container>
+
+  <div class="cv-modal-backdrop" *ngIf="isCvModalOpen" (click)="closeCvModal()">
+    <div class="cv-modal" (click)="$event.stopPropagation()">
+      <div class="cv-modal-header">
+        <h3>CV de {{ selectedCvStudentName || 'l\'étudiant' }}</h3>
+        <button class="cv-modal-close" type="button" (click)="closeCvModal()" aria-label="Fermer">×</button>
+      </div>
+
+      <div class="cv-modal-body">
+        <div class="state-info" *ngIf="isCvLoading">Chargement du CV...</div>
+        <div class="state-error" *ngIf="!isCvLoading && cvErrorMessage">{{ cvErrorMessage }}</div>
+
+        <ng-container *ngIf="!isCvLoading && selectedCv">
+          <ng-container *ngComponentOutlet="cvPreviewComponent; inputs: { cv: selectedCv, profile: selectedCvProfile }">
+          </ng-container>
+        </ng-container>
+      </div>
+    </div>
+  </div>
 
 </div>

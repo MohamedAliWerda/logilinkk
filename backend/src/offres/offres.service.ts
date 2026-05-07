@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { CvSubmissionService } from '../cv_submission/cv-submission.service';
 
 type ApplyRequest = {
   id_post: number | string;
@@ -38,7 +39,7 @@ type CompanyCandidature = {
 export class OffresService {
   private supabase: SupabaseClient;
 
-  constructor() {
+  constructor(private readonly cvSubmissionService: CvSubmissionService) {
     this.supabase = createClient(
       process.env.SUPABASE_URL || '',
       process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -443,6 +444,121 @@ export class OffresService {
         },
       };
     }
+  }
+
+  async getCompanyCandidateCv(societeId: string, studentId: string, metierId?: string) {
+    try {
+      const parsedSocieteId = Number(societeId);
+      const parsedStudentId = Number(studentId);
+
+      if (!Number.isInteger(parsedSocieteId) || parsedSocieteId <= 0) {
+        throw new Error('societeId invalide');
+      }
+
+      if (!Number.isInteger(parsedStudentId) || parsedStudentId <= 0) {
+        throw new Error('studentId invalide');
+      }
+
+      const candidatureExists = await this.companyStudentCandidatureExists(parsedSocieteId, parsedStudentId);
+      if (!candidatureExists) {
+        throw new Error('Candidature introuvable pour cette société et cet étudiant');
+      }
+
+      const authId = await this.resolveStudentAuthId(parsedStudentId);
+      if (!authId) {
+        return {
+          success: true,
+          found: false,
+          cv: null,
+          message: 'Aucun CV généré pour cet étudiant',
+        };
+      }
+
+      const cv = await this.cvSubmissionService.getCvByAuthId(authId, String(metierId ?? '').trim());
+      if (!cv) {
+        return {
+          success: true,
+          found: false,
+          cv: null,
+          message: 'Aucun CV généré pour cet étudiant',
+        };
+      }
+
+      return {
+        success: true,
+        found: true,
+        cv,
+        message: 'CV récupéré avec succès',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        found: false,
+        cv: null,
+        error: error instanceof Error ? error.message : 'Erreur lors de la récupération du CV',
+      };
+    }
+  }
+
+  private async companyStudentCandidatureExists(societeId: number, studentId: number): Promise<boolean> {
+    const tableCandidates = ['etudiant_post', 'Etudiant_post'];
+
+    for (const tableName of tableCandidates) {
+      const { data, error } = await this.supabase
+        .from(tableName)
+        .select('id_line')
+        .eq('id_societe', societeId)
+        .eq('id_etudiant', studentId)
+        .limit(1);
+
+      if (error) {
+        if (this.isMissingTableError(error.message)) {
+          continue;
+        }
+        throw new Error(`Supabase error: ${error.message}`);
+      }
+
+      if (Array.isArray(data) && data.length > 0) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private async resolveStudentAuthId(studentId: number): Promise<string | null> {
+    const byId = await this.supabase
+      .from('user')
+      .select('auth_id, cin_passport')
+      .eq('id', studentId)
+      .maybeSingle();
+
+    if (byId.error) {
+      throw new Error(`Supabase error: ${byId.error.message}`);
+    }
+
+    const authIdById = String(byId.data?.auth_id ?? '').trim();
+    if (authIdById) {
+      return authIdById;
+    }
+
+    const cinPassport = Number(byId.data?.cin_passport ?? 0);
+    if (!Number.isFinite(cinPassport) || cinPassport <= 0) {
+      return null;
+    }
+
+    const byCin = await this.supabase
+      .from('user')
+      .select('auth_id')
+      .eq('cin_passport', cinPassport)
+      .maybeSingle();
+
+    if (byCin.error) {
+      throw new Error(`Supabase error: ${byCin.error.message}`);
+    }
+
+    const authIdByCin = String(byCin.data?.auth_id ?? '').trim();
+    return authIdByCin || null;
   }
 
   private async getCompanyPostsMap(societeId: number): Promise<Map<number, { titre_poste: string }>> {

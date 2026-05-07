@@ -58,7 +58,10 @@ export class RecommendationsController {
 
   @Get()
   async list(@Query('status') status?: string) {
-    const items = await this.svc.listRecommendations(status && status.trim() ? status.trim() : undefined);
+    const items = await this.svc.listRecommendations(
+      status && status.trim() ? status.trim() : undefined,
+      'TARGET_METIER',
+    );
     return { items };
   }
 

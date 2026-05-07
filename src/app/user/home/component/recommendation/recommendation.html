@@ -63,12 +63,8 @@
                                 <h3>{{ recommendationTitle(reco) }}</h3>
                                 <p class="meta">{{ recommendationContext(reco) }}</p>
                                 <p class="desc">{{ reco.cert_description || reco.llm_recommendation || 'Recommandation pedagogique validee.' }}</p>
-                                @if (keywordsText(reco)) {
-                                    <p class="keywords">Mots-clés: {{ keywordsText(reco) }}</p>
-                                }
                                 <div class="footer-row">
                                     <span class="provider">{{ reco.cert_provider || 'Fournisseur non precise' }}</span>
-                                    <span class="rate">{{ concernRate(reco) }}%</span>
                                 </div>
                                 @if (reco.cert_url) {
                                     <a class="cert-link" [href]="reco.cert_url" target="_blank" rel="noopener">Voir la certification</a>
@@ -98,12 +94,8 @@
                                 <h3>{{ recommendationTitle(reco) }}</h3>
                                 <p class="meta">{{ recommendationContext(reco) }}</p>
                                 <p class="desc">{{ reco.cert_description || reco.llm_recommendation || 'Recommandation pedagogique validee.' }}</p>
-                                @if (keywordsText(reco)) {
-                                    <p class="keywords">Mots-clés: {{ keywordsText(reco) }}</p>
-                                }
                                 <div class="footer-row">
                                     <span class="provider">{{ reco.cert_provider || 'Fournisseur non precise' }}</span>
-                                    <span class="rate">{{ concernRate(reco) }}%</span>
                                 </div>
                                 @if (reco.cert_url) {
                                     <a class="cert-link" [href]="reco.cert_url" target="_blank" rel="noopener">Voir la certification</a>
@@ -133,12 +125,8 @@
                                 <h3>{{ recommendationTitle(reco) }}</h3>
                                 <p class="meta">{{ recommendationContext(reco) }}</p>
                                 <p class="desc">{{ reco.cert_description || reco.llm_recommendation || 'Recommandation pedagogique validee.' }}</p>
-                                @if (keywordsText(reco)) {
-                                    <p class="keywords">Mots-clés: {{ keywordsText(reco) }}</p>
-                                }
                                 <div class="footer-row">
                                     <span class="provider">{{ reco.cert_provider || 'Fournisseur non precise' }}</span>
-                                    <span class="rate">{{ concernRate(reco) }}%</span>
                                 </div>
                                 @if (reco.cert_url) {
                                     <a class="cert-link" [href]="reco.cert_url" target="_blank" rel="noopener">Voir la certification</a>

@@ -4,9 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { CandidaturesService, CompanyCandidature } from './candidatures.service';
+import { CvPreview } from '../../../user/home/component/cv-preview/cv-preview';
 
 interface CandidatureItem {
   id: string;
+  idEtudiant: number;
   prenom: string;
   nom: string;
   email: string;
@@ -36,6 +38,13 @@ export class Candidatures implements OnInit, OnDestroy {
   selectedPoste = 'Tous';
   isLoading = false;
   errorMessage = '';
+  isCvModalOpen = false;
+  isCvLoading = false;
+  cvErrorMessage = '';
+  selectedCv: any | null = null;
+  selectedCvProfile: any | null = null;
+  selectedCvStudentName = '';
+  readonly cvPreviewComponent = CvPreview;
 
   candidatures: CandidatureItem[] = [];
 
@@ -103,6 +112,7 @@ export class Candidatures implements OnInit, OnDestroy {
 
     return {
       id: String(row.id),
+      idEtudiant: Number(row.id_etudiant) || 0,
       prenom: String(row.prenom || '').trim() || 'Etudiant',
       nom: String(row.nom || '').trim() || '',
       email: String(row.email || '').trim(),
@@ -200,6 +210,62 @@ export class Candidatures implements OnInit, OnDestroy {
     if (score >= 89) return 'Excellent';
     if (score >= 70) return 'Bien';
     return 'Faible';
+  }
+
+  openCandidateCv(candidate: CandidatureItem): void {
+    if (!candidate.idEtudiant) {
+      this.cvErrorMessage = 'Identifiant étudiant introuvable.';
+      this.isCvModalOpen = true;
+      this.isCvLoading = false;
+      this.selectedCv = null;
+      this.selectedCvProfile = null;
+      this.selectedCvStudentName = `${candidate.prenom} ${candidate.nom}`.trim();
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.selectedCvStudentName = `${candidate.prenom} ${candidate.nom}`.trim() || 'Etudiant';
+    this.selectedCvProfile = {
+      displayName: this.selectedCvStudentName,
+      email: candidate.email,
+      ville: candidate.ville,
+    };
+    this.selectedCv = null;
+    this.cvErrorMessage = '';
+    this.isCvLoading = true;
+    this.isCvModalOpen = true;
+
+    this.candidaturesService
+      .fetchCandidateCv(candidate.idEtudiant)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          this.isCvLoading = false;
+          if (response.found && response.cv) {
+            this.selectedCv = response.cv;
+            this.cvErrorMessage = '';
+          } else {
+            this.selectedCv = null;
+            this.cvErrorMessage = response.message || 'Aucun CV enregistré pour cet étudiant.';
+          }
+          this.cdr.detectChanges();
+        },
+        error: (error) => {
+          this.isCvLoading = false;
+          this.selectedCv = null;
+          this.cvErrorMessage = error?.message || 'Impossible de charger le CV.';
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  closeCvModal(): void {
+    this.isCvModalOpen = false;
+    this.isCvLoading = false;
+    this.cvErrorMessage = '';
+    this.selectedCv = null;
+    this.selectedCvProfile = null;
+    this.selectedCvStudentName = '';
   }
 
   private getTimeAgo(date: string | undefined): string {

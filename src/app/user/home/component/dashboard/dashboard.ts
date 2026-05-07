@@ -743,14 +743,26 @@ export class Dashboard {
       const rows = await this.recommendationService.listApprovedForStudent();
       const valid = rows.filter(r => {
         const lvl = (r.level ?? '').toUpperCase();
-        return lvl === 'CRITIQUE' || lvl === 'HAUTE' || lvl === 'MOYENNE';
+        return lvl === 'CRITIQUE' || lvl === 'HAUTE' || lvl === 'MOYENNE' || lvl === 'FAIBLE';
       });
-      valid.sort((a, b) => (Number(b.concern_rate) || 0) - (Number(a.concern_rate) || 0));
+      valid.sort((a, b) => {
+        const priorityDelta = this.recommendationPriorityRank(a.level) - this.recommendationPriorityRank(b.level);
+        if (priorityDelta !== 0) return priorityDelta;
+        return (Number(b.concern_rate) || 0) - (Number(a.concern_rate) || 0);
+      });
       this.topRecommendations = valid.slice(0, 3);
       this.cdr.detectChanges();
     } catch {
       this.topRecommendations = [];
     }
+  }
+
+  private recommendationPriorityRank(level: string | null | undefined): number {
+    const normalized = (level ?? '').toUpperCase();
+    if (normalized === 'CRITIQUE' || normalized === 'HAUTE') return 0;
+    if (normalized === 'MOYENNE') return 1;
+    if (normalized === 'FAIBLE') return 2;
+    return 3;
   }
 
   recommendationTitle(item: StudentRecommendation): string {

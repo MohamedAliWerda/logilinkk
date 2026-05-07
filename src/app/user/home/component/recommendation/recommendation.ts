@@ -89,18 +89,6 @@ export class Recommendation implements OnInit {
     return metier || domaine || 'Parcours etudiant';
   }
 
-  keywordsText(item: StudentRecommendation): string {
-    const keywords = Array.isArray(item.keywords)
-      ? item.keywords.map((keyword) => String(keyword).trim()).filter(Boolean)
-      : [];
-    return keywords.slice(0, 4).join(', ');
-  }
-
-  concernRate(item: StudentRecommendation): number {
-    const value = Number(item.concern_rate);
-    return Number.isFinite(value) ? value : 0;
-  }
-
   private byLevel(level: DisplayLevel): StudentRecommendation[] {
     return this.approvedRecommendations().filter((item) => this.normalizeLevel(item.level) === level);
   }

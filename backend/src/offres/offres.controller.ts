@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { OffresService } from './offres.service';
 
 type ApplyRequestBody = {
@@ -39,6 +39,15 @@ export class OffresController {
   @Get('company/:societeId/candidatures')
   async getCompanyCandidatures(@Param('societeId') societeId: string) {
     return await this.offresService.getCompanyCandidatures(societeId);
+  }
+
+  @Get('company/:societeId/candidatures/:studentId/cv')
+  async getCompanyCandidateCv(
+    @Param('societeId') societeId: string,
+    @Param('studentId') studentId: string,
+    @Query('metierId') metierId?: string,
+  ) {
+    return await this.offresService.getCompanyCandidateCv(societeId, studentId, metierId);
   }
 
   @Post('apply')

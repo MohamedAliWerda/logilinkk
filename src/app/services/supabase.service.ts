@@ -181,6 +181,37 @@ export class SupabaseService {
     return [];
   }
 
+  async fetchCompanyPostCounts(societeIds: number[]): Promise<Map<number, number>> {
+    const counts = new Map<number, number>();
+    const validIds = [...new Set((societeIds || []).filter((id) => Number.isInteger(id) && id > 0))];
+
+    for (const id of validIds) {
+      counts.set(id, 0);
+    }
+
+    if (!validIds.length) {
+      return counts;
+    }
+
+    const { data, error } = await this.supabaseAdmin
+      .from('post')
+      .select('id')
+      .in('id', validIds);
+
+    if (error) {
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    for (const row of rows) {
+      const societeId = Number((row as any)?.id ?? 0);
+      if (!Number.isInteger(societeId) || societeId <= 0) continue;
+      counts.set(societeId, (counts.get(societeId) ?? 0) + 1);
+    }
+
+    return counts;
+  }
+
   async updateSocieteSituation(id: number, situation: string) {
     const { data, error } = await this.supabaseAdmin
       .from('Societe')

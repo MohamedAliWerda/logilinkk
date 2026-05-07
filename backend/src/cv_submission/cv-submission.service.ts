@@ -1602,6 +1602,147 @@ export class CvSubmissionService {
     return Number((overlap * 0.7 + jaccard * 0.3).toFixed(4));
   }
 
+  private computeCoveragePctFromMatchedSimilarity(
+    matchedScores: number[],
+    nCompetences: number,
+    fallbackPct: number,
+  ): number {
+    const totalCompetences = Number(nCompetences);
+
+    if (Number.isFinite(totalCompetences) && totalCompetences > 0) {
+      const similaritySum = matchedScores.reduce((sum, score) => {
+        const value = Number(score);
+        if (!Number.isFinite(value)) return sum;
+        return sum + Math.max(0, Math.min(1, value));
+      }, 0);
+
+      return Number(Math.max(0, Math.min(100, (similaritySum / totalCompetences) * 100)).toFixed(1));
+    }
+
+    const fallback = Number(fallbackPct);
+    if (!Number.isFinite(fallback)) return 0;
+    return Number(Math.max(0, Math.min(100, fallback)).toFixed(1));
+  }
+
+  private collectFallbackMatchedScores(topSkills: Array<{ score: number }> | null | undefined): number[] {
+    const scores: number[] = [];
+
+    for (const skill of topSkills ?? []) {
+      const score = Number(skill?.score);
+      if (!Number.isFinite(score) || score < CvSubmissionService.MATCH_STATUS_THRESHOLD) continue;
+      scores.push(score);
+    }
+
+    return scores;
+  }
+
+  private collectMatchedScoresByMetierFromEntries(
+    entries: Array<{ metier: string; competence: string; score: number }>,
+  ): Map<string, number[]> {
+    const grouped = new Map<string, Map<string, number>>();
+
+    for (const entry of entries) {
+      const metierKey = this.normalizeMatchingText(entry.metier);
+      const competenceKey = this.normalizeMatchingText(entry.competence);
+      const score = Number(entry.score);
+      if (!metierKey || !competenceKey || !Number.isFinite(score)) continue;
+
+      const bucket = grouped.get(metierKey) ?? new Map<string, number>();
+      const current = bucket.get(competenceKey) ?? -1;
+      if (score > current) {
+        bucket.set(competenceKey, score);
+      }
+      grouped.set(metierKey, bucket);
+    }
+
+    const result = new Map<string, number[]>();
+    for (const [metierKey, bucket] of grouped.entries()) {
+      result.set(metierKey, Array.from(bucket.values()));
+    }
+
+    return result;
+  }
+
+  private normalizeMetierRankingCoverage(result: MatchingAnalysisResult): MatchingAnalysisResult {
+    const matchedScoresByMetier = this.collectMatchedScoresByMetierFromEntries(
+      (result.matches ?? []).map((entry) => ({
+        metier: String(entry?.refMetier ?? ''),
+        competence: String(entry?.refCompetence ?? ''),
+        score: Number(entry?.similarityScore ?? 0),
+      })),
+    );
+
+    const normalizedRanking = (result.metierRanking ?? []).map((entry) => {
+      const metierKey = this.normalizeMatchingText(entry?.metier);
+      const fromMatches = metierKey ? (matchedScoresByMetier.get(metierKey) ?? []) : [];
+      const fallback = this.collectFallbackMatchedScores(entry?.topSkills ?? []);
+      const matchedScores = fromMatches.length > 0 ? fromMatches : fallback;
+
+      return {
+        ...entry,
+        matched: matchedScores.length,
+        coveragePct: this.computeCoveragePctFromMatchedSimilarity(
+          matchedScores,
+          Number(entry?.nCompetences ?? 0),
+          Number(entry?.coveragePct ?? 0),
+        ),
+      };
+    });
+
+    const topMetierNormalized = this.normalizeMatchingText(result.topMetier?.metier ?? '');
+    const topMetierFromRanking = normalizedRanking.find(
+      (entry) => this.normalizeMatchingText(entry?.metier) === topMetierNormalized,
+    );
+
+    const normalizedTopMetier = topMetierFromRanking
+      ? { ...topMetierFromRanking }
+      : (result.topMetier ? { ...result.topMetier } : null);
+
+    return {
+      ...result,
+      metierRanking: normalizedRanking,
+      topMetier: normalizedTopMetier,
+    };
+  }
+
+  private normalizeTraceMetierCoverageRows(metierRows: any[], competenceRows: any[]): any[] {
+    const matchedScoresByMetier = this.collectMatchedScoresByMetierFromEntries(
+      (competenceRows ?? [])
+        .filter((row: any) => String(row?.status ?? '').trim().toLowerCase() === 'match')
+        .map((row: any) => ({
+          metier: String(row?.metier_name ?? row?.metierName ?? ''),
+          competence: String(row?.competence_name ?? row?.competenceName ?? ''),
+          score: Number(row?.similarity_score ?? row?.similarityScore ?? 0),
+        })),
+    );
+
+    return (metierRows ?? []).map((row: any) => {
+      const metierKey = this.normalizeMatchingText(row?.metier_name ?? row?.metierName ?? '');
+      const fromMatches = metierKey ? (matchedScoresByMetier.get(metierKey) ?? []) : [];
+      const rawTopSkills = Array.isArray(row?.top_skills ?? row?.topSkills)
+        ? (row?.top_skills ?? row?.topSkills)
+        : [];
+      const fallbackTopSkills = rawTopSkills
+        .map((skill: any) => ({ score: Number(skill?.score ?? 0) }))
+        .filter((skill: { score: number }) => Number.isFinite(skill.score));
+
+      const fallback = this.collectFallbackMatchedScores(fallbackTopSkills);
+      const matchedScores = fromMatches.length > 0 ? fromMatches : fallback;
+      const nCompetences = Number(row?.n_competences ?? row?.nCompetences ?? 0);
+      const coveragePct = this.computeCoveragePctFromMatchedSimilarity(
+        matchedScores,
+        nCompetences,
+        Number(row?.coverage_pct ?? row?.coveragePct ?? 0),
+      );
+
+      return {
+        ...row,
+        matched_competences: matchedScores.length,
+        coverage_pct: coveragePct,
+      };
+    });
+  }
+
   private computeLocalMatchingFallback(
     cvSubmissionId: string,
     selectedMetierId: string,
@@ -1826,7 +1967,7 @@ export class CvSubmissionService {
     const metierRanking = rawMetierRanking.map((entry: unknown) => mapRankingEntry(entry));
     const topMetier = rawTopMetier ? mapRankingEntry(rawTopMetier) : null;
 
-    return {
+    return this.normalizeMetierRankingCoverage({
       cvSubmissionId,
       selectedMetierId,
       generatedAt: String(payload?.generatedAt ?? payload?.generated_at ?? new Date().toISOString()).trim(),
@@ -1843,7 +1984,7 @@ export class CvSubmissionService {
       matches: rawMatches.map((entry: unknown) => mapGapEntry(entry)),
       gaps: rawGaps.map((entry: unknown) => mapGapEntry(entry)),
       topMetierGaps: rawTopMetierGaps.map((entry: unknown) => mapGapEntry(entry)),
-    };
+    });
   }
 
   private isMissingMatchingTableError(error: any): boolean {
@@ -2253,7 +2394,10 @@ export class CvSubmissionService {
       analysis,
       analysisId,
       analysisFingerprint,
-      metierScores: Array.isArray(metierScores) ? metierScores : [],
+      metierScores: this.normalizeTraceMetierCoverageRows(
+        Array.isArray(metierScores) ? metierScores : [],
+        Array.isArray(competenceResults) ? competenceResults : [],
+      ),
       competenceResults: Array.isArray(competenceResults) ? competenceResults : [],
     };
   }

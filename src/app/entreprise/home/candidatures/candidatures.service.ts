@@ -19,6 +19,12 @@ export interface CompanyCandidature {
   competences: string[];
 }
 
+export interface CompanyCandidateCvResponse {
+  found: boolean;
+  cv: any | null;
+  message?: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -47,6 +53,37 @@ export class CandidaturesService {
         const errorMsg = timeoutError
           ? 'Le chargement des candidatures a depasse le delai. Veuillez reessayer.'
           : (error?.error?.error || error?.message || 'Erreur lors du chargement des candidatures');
+        return throwError(() => new Error(errorMsg));
+      }),
+    );
+  }
+
+  fetchCandidateCv(studentId: number): Observable<CompanyCandidateCvResponse> {
+    const societeId = this.getSocieteIdFromStorage();
+    if (!societeId) {
+      return throwError(() => new Error('Compte societe introuvable. Veuillez vous reconnecter.'));
+    }
+
+    return this.http.get<any>(`${this.apiUrl}/company/${societeId}/candidatures/${studentId}/cv`).pipe(
+      timeout(15000),
+      map((response) => {
+        const payload = this.normalizeCandidateCvResponse(response);
+        if (!payload.success) {
+          throw new Error(payload.error || 'Erreur lors du chargement du CV');
+        }
+
+        const found = payload.found === true && !!payload.cv;
+        return {
+          found,
+          cv: found ? payload.cv : null,
+          message: payload.message,
+        };
+      }),
+      catchError((error) => {
+        const timeoutError = error?.name === 'TimeoutError';
+        const errorMsg = timeoutError
+          ? 'Le chargement du CV a depasse le delai. Veuillez reessayer.'
+          : (error?.error?.error || error?.message || 'Erreur lors du chargement du CV');
         return throwError(() => new Error(errorMsg));
       }),
     );
@@ -104,6 +141,58 @@ export class CandidaturesService {
     return {
       success: false,
       data: null,
+      error: 'Reponse API invalide',
+    };
+  }
+
+  private normalizeCandidateCvResponse(response: any): {
+    success: boolean;
+    found: boolean;
+    cv: any | null;
+    message?: string;
+    error?: string;
+  } {
+    if (!response || typeof response !== 'object') {
+      return {
+        success: false,
+        found: false,
+        cv: null,
+        error: 'Reponse API invalide',
+      };
+    }
+
+    if (response.success === false) {
+      return {
+        success: false,
+        found: false,
+        cv: null,
+        error: response.error || 'Erreur API',
+      };
+    }
+
+    if ('found' in response || 'cv' in response) {
+      return {
+        success: response.success !== false,
+        found: response.found === true,
+        cv: response.cv ?? null,
+        message: response.message,
+      };
+    }
+
+    if (response.data && typeof response.data === 'object') {
+      return {
+        success: response.data.success !== false,
+        found: response.data.found === true,
+        cv: response.data.cv ?? null,
+        message: response.data.message,
+        error: response.data.error,
+      };
+    }
+
+    return {
+      success: false,
+      found: false,
+      cv: null,
       error: 'Reponse API invalide',
     };
   }

@@ -397,6 +397,68 @@
   flex-shrink: 0;
 }
 
+.cv-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 16, 12, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1200;
+}
+
+.cv-modal {
+  width: min(1100px, 95vw);
+  max-height: 92vh;
+  background: #fff;
+  border: 1px solid #e5d6c4;
+  border-radius: 16px;
+  box-shadow: 0 20px 45px rgba(26, 18, 8, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cv-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #efe3d2;
+  background: #fff;
+}
+
+.cv-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #503515;
+}
+
+.cv-modal-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid #e0cfb8;
+  background: #fff;
+  color: #6f4d24;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cv-modal-close:hover {
+  border-color: #e67e22;
+  color: #e67e22;
+}
+
+.cv-modal-body {
+  padding: 16px;
+  overflow: auto;
+  background: #fff;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .kpi-grid {
@@ -405,5 +467,14 @@
 
   .card {
     flex-wrap: wrap;
+  }
+
+  .cv-modal {
+    width: 100%;
+    max-height: 96vh;
+  }
+
+  .cv-modal-body {
+    padding: 10px;
   }
 }

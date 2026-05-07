@@ -4,6 +4,12 @@ import { randomUUID } from 'node:crypto';
 import { getSupabase } from '../config/supabase.client';
 
 export type RecommendationStatus = 'pending' | 'approved' | 'rejected' | 'edited';
+type StudentRecommendationLevel = 'CRITIQUE' | 'MOYENNE' | 'FAIBLE';
+type StudentGapEntry = {
+  metier: string;
+  competence: string;
+  similarityScore: number;
+};
 
 export type RecommendationRow = Record<string, any>;
 
@@ -23,6 +29,16 @@ export class RecommendationsService {
 
     const timeout = Number(this.configService.get<string>('RECOMMENDATION_PYTHON_TIMEOUT_MS') ?? '900000');
     this.pythonTimeoutMs = Number.isFinite(timeout) ? Math.max(60_000, timeout) : 900_000;
+  }
+
+  private normalizeCategory(value: string | null | undefined): string {
+    return String(value ?? '').trim().toUpperCase();
+  }
+
+  private filterByCategory(rows: RecommendationRow[], category?: string): RecommendationRow[] {
+    const normalizedCategory = this.normalizeCategory(category);
+    if (!normalizedCategory) return rows;
+    return rows.filter((row) => this.normalizeCategory(String(row?.category ?? '')) === normalizedCategory);
   }
 
   private normalizeConcernRate(
@@ -183,12 +199,13 @@ export class RecommendationsService {
     });
   }
 
-  async listRecommendations(status?: string): Promise<RecommendationRow[]> {
+  async listRecommendations(status?: string, category?: string): Promise<RecommendationRow[]> {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
+    const normalizedCategory = this.normalizeCategory(category);
     const globalTotalStudents = await this.getGlobalCvStudentsCount();
 
     if (normalizedStatus === 'approved') {
-      return this.listApprovedRecommendationsForAdmin(globalTotalStudents);
+      return this.listApprovedRecommendationsForAdmin(globalTotalStudents, normalizedCategory);
     }
 
     let query = this.supabase
@@ -200,6 +217,9 @@ export class RecommendationsService {
     if (normalizedStatus) {
       query = query.eq('status', normalizedStatus);
     }
+    if (normalizedCategory) {
+      query = query.eq('category', normalizedCategory);
+    }
     const { data, error } = await query;
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
 
@@ -207,22 +227,26 @@ export class RecommendationsService {
       this.normalizeConcernRate(row, globalTotalStudents),
     );
     if (normalizedStatus) {
-      return rows;
+      return this.filterByCategory(rows, normalizedCategory);
     }
 
     // For "all", include approved rows from the confirmed table (source of truth)
     // so previously validated recommendations remain visible even after regeneration.
-    const approvedRows = await this.listApprovedRecommendationsForAdmin(globalTotalStudents);
+    const approvedRows = await this.listApprovedRecommendationsForAdmin(
+      globalTotalStudents,
+      normalizedCategory,
+    );
     const approvedIds = new Set(approvedRows.map((r) => String(r.id).trim()));
     const nonApproved = rows.filter((r) => !approvedIds.has(String(r?.id ?? '').trim()));
-    return [...approvedRows, ...nonApproved];
+    return this.filterByCategory([...approvedRows, ...nonApproved], normalizedCategory);
   }
 
   private async listApprovedRecommendationsForAdmin(
     globalTotalStudents?: number | null,
+    category?: string,
   ): Promise<RecommendationRow[]> {
     const confirmedRows = await this.listAllConfirmedRecommendations();
-    return confirmedRows
+    const rows = confirmedRows
       .map((row: any) => ({
         ...row,
         id: String(row?.recommendation_id ?? row?.id ?? '').trim(),
@@ -232,6 +256,8 @@ export class RecommendationsService {
       }))
         .map((row: RecommendationRow) => this.normalizeConcernRate(row, globalTotalStudents))
       .filter((row: RecommendationRow) => !!row.id);
+
+    return this.filterByCategory(rows, category);
   }
 
   async listApprovedRecommendationsForStudent(authOrUserId: string): Promise<RecommendationRow[]> {
@@ -242,13 +268,36 @@ export class RecommendationsService {
     if (!targetJob) return [];
 
     const globalTotalStudents = await this.getGlobalCvStudentsCount();
+    const studentGapEntries = await this.getStudentGapEntries(resolvedAuthId);
 
     // Requirement: student recommendations come from confirmed rows only, mapped by
     // ai_confirmed_recommendations.metier <-> cv_submissions.professional_title.
     const allConfirmed = await this.listAllConfirmedRecommendations();
     const byTargetJob = allConfirmed.filter((row) => this.isMetierMatch(row?.metier, targetJob));
 
-    return byTargetJob.map((row) => this.toStudentRecommendation(row, globalTotalStudents));
+    return byTargetJob.map((row) =>
+      this.toStudentRecommendation(row, globalTotalStudents, studentGapEntries),
+    );
+  }
+
+  private async getStudentGapEntries(authId: string): Promise<StudentGapEntry[]> {
+    const { data, error } = await this.supabase
+      .from('cv_matching_competence_results')
+      .select('metier_name,competence_name,similarity_score,status')
+      .eq('auth_id', authId)
+      .eq('status', 'gap');
+    if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    return (data ?? [])
+      .map((row: any) => ({
+        metier: this.normalizeText(row?.metier_name),
+        competence: this.normalizeText(row?.competence_name),
+        similarityScore: Number(row?.similarity_score),
+      }))
+      .filter(
+        (row: StudentGapEntry) =>
+          !!row.metier && !!row.competence && Number.isFinite(row.similarityScore),
+      );
   }
 
   private async listAllConfirmedRecommendations(): Promise<any[]> {
@@ -350,15 +399,107 @@ export class RecommendationsService {
     return commonTokenCount >= 2;
   }
 
-  private toStudentRecommendation(row: any, globalTotalStudents?: number | null): RecommendationRow {
+  private isCompetenceMatch(left: unknown, right: unknown): boolean {
+    const leftNormalized = this.normalizeText(left);
+    const rightNormalized = this.normalizeText(right);
+    if (!leftNormalized || !rightNormalized) return false;
+
+    if (leftNormalized === rightNormalized) return true;
+    if (leftNormalized.includes(rightNormalized) || rightNormalized.includes(leftNormalized)) return true;
+
+    const leftTokens = leftNormalized.split(' ').filter(Boolean);
+    const rightTokens = new Set(rightNormalized.split(' ').filter(Boolean));
+    const commonTokenCount = leftTokens.filter((token) => rightTokens.has(token)).length;
+    if (commonTokenCount >= 2) return true;
+
+    return commonTokenCount >= 1 && (leftTokens.length <= 1 || rightTokens.size <= 1);
+  }
+
+  private levelFromGapSimilarityScore(similarityScore: unknown): StudentRecommendationLevel | null {
+    const score = Number(similarityScore);
+    if (!Number.isFinite(score)) return null;
+    if (score >= 0.5) return 'FAIBLE';
+    if (score >= 0.3) return 'MOYENNE';
+    if (score >= 0) return 'CRITIQUE';
+    return null;
+  }
+
+  private levelFromStudentMatchingGaps(
+    row: RecommendationRow,
+    studentGapEntries: StudentGapEntry[],
+  ): StudentRecommendationLevel | null {
+    if (!studentGapEntries.length) return null;
+
+    const recommendationMetier = this.normalizeText(row?.metier);
+    const competenceCandidates = [
+      row?.competence_name,
+      row?.detected_gap,
+      row?.gap_title,
+      row?.gap_label,
+    ]
+      .map((value) => this.normalizeText(value))
+      .filter(Boolean);
+    if (!competenceCandidates.length) return null;
+
+    const pickBestLevel = (enforceMetier: boolean): StudentRecommendationLevel | null => {
+      let bestGapScore: number | null = null;
+
+      for (const gapEntry of studentGapEntries) {
+        if (
+          enforceMetier
+          && recommendationMetier
+          && !this.isMetierMatch(gapEntry.metier, recommendationMetier)
+        ) {
+          continue;
+        }
+
+        const hasCompetenceMatch = competenceCandidates.some((candidate) =>
+          this.isCompetenceMatch(candidate, gapEntry.competence),
+        );
+        if (!hasCompetenceMatch) continue;
+
+        bestGapScore = bestGapScore === null
+          ? gapEntry.similarityScore
+          : Math.min(bestGapScore, gapEntry.similarityScore);
+      }
+
+      return this.levelFromGapSimilarityScore(bestGapScore);
+    };
+
+    return pickBestLevel(true) ?? pickBestLevel(false);
+  }
+
+  private levelFromConcernRate(concernRate: unknown): StudentRecommendationLevel | null {
+    const rate = Number(concernRate);
+    if (!Number.isFinite(rate)) return null;
+    if (rate >= 70) return 'CRITIQUE';
+    if (rate >= 40) return 'MOYENNE';
+    if (rate >= 20) return 'FAIBLE';
+    return null;
+  }
+
+  private toStudentRecommendation(
+    row: any,
+    globalTotalStudents?: number | null,
+    studentGapEntries: StudentGapEntry[] = [],
+  ): RecommendationRow {
     const recommendationId = String(row?.recommendation_id ?? row?.id ?? '').trim();
-    return this.normalizeConcernRate(
+    const normalized = this.normalizeConcernRate(
       {
         ...row,
         id: recommendationId,
       },
       globalTotalStudents,
     );
+
+    const level = this.levelFromStudentMatchingGaps(normalized, studentGapEntries)
+      ?? this.levelFromConcernRate(normalized?.concern_rate)
+      ?? 'FAIBLE';
+
+    return {
+      ...normalized,
+      level,
+    };
   }
 
   async getRecommendation(id: string): Promise<RecommendationRow> {

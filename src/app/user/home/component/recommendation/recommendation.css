@@ -227,25 +227,14 @@
     line-height: 1.35;
 }
 
-.keywords {
-    margin: 0;
-    color: #4a698f;
-    font-size: 0.82rem;
-}
-
 .footer-row {
     margin-top: auto;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 0.5rem;
     align-items: center;
     color: #52637f;
     font-size: 0.82rem;
-}
-
-.rate {
-    font-weight: 700;
-    color: #264d7e;
 }
 
 .cert-link {

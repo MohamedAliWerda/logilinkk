@@ -241,6 +241,7 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
     try {
       console.log('🔄 Fetching entreprises en attente from Supabase...');
       const rows: any[] = await this.supabase.fetchSocietesBySituation('En attente');
+      const postCounts = await this.resolvePostCounts(rows);
       console.log('📥 Raw response for en attente:', rows);
       console.log('📥 Loaded entreprises en attente:', rows.length, 'rows');
       
@@ -252,13 +253,15 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
       
       this.entreprisesEnAttente = rows.map(r => {
         console.log('📦 Mapping row:', { id: r.id, nom: r.denomination_sociale, date: r.date_creation });
+        const societeId = Number(r.id);
+        const autoCount = postCounts.get(societeId);
         return {
-          id: Number(r.id),
+          id: societeId,
           initiales: (r.denomination_sociale || '').split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase() || '??',
           couleur: '#a855f7',
           nom: r.denomination_sociale ?? r.raison_sociale ?? 'Entreprise',
           secteur: r.secteur_activite ?? r.secteur ?? '',
-          nbPostes: Number(r.nb_postes ?? 0),
+          nbPostes: typeof autoCount === 'number' ? autoCount : Number(r.nb_postes ?? 0),
           dateDepuis: r.date_creation ? new Date(r.date_creation).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '',
           statut: 'en_attente',
           localisation: r.adresse ?? '',
@@ -278,6 +281,7 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
     try {
       console.log('🔄 Fetching entreprises validées from Supabase...');
       const validRows: any[] = await this.supabase.fetchSocietesBySituations(['Validée', 'validée', 'VALIDÉE']);
+      const postCounts = await this.resolvePostCounts(validRows);
       console.log('📥 Raw response for validées:', validRows);
       console.log('📥 Loaded entreprises validées:', validRows.length, 'rows');
       
@@ -289,13 +293,15 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
       
       this.entreprisesValidees = validRows.map(r => {
         console.log('📦 Mapping row:', { id: r.id, nom: r.denomination_sociale, date: r.date_creation });
+        const societeId = Number(r.id);
+        const autoCount = postCounts.get(societeId);
         return {
-          id: Number(r.id),
+          id: societeId,
           initiales: (r.denomination_sociale || '').split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase() || '??',
           couleur: '#0ea5e9',
           nom: r.denomination_sociale ?? r.raison_sociale ?? 'Entreprise',
           secteur: r.secteur_activite ?? r.secteur ?? '',
-          nbPostes: Number(r.nb_postes ?? 0),
+          nbPostes: typeof autoCount === 'number' ? autoCount : Number(r.nb_postes ?? 0),
           dateDepuis: r.date_creation ? new Date(r.date_creation).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '',
           statut: 'validée',
           localisation: r.adresse ?? '',
@@ -355,6 +361,7 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
   private async loadArchivees(): Promise<void> {
     try {
       const rows: any[] = await this.supabase.fetchSocietesBySituations(['Archivée', 'archivée', 'ARCHIVÉE']);
+      const postCounts = await this.resolvePostCounts(rows);
       if (!rows || rows.length === 0) {
         this.entreprisesArchivees = [];
         return;
@@ -365,7 +372,9 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
         couleur: '#94a3b8',
         nom: r.denomination_sociale ?? r.raison_sociale ?? 'Entreprise',
         secteur: r.secteur_activite ?? r.secteur ?? '',
-        nbPostes: Number(r.nb_postes ?? 0),
+        nbPostes: typeof postCounts.get(Number(r.id)) === 'number'
+          ? (postCounts.get(Number(r.id)) as number)
+          : Number(r.nb_postes ?? 0),
         dateDepuis: r.date_creation ? new Date(r.date_creation).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '',
         statut: 'validée' as const,
         localisation: r.adresse ?? '',
@@ -376,6 +385,23 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
     } catch (err) {
       console.error('❌ Failed to load entreprises archivées:', err);
       this.entreprisesArchivees = [];
+    }
+  }
+
+  private async resolvePostCounts(rows: any[]): Promise<Map<number, number>> {
+    const ids = (rows || [])
+      .map((row) => Number(row?.id ?? 0))
+      .filter((id) => Number.isInteger(id) && id > 0);
+
+    if (!ids.length) {
+      return new Map<number, number>();
+    }
+
+    try {
+      return await this.supabase.fetchCompanyPostCounts(ids);
+    } catch (err) {
+      console.warn('⚠️ Unable to fetch automatic post counts, falling back to nb_postes column.', err);
+      return new Map<number, number>();
     }
   }
 
