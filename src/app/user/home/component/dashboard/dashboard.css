@@ -805,6 +805,31 @@
     background: rgba(24, 36, 56, 0.03)
 }
 
+.rec-level-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.rec-level-critique {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.rec-level-haute {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.rec-level-moyenne {
+    background: #fef9c3;
+    color: #a16207;
+}
+
 .mini-item:hover {
     transform: translateY(-3px);
     transition: transform .12s ease;

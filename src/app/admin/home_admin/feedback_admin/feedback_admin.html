@@ -296,7 +296,20 @@
                 </div>
             </div>
 
+            @if (enterpriseFeedbacks.length === 0) {
+            <div class="empty" style="margin-top:3rem">
+                <div class="empty-icon" style="font-size:2.5rem">📋</div>
+                <h3>Aucun feedback société</h3>
+                <p style="color:#71717a;margin-top:.5rem">Les évaluations soumises par les entreprises apparaîtront ici.</p>
+            </div>
+            } @else {
+
             <div class="company-score-grid">
+                <article class="kpi-card company-score-card" style="--accent:#6366f1">
+                    <div class="kpi-k">Répondants</div>
+                    <div class="kpi-v">{{ companyRespondentsCount }}</div>
+                    <div class="kpi-s">évaluations reçues</div>
+                </article>
                 <article class="kpi-card company-score-card" style="--accent:#1D9E75">
                     <div class="kpi-k">Satisfaction globale</div>
                     <div class="kpi-v">{{ companySatisfactionAverage }} /10</div>
@@ -394,8 +407,9 @@
                     <div class="chart-head company-subhead">Intention de recruter</div>
                     <div class="company-recruit-grid">
                         <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.oui }}%</strong><span>Oui</span></div>
+                        <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.probablement }}%</strong><span>Probablement oui</span></div>
+                        <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.incertain }}%</strong><span>Incertain(e)</span></div>
                         <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.non }}%</strong><span>Non</span></div>
-                        <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.reflexion }}%</strong><span>En réflexion</span></div>
                     </div>
 
                     <div class="company-insight">
@@ -410,6 +424,8 @@
                     <canvas id="company-satisfaction-chart"></canvas>
                 </div>
             </article>
+
+            } <!-- end @else (has feedbacks) -->
         </div>
         }
     </div>

@@ -9,6 +9,7 @@ import {
   MatchingAnalysisResponse,
   MatchingAnalysisTraceResponse,
 } from '../cv-ats/cv-submission.service';
+import { RecommendationService, StudentRecommendation } from '../recommendation/recommendation.service';
 // dashboard does not render the global navbar/sidebar (those are provided by Home)
 
 @Component({
@@ -27,7 +28,7 @@ export class Dashboard {
   // UI state
   stats: { label: string; value: number; icon: SafeHtml }[];
   employabilityScore = 0;
-  recommendations: string[] = [];
+  topRecommendations: StudentRecommendation[] = [];
   atsScoreFromApi: number | null = null;
   employabilityScoreFromApi: number | null = null;
   private matchingAnalysis: MatchingAnalysisResponse | null = null;
@@ -47,6 +48,7 @@ export class Dashboard {
     private sanitizer: DomSanitizer,
     private cvSubmissionService: CvSubmissionService,
     private cdr: ChangeDetectorRef,
+    private recommendationService: RecommendationService,
   ) {
     this.studentName = this.resolveStudentName();
 
@@ -77,21 +79,13 @@ export class Dashboard {
       { label: 'Nbre de gaps',          value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[3]) },
     ];
 
-    // basic recommendations (placeholder data)
-    this.recommendations = [
-      'Formation SAP - Niveau débutant',
-      'Anglais professionnel - Conversation',
-      'Gestion des stocks avancée',
-      'Certification supply chain',
-      'Atelier optimisation processus',
-    ];
-
     // compute initial score/stats
     this.employabilityScore = this.getAvgMatchScore();
     this.recomputeStats();
     void this.loadAtsScore();
     void this.loadEmployabilityScore();
     void this.loadMatchingStats();
+    void this.loadTopRecommendations();
   }
 
   private async loadMatchingStats(): Promise<void> {
@@ -725,6 +719,47 @@ export class Dashboard {
       this.stats[2].value = metiers;
       this.stats[3].value = nbreGaps;
     }
+  }
+
+  private async loadTopRecommendations(): Promise<void> {
+    try {
+      const rows = await this.recommendationService.listApprovedForStudent();
+      const valid = rows.filter(r => {
+        const lvl = (r.level ?? '').toUpperCase();
+        return lvl === 'CRITIQUE' || lvl === 'HAUTE' || lvl === 'MOYENNE';
+      });
+      valid.sort((a, b) => (Number(b.concern_rate) || 0) - (Number(a.concern_rate) || 0));
+      this.topRecommendations = valid.slice(0, 3);
+      this.cdr.detectChanges();
+    } catch {
+      this.topRecommendations = [];
+    }
+  }
+
+  recommendationTitle(item: StudentRecommendation): string {
+    return item.cert_title?.trim()
+      || item.gap_title?.trim()
+      || item.competence_name?.trim()
+      || 'Recommandation';
+  }
+
+  recommendationLevel(item: StudentRecommendation): string {
+    const lvl = (item.level ?? '').toUpperCase();
+    if (lvl === 'CRITIQUE') return 'Critique';
+    if (lvl === 'HAUTE') return 'Haute';
+    if (lvl === 'MOYENNE') return 'Moyenne';
+    return '';
+  }
+
+  recommendationContext(item: StudentRecommendation): string {
+    const metier = item.metier?.trim() ?? '';
+    const domaine = item.domaine?.trim() ?? '';
+    if (metier && domaine) return `${metier} · ${domaine}`;
+    return metier || domaine || 'Formation recommandée';
+  }
+
+  goToRecommendations(): void {
+    this.router.navigate(['/home/recommendation']);
   }
 
   logout() {

@@ -30,7 +30,7 @@ interface StatCard {
   icon?: string;
 }
 
-type CompanyRecruitmentIntent = 'Oui' | 'Non' | 'En réflexion';
+type CompanyRecruitmentIntent = 'Oui' | 'Non' | 'Probablement oui' | 'Incertain(e)';
 type CompanySituation = 'CDI' | 'CDD' | 'Stage / PFE' | 'Freelance' | 'Sans emploi';
 
 interface EnterpriseFeedback {
@@ -179,25 +179,28 @@ L'équipe ISGI`;
   }
 
   private async loadEnterpriseFeedback(shouldRefreshCharts = true): Promise<void> {
-    const tableCandidates = ['feedback_entreprise', 'feedback_entreprises', 'feedback_company'];
-    let loadedRows: any[] = [];
+    try {
+      // Try with Societe join first to get company name
+      const { data, error } = await this.supabaseService.adminClient
+        .from('feedback_societe')
+        .select('*, Societe:id_soc(denomination_sociale, secteur_activite)');
 
-    for (const tableName of tableCandidates) {
+      if (error) throw error;
+      this.enterpriseFeedbacks = ((data as any[]) ?? []).map(row => this.mapEnterpriseFeedbackRow(row));
+    } catch {
+      // Fallback: plain select without join
       try {
-        const rows = await this.supabaseService.fetchFeedback(tableName);
-        if (Array.isArray(rows) && rows.length > 0) {
-          loadedRows = rows;
-          break;
+        const { data: rawData, error: rawError } = await this.supabaseService.adminClient
+          .from('feedback_societe')
+          .select('*');
+        if (!rawError && rawData) {
+          this.enterpriseFeedbacks = (rawData as any[]).map(row => this.mapEnterpriseFeedbackRow(row));
+        } else {
+          this.enterpriseFeedbacks = [];
         }
       } catch {
-        // try next candidate
+        this.enterpriseFeedbacks = [];
       }
-    }
-
-    if (loadedRows.length > 0) {
-      this.enterpriseFeedbacks = loadedRows.map(row => this.mapEnterpriseFeedbackRow(row));
-    } else {
-      this.enterpriseFeedbacks = this.buildEnterpriseFallbackRows();
     }
 
     if (shouldRefreshCharts) {
@@ -223,22 +226,24 @@ L'équipe ISGI`;
   }
 
   private normalizeIntent(raw: unknown): CompanyRecruitmentIntent {
-    const text = String(raw ?? '').toLowerCase();
-    if (text.includes('oui') || text.includes('yes') || text.includes('envisag')) {
-      return 'Oui';
-    }
-    if (text.includes('non') || text.includes('no')) {
-      return 'Non';
-    }
-    return 'En réflexion';
+    const text = String(raw ?? '').toLowerCase().trim();
+    if (text.includes('certainement') || text === 'oui') return 'Oui';
+    if (text.includes('probablement')) return 'Probablement oui';
+    if (text.includes('incertain')) return 'Incertain(e)';
+    if (text === 'non' || text.startsWith('non')) return 'Non';
+    return 'Incertain(e)';
   }
 
   private normalizeSituation(raw: unknown): CompanySituation {
     const text = String(raw ?? '').toLowerCase();
-    if (text.includes('cdi')) return 'CDI';
-    if (text.includes('cdd') || text.includes('sivp')) return 'CDD';
+    // Q1 text answers from feedback_societe
+    if (text.includes('toujours en poste') || text.includes('mutation interne')) return 'CDI';
+    if (text.includes('fin de contrat') || text.includes('sivp')) return 'CDD';
     if (text.includes('stage') || text.includes('pfe')) return 'Stage / PFE';
     if (text.includes('free')) return 'Freelance';
+    // Legacy / fallback values
+    if (text.includes('cdi')) return 'CDI';
+    if (text.includes('cdd')) return 'CDD';
     return 'Sans emploi';
   }
 
@@ -251,54 +256,73 @@ L'équipe ISGI`;
   }
 
   private mapEnterpriseFeedbackRow(row: any): EnterpriseFeedback {
+    // Company name from Supabase FK join, or fallback to id_soc label
+    const societeJoin = row?.['Societe'] as any;
     const company = String(
-      row?.entreprise
-      ?? row?.societe
-      ?? row?.nom_entreprise
-      ?? row?.company
-      ?? row?.raison_sociale
+      societeJoin?.denomination_sociale
+      ?? societeJoin?.nom
+      ?? (row?.id_soc ? `Société #${row.id_soc}` : null)
       ?? 'Entreprise non renseignée',
     ).trim() || 'Entreprise non renseignée';
 
-    const profileFitFallback = (() => {
-      const adequation = String(row?.poste_en_lien_formation ?? row?.adequation ?? '').toLowerCase();
-      if (adequation.includes('total')) return 85;
-      if (adequation.includes('part')) return 60;
-      if (adequation.includes('pas')) return 25;
-      return 64;
-    })();
+    const sector = String(societeJoin?.secteur_activite ?? 'Non renseigné').trim();
 
-    const competenceTechnique = this.normalizeNumber(row?.competences_techniques_metier ?? row?.competence_technique ?? row?.competences_techniques, 4.1, 0, 6);
-    const resolutionProblemes = this.normalizeNumber(row?.resolution_problemes ?? row?.competences_gestion_projet, 3.9, 0, 6);
-    const travailEquipe = this.normalizeNumber(row?.travail_equipe_collaboration ?? row?.travail_equipe, 4.5, 0, 6);
-    const communication = this.normalizeNumber(row?.communication_professionnelle ?? row?.competences_communication, 3.5, 0, 6);
-    const autonomiePriorites = this.normalizeNumber(row?.autonomie_gestion_priorites ?? row?.capacite_adaptation, 3.2, 0, 6);
-    const apprentissageAgilite = this.normalizeNumber(row?.capacite_apprentissage_agilite ?? row?.maitrise_langues, 4.9, 0, 6);
+    // Q2: Skill ratings (stored as 1–6)
+    const competenceTechnique = this.normalizeNumber(row?.['2. [Compétences techniques métier]'], 4, 1, 6);
+    const resolutionProblemes  = this.normalizeNumber(row?.['2. [Résolution de problèmes]'], 4, 1, 6);
+    const travailEquipe        = this.normalizeNumber(row?.['2. [Travail en équipe / Collaboration]'], 4, 1, 6);
+    const communication        = this.normalizeNumber(row?.['2. [Communication professionnelle]'], 4, 1, 6);
+    const autonomiePriorites   = this.normalizeNumber(row?.['2. [Autonomie & Gestion des priorités]'], 4, 1, 6);
+    const apprentissageAgilite = this.normalizeNumber(row?.["2.[Capacité d'apprentissage & Agilité]"], 4, 1, 6);
 
-    const lacuneFromSkill = (skillValue: number) => Math.round((1 - (skillValue / 6)) * 100);
+    // Q3: Profile fit → 0-100
+    const profileText = String(row?.['3. Le profil académique ISGIS correspond-il aux exigences du p'] ?? '').toLowerCase();
+    let profileFitRate = 60;
+    if (profileText.includes('très bien')) profileFitRate = 90;
+    else if (profileText.includes('bien adapt')) profileFitRate = 75;
+    else if (profileText.includes('partiellement')) profileFitRate = 50;
+    else if (profileText.includes('peu adapt')) profileFitRate = 20;
+
+    // Q5: Performance contribution → 1-5
+    const contribText = String(row?.['5. Comment évaluez-vous la participation des diplomés dans la'] ?? '').toLowerCase();
+    let performanceContribution = 3;
+    if (contribText.includes('rapide et remarquable')) performanceContribution = 5;
+    else if (contribText.includes('régulière') || contribText.includes('reguliere')) performanceContribution = 4;
+    else if (contribText.includes('lente mais')) performanceContribution = 3;
+    else if (contribText.includes('stagnation')) performanceContribution = 1;
+
+    // Q4: Lacunes (comma-separated text) → binary 100/0 per option; average across rows = % of respondents
+    const lacunesStr = String(row?.["4. Quelles lacunes avez-vous observées à l'arrivée du diplô"] ?? '').toLowerCase();
+    const hasLacune  = (keyword: string) => lacunesStr.includes(keyword.toLowerCase()) ? 100 : 0;
 
     return {
-      id: String(row?.id ?? `${company}-${row?.promotion ?? ''}`),
+      id: String(row?.id ?? row?.id_soc ?? company),
       company,
-      sector: String(row?.secteur ?? row?.domaine ?? row?.filiere ?? 'Logistique & Transport').trim(),
-      promotion: this.parsePromotion(row?.promotion ?? row?.promotion_cible),
-      satisfactionGlobal: this.normalizeNumber(row?.satisfaction_globale ?? row?.satisfaction ?? row?.note_globale ?? row?.recommandation_isgis, 7.4, 0, 10),
-      recruitmentIntent: this.normalizeIntent(row?.recrutement_envisage ?? row?.intention_recrutement ?? row?.intention),
-      profileFitRate: this.normalizeNumber(row?.profil_adequat_poste ?? row?.profil_adequat ?? row?.adequation_poste, profileFitFallback, 0, 100),
-      performanceContribution: this.normalizeNumber(row?.contribution_performance ?? row?.impact_performance ?? row?.contribution, 3.6, 0, 5),
-      situation: this.normalizeSituation(row?.situation_actuelle_diplome ?? row?.situation_diplome ?? row?.situation_actuelle),
+      sector,
+      promotion: new Date().getFullYear(),
+      satisfactionGlobal: this.normalizeNumber(
+        row?.['7. Sur une échelle de 0 à 10, quelle est votre satisfaction g'], 7, 0, 10,
+      ),
+      recruitmentIntent: this.normalizeIntent(
+        row?.["6. Envisagez-vous de recruter d'autres diplômés ISGIS ?"],
+      ),
+      profileFitRate,
+      performanceContribution,
+      situation: this.normalizeSituation(
+        row?.['1. Quelle est la situation actuelle du diplômé dans votre ent'],
+      ),
       competenceTechnique,
       resolutionProblemes,
       travailEquipe,
       communication,
       autonomiePriorites,
       apprentissageAgilite,
-      lacuneExperienceTerrain: this.normalizeNumber(row?.lacune_experience_terrain ?? row?.experience_terrain, lacuneFromSkill(competenceTechnique), 0, 100),
-      lacuneOutilsTms: this.normalizeNumber(row?.lacune_outils_tms_wms ?? row?.outils_tms_wms, lacuneFromSkill(resolutionProblemes), 0, 100),
-      lacuneGestionCrise: this.normalizeNumber(row?.lacune_gestion_crise_logistique ?? row?.gestion_crise_logistique, lacuneFromSkill(travailEquipe), 0, 100),
-      lacuneReglementation: this.normalizeNumber(row?.lacune_reglementation_transport ?? row?.reglementation_transport, lacuneFromSkill(communication), 0, 100),
-      lacuneCommunicationClients: this.normalizeNumber(row?.lacune_communication_clients ?? row?.communication_clients, lacuneFromSkill(autonomiePriorites), 0, 100),
-      lacuneAnglais: this.normalizeNumber(row?.lacune_anglais_operationnel ?? row?.anglais_operationnel, lacuneFromSkill(apprentissageAgilite), 0, 100),
+      lacuneExperienceTerrain: hasLacune('processus industriels'),
+      lacuneOutilsTms:          hasLacune('outils métier'),
+      lacuneGestionCrise:       hasLacune('gestion de projet'),
+      lacuneReglementation:     hasLacune('analyse de données'),
+      lacuneCommunicationClients: hasLacune('communication écrite'),
+      lacuneAnglais:            hasLacune('anglais'),
     };
   }
 
@@ -325,7 +349,7 @@ L'équipe ISGI`;
         sector: 'Logistique & Transport',
         promotion: student.promotion,
         satisfactionGlobal: recommendation,
-        recruitmentIntent: recommendation >= 7 ? 'Oui' : recommendation <= 4 ? 'Non' : 'En réflexion',
+        recruitmentIntent: recommendation >= 7 ? 'Oui' : recommendation <= 4 ? 'Non' : 'Incertain(e)',
         profileFitRate,
         performanceContribution: this.normalizeNumber(student.rating, 3.6, 0, 5),
         situation: this.normalizeSituation(student.employmentStatus),
@@ -1370,12 +1394,12 @@ L'équipe ISGI`;
 
   get companyGapRows(): Array<{ label: string; percent: number; color: string }> {
     return [
-      { label: 'Expérience terrain', percent: Math.round(this.averageCompanyMetric(r => r.lacuneExperienceTerrain, 1)), color: '#9a3412' },
-      { label: 'Outils TMS / WMS', percent: Math.round(this.averageCompanyMetric(r => r.lacuneOutilsTms, 1)), color: '#b45309' },
-      { label: 'Gestion de crise logistique', percent: Math.round(this.averageCompanyMetric(r => r.lacuneGestionCrise, 1)), color: '#2563eb' },
-      { label: 'Réglementation transport', percent: Math.round(this.averageCompanyMetric(r => r.lacuneReglementation, 1)), color: '#4338ca' },
-      { label: 'Communication clients', percent: Math.round(this.averageCompanyMetric(r => r.lacuneCommunicationClients, 1)), color: '#047857' },
-      { label: 'Anglais opérationnel', percent: Math.round(this.averageCompanyMetric(r => r.lacuneAnglais, 1)), color: '#71717a' },
+      { label: 'Processus industriels', percent: Math.round(this.averageCompanyMetric(r => r.lacuneExperienceTerrain, 1)), color: '#9a3412' },
+      { label: 'Outils métier', percent: Math.round(this.averageCompanyMetric(r => r.lacuneOutilsTms, 1)), color: '#b45309' },
+      { label: 'Gestion de projet', percent: Math.round(this.averageCompanyMetric(r => r.lacuneGestionCrise, 1)), color: '#2563eb' },
+      { label: 'Analyse de données', percent: Math.round(this.averageCompanyMetric(r => r.lacuneReglementation, 1)), color: '#4338ca' },
+      { label: 'Communication pro.', percent: Math.round(this.averageCompanyMetric(r => r.lacuneCommunicationClients, 1)), color: '#047857' },
+      { label: 'Anglais professionnel', percent: Math.round(this.averageCompanyMetric(r => r.lacuneAnglais, 1)), color: '#71717a' },
     ];
   }
 
@@ -1399,16 +1423,18 @@ L'équipe ISGI`;
     };
   }
 
-  get companyRecruitmentBreakdown(): { oui: number; non: number; reflexion: number } {
+  get companyRecruitmentBreakdown(): { oui: number; non: number; probablement: number; incertain: number } {
     const rows = this.companyDashboardRows;
     if (!rows.length) {
-      return { oui: 0, non: 0, reflexion: 0 };
+      return { oui: 0, non: 0, probablement: 0, incertain: 0 };
     }
-    const oui = rows.filter(r => r.recruitmentIntent === 'Oui').length;
-    const non = rows.filter(r => r.recruitmentIntent === 'Non').length;
-    const reflexion = rows.filter(r => r.recruitmentIntent === 'En réflexion').length;
     const toPercent = (n: number) => Math.round((n / rows.length) * 100);
-    return { oui: toPercent(oui), non: toPercent(non), reflexion: toPercent(reflexion) };
+    return {
+      oui:         toPercent(rows.filter(r => r.recruitmentIntent === 'Oui').length),
+      non:         toPercent(rows.filter(r => r.recruitmentIntent === 'Non').length),
+      probablement: toPercent(rows.filter(r => r.recruitmentIntent === 'Probablement oui').length),
+      incertain:   toPercent(rows.filter(r => r.recruitmentIntent === 'Incertain(e)').length),
+    };
   }
 
   get companySatisfactionDistribution(): Array<{ score: number; count: number; color: string }> {

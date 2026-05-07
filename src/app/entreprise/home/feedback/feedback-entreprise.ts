@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 
 import { SupabaseService } from '../../../services/supabase.service';
 
@@ -111,10 +111,14 @@ export class FeedbackEntreprise implements OnInit {
 
   form: FeedbackForm = this.createEmptyForm();
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly cdr: ChangeDetectorRef,
+  ) {}
 
   ngOnInit(): void {
     this.restoreDraft();
+    this.loadCompanyInfo();
   }
 
   get progressPercent(): number {
@@ -236,14 +240,23 @@ export class FeedbackEntreprise implements OnInit {
     this.submitError = '';
 
     try {
-      await this.supabaseService.adminClient.from('feedback_entreprise').insert([payload]);
+      const { error } = await this.supabaseService.adminClient
+        .from('feedback_societe')
+        .insert([payload]);
+
+      if (error) {
+        throw error;
+      }
+
       this.submitSuccess = true;
       localStorage.removeItem(this.storageKey);
-    } catch {
+    } catch (err) {
+      console.error('Feedback submit error:', err);
       this.persistOffline(payload);
       this.submitSuccess = true;
     } finally {
       this.isSubmitting = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -289,32 +302,46 @@ export class FeedbackEntreprise implements OnInit {
   }
 
   private buildPayload(): Record<string, unknown> {
-    const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
-    const toGap = (value: number) => clamp(((6 - value) / 6) * 100);
+    let societeId: number | null = null;
+    try {
+      const raw = localStorage.getItem('entreprise');
+      if (raw) {
+        const societe = JSON.parse(raw) as Record<string, unknown>;
+        societeId = typeof societe['id'] === 'number' ? societe['id'] : null;
+      }
+    } catch { /* ignore */ }
+
+    const lacunes = this.form.q4.slice();
+    if (this.form.otherGap.trim()) {
+      lacunes.push(this.form.otherGap.trim());
+    }
 
     return {
-      entreprise: this.companyName,
-      secteur: this.companySector,
-      promotion: new Date().getFullYear(),
-      satisfaction_globale: this.form.q7 ?? 0,
-      recrutement_envisage: this.form.q6,
-      profil_adequat_poste: this.form.q3,
-      contribution_performance: this.form.q5,
-      situation_actuelle_diplome: this.form.q1,
-      competences_techniques_metier: this.form.ratings.tech,
-      resolution_problemes: this.form.ratings.prob,
-      travail_equipe_collaboration: this.form.ratings.team,
-      communication_professionnelle: this.form.ratings.comm,
-      autonomie_gestion_priorites: this.form.ratings.auto,
-      capacite_apprentissage_agilite: this.form.ratings.agil,
-      lacune_experience_terrain: toGap(this.form.ratings.tech),
-      lacune_outils_tms_wms: toGap(this.form.ratings.prob),
-      lacune_gestion_crise_logistique: toGap(this.form.ratings.team),
-      lacune_reglementation_transport: toGap(this.form.ratings.comm),
-      lacune_communication_clients: toGap(this.form.ratings.auto),
-      lacune_anglais_operationnel: toGap(this.form.ratings.agil),
-      message_suggestion: this.form.otherGap.trim(),
+      id_soc: societeId,
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      "1. Quelle est la situation actuelle du diplômé dans votre ent": this.form.q1,
+      "2. [Compétences techniques métier]": this.form.ratings.tech,
+      "2. [Résolution de problèmes]": this.form.ratings.prob,
+      "2. [Travail en équipe / Collaboration]": this.form.ratings.team,
+      "2. [Communication professionnelle]": this.form.ratings.comm,
+      "2. [Autonomie & Gestion des priorités]": this.form.ratings.auto,
+      "2.[Capacité d'apprentissage & Agilité]": this.form.ratings.agil,
+      "3. Le profil académique ISGIS correspond-il aux exigences du p": this.form.q3,
+      "4. Quelles lacunes avez-vous observées à l'arrivée du diplô": lacunes.join(', '),
+      "5. Comment évaluez-vous la participation des diplomés dans la": this.form.q5,
+      "6. Envisagez-vous de recruter d'autres diplômés ISGIS ?": this.form.q6,
+      "7. Sur une échelle de 0 à 10, quelle est votre satisfaction g": this.form.q7 ?? 0,
     };
+  }
+
+  private loadCompanyInfo(): void {
+    try {
+      const raw = localStorage.getItem('entreprise');
+      if (!raw) return;
+      const societe = JSON.parse(raw) as Record<string, unknown>;
+      this.companyName = (societe['denomination_sociale'] ?? societe['nom'] ?? 'Entreprise partenaire') as string;
+      this.companySector = (societe['secteur_activite'] ?? 'Entreprise') as string;
+    } catch { /* keep defaults */ }
   }
 
   private persistDraft(): void {

@@ -170,7 +170,11 @@
         </div>
 
         <label>Société</label>
-        <input formControlName="societe" placeholder="Nom de l'entreprise" />
+        <input
+          formControlName="societe"
+          placeholder="Nom de l'entreprise"
+          [class.input-readonly]="offreForm.get('societe')?.disabled"
+        />
         <div class="form-error" *ngIf="offreForm.get('societe')?.invalid && offreForm.get('societe')?.touched">
           <span *ngIf="offreForm.get('societe')?.errors?.['required']">Le nom de la société est requis</span>
           <span *ngIf="offreForm.get('societe')?.errors?.['minlength']">Le nom doit contenir au moins 2 caractères</span>

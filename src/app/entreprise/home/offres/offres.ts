@@ -212,6 +212,18 @@ export class Offres implements OnInit, OnDestroy {
     this.offreForm.reset();
     this.successMessage = '';
     this.errorMessage = '';
+
+    try {
+      const raw = localStorage.getItem('entreprise');
+      if (raw) {
+        const societe = JSON.parse(raw) as Record<string, unknown>;
+        const name = (societe['denomination_sociale'] ?? societe['nom'] ?? '') as string;
+        if (name) {
+          this.offreForm.patchValue({ societe: name });
+          this.offreForm.get('societe')?.disable();
+        }
+      }
+    } catch { /* keep empty */ }
   }
 
   openEditModal(offre: Offre): void {
@@ -228,16 +240,18 @@ export class Offres implements OnInit, OnDestroy {
     this.showCreateModal = false;
     this.showEditModal = false;
     this.editingOffre = null;
+    this.offreForm.get('societe')?.enable();
     this.offreForm.reset();
   }
 
   submitOffre(): void {
-    if (this.offreForm.valid) {
+    if (this.offreForm.valid || (this.offreForm.get('societe')?.disabled && this.offreForm.get('titre_poste')?.valid && this.offreForm.get('exigences')?.valid)) {
       this.isSaving = true;
+      const raw = this.offreForm.getRawValue();
       const formData = {
-        titre_poste: this.offreForm.value.titre_poste,
-        societe: this.offreForm.value.societe,
-        exigences: this.offreForm.value.exigences,
+        titre_poste: raw.titre_poste,
+        societe: raw.societe,
+        exigences: raw.exigences,
       };
 
       this.offresService.createOffre(formData)

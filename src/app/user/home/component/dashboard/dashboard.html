@@ -112,20 +112,21 @@
             <div class="panel">
                 <div class="panel-header">
                     <h2>Recommandations générales</h2>
-                    <a class="panel-link" href="#">Voir tout →</a>
+                    <button class="panel-link" type="button" (click)="goToRecommendations()">Voir tout →</button>
                 </div>
                 <ul class="mini-list">
-                    <li class="mini-item" *ngFor="let r of recommendations | slice:0:5">
+                    <li class="mini-item" *ngFor="let r of topRecommendations">
                         <div class="mini-icon">R</div>
                         <div class="mini-content">
-                            <div class="mini-title">{{ r }}</div>
-                            <div class="mini-meta">Formation recommandée • Durée variable</div>
+                            <div class="mini-title">{{ recommendationTitle(r) }}</div>
+                            <div class="mini-meta">{{ recommendationContext(r) }}</div>
                         </div>
                         <div class="mini-right">
-                            <button class="start-btn">Voir</button>
+                            <span class="rec-level-badge rec-level-{{ r.level?.toLowerCase() }}">{{ recommendationLevel(r) }}</span>
                         </div>
                     </li>
                 </ul>
+                <p class="empty-state" *ngIf="topRecommendations.length === 0">Aucune recommandation disponible.</p>
             </div>
 
 
