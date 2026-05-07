@@ -1157,17 +1157,7 @@ L'équipe ISGI`;
     return Math.round(total / scores.length);
   }
 
-  get npsBreakdown(): { promoters: number; neutrals: number; detractors: number } {
-    const notes = this.dashboardStudents
-      .map(student => student.recommendationNote)
-      .filter((note): note is number => typeof note === 'number');
 
-    return {
-      promoters: notes.filter(note => this.getRecommendationCategory(note) === 'promoteur').length,
-      neutrals: notes.filter(note => this.getRecommendationCategory(note) === 'neutre').length,
-      detractors: notes.filter(note => this.getRecommendationCategory(note) === 'detracteur').length,
-    };
-  }
 
   get npsScore(): number {
     const notes = this.dashboardStudents

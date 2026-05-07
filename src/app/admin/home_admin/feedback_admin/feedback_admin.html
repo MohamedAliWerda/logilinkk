@@ -1,8 +1,8 @@
 <section class="admin-page-container">
     <header class="topbar">
         <div>
-            <h1 class="topbar-title">Ingestion Professionnelle</h1>
-            <p class="topbar-sub">ISGIS Admin</p>
+            <h1 class="topbar-title">Gestion des progrès professionnels</h1>
+            
         </div>
         <div class="topbar-right">
             <span class="live-dot"></span>
@@ -14,17 +14,17 @@
     <div class="content">
         <div class="stat-row">
             <div class="stat-card">
-                <div class="stat-label">Anciens recensés</div>
+                <div class="stat-label">Suivie des recruteurs</div>
                 <div class="stat-val">{{ oldStudents.length }}</div>
                 <div class="stat-sub">dans la base</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Invitations envoyées</div>
+                <div class="stat-label">Recrute contacte</div>
                 <div class="stat-val">{{ invitedCount }}</div>
                 <div class="stat-sub">emails partis</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Réponses reçues</div>
+                <div class="stat-label">Les recruteurs ont répondu</div>
                 <div class="stat-val">{{ respondedCount }}</div>
                 <div class="stat-sub">taux : {{ responseRate }}%</div>
             </div>
@@ -134,18 +134,14 @@
                 <div class="kpi-card" style="--accent:#7F77DD">
                     <div class="kpi-k">DI_moyen</div>
                     <div class="kpi-v">{{ averageDelayMonths }}</div>
-                    <div class="kpi-s">mois délai premier emploi</div>
+                    <div class="kpi-s">mois Délai premier emploi</div>
                 </div>
                 <div class="kpi-card" style="--accent:#2563EB">
                     <div class="kpi-k">IPE_promotion</div>
                     <div class="kpi-v">{{ averageRating }}%</div>
                     <div class="kpi-s">adéquation poste/formation</div>
                 </div>
-                <div class="kpi-card" style="--accent:#F5A623">
-                    <div class="kpi-k">NPS</div>
-                    <div class="kpi-v">{{ npsScore }}</div>
-                    <div class="kpi-s">score de satisfaction</div>
-                </div>
+            
                 <div class="kpi-card" style="--accent:#EF4444">
                     <div class="kpi-k">Répondants</div>
                     <div class="kpi-v">{{ feedbackCount }}</div>
@@ -155,7 +151,7 @@
 
             <div class="charts-2">
                 <div class="chart-card">
-                    <div class="chart-head">Statut d'emploi</div>
+                    <div class="chart-head">Forme contractuelle</div>
                     <div class="chart-sub">Distribution par statut</div>
                     <div class="chart-body chart-wide">
                         <canvas id="employment-status-chart"></canvas>
@@ -172,7 +168,7 @@
 
             <div class="charts-3">
                 <div class="chart-card">
-                    <div class="chart-head">Délai premier emploi</div>
+                    <div class="chart-head">Date d’obtention du poste après le diplôme</div>
                     <div class="chart-sub">Distribution des délais</div>
                     <div class="chart-body">
                         <canvas id="delay-chart"></canvas>
@@ -184,11 +180,7 @@
                     <div class="nps-center">
                         <div class="nps-big" [class.nps-negative]="npsScore < 0">{{ npsScore }}</div>
                         <div class="nps-lbl" [ngClass]="npsToneClass">{{ npsLabel }}</div>
-                        <div class="nps-row">
-                            <span><b>{{ npsBreakdown.promoters }}</b>Promoteurs</span>
-                            <span><b>{{ npsBreakdown.neutrals }}</b>Neutres</span>
-                            <span><b>{{ npsBreakdown.detractors }}</b>Détracteurs</span>
-                        </div>
+                       
                     </div>
                 </div>
                 <div class="chart-card">
@@ -253,7 +245,7 @@
                             <th>Répondants</th>
                             <th>Satisfaction</th>
                             <th>Recrutement</th>
-                            <th>Profil adéquat</th>
+                            <th>Adéquation</th>
                             <th>Contribution</th>
                         </tr>
                     </thead>

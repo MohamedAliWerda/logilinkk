@@ -1,7 +1,7 @@
 <div class="page-wrapper" *ngIf="!submitSuccess; else successTpl">
   <!-- Header Banner -->
   <div class="page-header">
-    <h1>Formulaire d'Évaluation Entreprise</h1>
+    <h1>Boucle de feedback industrielle</h1>
     <p>Donnez votre retour pour améliorer l'adequation formation-emploi.</p>
   </div>
 
@@ -17,7 +17,7 @@
         type="button"
       >
         <span class="tab-dot"></span>
-        <span class="tab-label">Étape {{ index + 1 }}</span>
+        <span class="tab-label">Question {{ index + 1 }}</span>
       </button>
     </div>
     <div class="steps-progress">
