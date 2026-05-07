@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { getSupabase } from '../config/supabase.client';
 
 export type Tone = 'green' | 'amber' | 'red' | 'blue';
-export type SkillStatus = 'Aligné' | 'Partiel' | 'Gap fort' | 'Absente';
+export type SkillStatus = 'Aligné' | 'Partiel' | 'Gap fort' | 'Insuffisante';
 
 export interface SkillItem {
   label: string;
@@ -33,6 +33,8 @@ export interface StudentItem {
   fg: string;
   marketTarget: string;
   cohortRank: number;
+  filiere: string;
+  diplome: string;
 }
 
 export interface StudentDetailItem extends StudentItem {
@@ -77,7 +79,7 @@ const STATUS_CLASS_MAP: Record<SkillStatus, string> = {
   'Aligné': 'status-aligne',
   'Partiel': 'status-partiel',
   'Gap fort': 'status-gap',
-  'Absente': 'status-absente',
+  'Insuffisante': 'status-absente',
 };
 
 const STUDENT_PALETTES = [
@@ -152,8 +154,8 @@ export class GapsService {
     return data ?? [];
   }
 
-  private async buildStudentNameMap(authIds: string[]): Promise<Map<string, string>> {
-    const result = new Map<string, string>();
+  private async buildStudentNameMap(authIds: string[]): Promise<Map<string, { name: string; filiere: string; diplome: string }>> {
+    const result = new Map<string, { name: string; filiere: string; diplome: string }>();
     if (!authIds.length) return result;
 
     const { data: users, error: usersError } = await this.supabase
@@ -178,18 +180,21 @@ export class GapsService {
     if (cinValues.length) {
       const { data: profiles, error: profilesError } = await this.supabase
         .from('profils_etudiant')
-        .select('cin_passport, nom, prenom')
+        .select('cin_passport, nom, prenom, filiere, niveau')
         .in('cin_passport', cinValues);
       if (!profilesError) {
-        const byCin = new Map<string, { nom?: string; prenom?: string }>();
+        const byCin = new Map<string, { nom?: string; prenom?: string; filiere?: string; niveau?: unknown }>();
         for (const row of profiles ?? []) {
-          byCin.set(String(row.cin_passport), { nom: row.nom ?? '', prenom: row.prenom ?? '' });
+          byCin.set(String(row.cin_passport), { nom: row.nom ?? '', prenom: row.prenom ?? '', filiere: row.filiere ?? '', niveau: row.niveau });
         }
         for (const [authId, cin] of cinByAuth.entries()) {
           const p = byCin.get(cin);
           if (p) {
             const name = `${(p.prenom ?? '').trim()} ${(p.nom ?? '').trim()}`.trim();
-            if (name) result.set(authId, name);
+            const filiere = String(p.filiere ?? '').trim();
+            const niveauRaw = String(p.niveau ?? '').trim().toLowerCase();
+            const diplome = niveauRaw.includes('master') || niveauRaw === '5' ? 'Master' : 'Licence';
+            result.set(authId, { name: name || '', filiere, diplome });
           }
         }
       } else {
@@ -198,7 +203,7 @@ export class GapsService {
     }
 
     for (const [authId, email] of emailByAuth.entries()) {
-      if (!result.has(authId)) result.set(authId, email);
+      if (!result.has(authId)) result.set(authId, { name: email, filiere: '', diplome: 'Licence' });
     }
 
     return result;
@@ -312,7 +317,7 @@ export class GapsService {
   private buildStudents(
     metierRows: any[],
     competenceRows: any[],
-    nameMap: Map<string, string>,
+    nameMap: Map<string, { name: string; filiere: string; diplome: string }>,
   ): StudentItem[] {
     const gapsByAuth = new Map<string, number>();
     const matchesByAuth = new Map<string, any[]>();
@@ -329,7 +334,8 @@ export class GapsService {
 
     const items: StudentItem[] = metierRows.map((row, idx) => {
       const authId = String(row.auth_id ?? '');
-      const fullName = (nameMap.get(authId) ?? '').trim() || `Étudiant ${idx + 1}`;
+      const profile = nameMap.get(authId);
+      const fullName = (profile?.name ?? '').trim() || `Étudiant ${idx + 1}`;
       const pct = this.computeCoveragePctFromMatchedSimilarity(
         matchesByAuth.get(authId) ?? [],
         Number(row.n_competences ?? 0),
@@ -348,6 +354,8 @@ export class GapsService {
         fg: palette.fg,
         marketTarget: String(row.metier_name ?? '').trim() || 'Non défini',
         cohortRank: 0,
+        filiere: profile?.filiere ?? '',
+        diplome: profile?.diplome ?? 'Licence',
       };
     });
 
@@ -445,9 +453,9 @@ export class GapsService {
         tone: 'red',
       },
       {
-        label: 'Étudiants alignés',
+        label: "Nombre d'étudiants alignés",
         value: `${aligned} / ${students.length || 0}`,
-        note: `≥ ${target}% adéquation`,
+        note: `adéquation > 60%`,
         tone: aligned > 0 ? 'green' : 'amber',
       },
       {
@@ -461,14 +469,14 @@ export class GapsService {
 
   private buildCohortLabel(total: number): string {
     const year = new Date().getFullYear();
-    return `LOG ${year} · ${total} étudiant${total > 1 ? 's' : ''}`;
+    return `Promotion ${year} · ${total} étudiant${total > 1 ? 's' : ''}`;
   }
 
   private statusFromGap(gap: number): SkillStatus {
     if (gap >= 0) return 'Aligné';
     if (gap >= -10) return 'Partiel';
     if (gap >= -25) return 'Gap fort';
-    return 'Absente';
+    return 'Insuffisante';
   }
 
   private toneForPct(pct: number): 'good' | 'warn' | 'alert' {

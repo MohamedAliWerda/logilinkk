@@ -536,6 +536,23 @@ export class Matching implements OnInit {
     return this.metierCoveragePct(this.topMetierSummary);
   }
 
+  get topMetierNSkills(): number {
+    return this.topMetiers[0]?.nCompetences ?? 0;
+  }
+
+  get topMetierMatches(): number {
+    return this.topMetiers[0]?.matched ?? 0;
+  }
+
+  get topMetierGapsCount(): number {
+    const top = this.topMetiers[0];
+    if (!top) return 0;
+    const topNormalized = this.normalizeMetierLabel(top.metier);
+    return this.getGapRowsSource()
+      .filter((gap) => this.metierMatchesRef(gap.refMetier, topNormalized))
+      .length;
+  }
+
   get displayedGaps(): DisplayGapRow[] {
     return this.sortGapsByCriticity(this.getGapRowsSource());
   }

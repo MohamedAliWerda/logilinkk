@@ -21,13 +21,13 @@
                 <span class="summary-label">Critique</span>
                 <strong>{{ critiqueRecommendations().length }}</strong>
             </article>
-            <article class="summary-card haute">
-                <span class="summary-label">Haute</span>
-                <strong>{{ hauteRecommendations().length }}</strong>
-            </article>
             <article class="summary-card moyenne">
                 <span class="summary-label">Moyenne</span>
                 <strong>{{ moyenneRecommendations().length }}</strong>
+            </article>
+            <article class="summary-card faible">
+                <span class="summary-label">Faible</span>
+                <strong>{{ faibleRecommendations().length }}</strong>
             </article>
         </section>
 
@@ -81,18 +81,18 @@
 
             <div class="level-block">
                 <div class="block-head">
-                    <h2>Recommandations hautes</h2>
-                    <span class="count-chip">{{ hauteRecommendations().length }}</span>
+                    <h2>Recommandations moyennes</h2>
+                    <span class="count-chip">{{ moyenneRecommendations().length }}</span>
                 </div>
-                @if (hauteRecommendations().length === 0) {
-                    <p class="empty-level">Aucune recommandation haute.</p>
+                @if (moyenneRecommendations().length === 0) {
+                    <p class="empty-level">Aucune recommandation moyenne.</p>
                 } @else {
                     <div class="card-grid">
-                        @for (reco of hauteRecommendations(); track reco.id) {
+                        @for (reco of moyenneRecommendations(); track reco.id) {
                             <article class="recommendation-card">
                                 <div class="card-top">
-                                    <span class="priority-badge tone-haute">
-                                        {{ levelLabel('HAUTE') }}
+                                    <span class="priority-badge tone-moyenne">
+                                        {{ levelLabel('MOYENNE') }}
                                     </span>
                                 </div>
                                 <h3>{{ recommendationTitle(reco) }}</h3>
@@ -116,18 +116,18 @@
 
             <div class="level-block">
                 <div class="block-head">
-                    <h2>Recommandations moyennes</h2>
-                    <span class="count-chip">{{ moyenneRecommendations().length }}</span>
+                    <h2>Recommandations faibles</h2>
+                    <span class="count-chip">{{ faibleRecommendations().length }}</span>
                 </div>
-                @if (moyenneRecommendations().length === 0) {
-                    <p class="empty-level">Aucune recommandation moyenne.</p>
+                @if (faibleRecommendations().length === 0) {
+                    <p class="empty-level">Aucune recommandation faible.</p>
                 } @else {
                     <div class="card-grid">
-                        @for (reco of moyenneRecommendations(); track reco.id) {
+                        @for (reco of faibleRecommendations(); track reco.id) {
                             <article class="recommendation-card">
                                 <div class="card-top">
-                                    <span class="priority-badge tone-moyenne">
-                                        {{ levelLabel('MOYENNE') }}
+                                    <span class="priority-badge tone-faible">
+                                        {{ levelLabel('FAIBLE') }}
                                     </span>
                                 </div>
                                 <h3>{{ recommendationTitle(reco) }}</h3>

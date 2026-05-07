@@ -1020,6 +1020,10 @@ L'équipe ISGI`;
     return this.oldStudents.filter(s => s.status === 'À répondu').length;
   }
 
+  get waitingResponseCount(): number {
+    return this.oldStudents.filter(s => s.status !== 'À répondu').length;
+  }
+
   get feedbackCount(): number {
     return this.feedbackStudents.length;
   }
@@ -1453,6 +1457,10 @@ L'équipe ISGI`;
       ...bin,
       color: colorsByScore[bin.score] ?? '#94a3b8',
     }));
+  }
+
+  get uniqueSectorsCount(): number {
+    return new Set(this.enterpriseFeedbacks.map(r => r.sector).filter(s => s && s !== 'Non renseigné')).size;
   }
 
   get companyInsight(): string {

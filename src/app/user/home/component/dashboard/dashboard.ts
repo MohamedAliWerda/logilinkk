@@ -134,6 +134,19 @@ export class Dashboard {
   }
 
   private resolveTargetMetierCoveragePct(): number | null {
+    const selectedMetierId = this.normalizeMetierId(this.matchingAnalysis?.selectedMetierId);
+
+    if (!selectedMetierId) {
+      const topRow = (this.matchingTrace?.metierScores ?? [])
+        .slice()
+        .sort((a, b) => a.rankPosition - b.rankPosition)[0];
+      if (topRow) {
+        const pct = Number(topRow.coveragePct);
+        return Number.isFinite(pct) ? Number(Math.max(0, Math.min(100, pct)).toFixed(1)) : null;
+      }
+      return null;
+    }
+
     const targetNormalized = this.normalizeMetierLabel(this.targetMetierLabel);
     if (!targetNormalized) return null;
 
@@ -308,7 +321,11 @@ export class Dashboard {
     const selectedMetierId = this.normalizeMetierId(this.matchingAnalysis?.selectedMetierId);
 
     if (!selectedMetierId) {
-      this.targetMetierLabel = '';
+      // No explicit target — use the top-ranked métier from the trace
+      const topRow = (this.matchingTrace?.metierScores ?? [])
+        .slice()
+        .sort((a, b) => a.rankPosition - b.rankPosition)[0];
+      this.targetMetierLabel = topRow?.metierName?.trim() ?? '';
       return;
     }
 

@@ -9,7 +9,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { RecommendationService, StudentRecommendation } from './recommendation.service';
 
-type DisplayLevel = 'CRITIQUE' | 'HAUTE' | 'MOYENNE';
+type DisplayLevel = 'CRITIQUE' | 'MOYENNE' | 'FAIBLE';
 
 @Component({
   selector: 'app-recommendation',
@@ -26,14 +26,14 @@ export class Recommendation implements OnInit {
   readonly approvedRecommendations = signal<StudentRecommendation[]>([]);
 
   readonly critiqueRecommendations = computed(() => this.byLevel('CRITIQUE'));
-  readonly hauteRecommendations = computed(() => this.byLevel('HAUTE'));
   readonly moyenneRecommendations = computed(() => this.byLevel('MOYENNE'));
+  readonly faibleRecommendations = computed(() => this.byLevel('FAIBLE'));
 
   readonly totalRecommendations = computed(
     () =>
       this.critiqueRecommendations().length
-      + this.hauteRecommendations().length
-      + this.moyenneRecommendations().length,
+      + this.moyenneRecommendations().length
+      + this.faibleRecommendations().length,
   );
 
   ngOnInit(): void {
@@ -78,8 +78,8 @@ export class Recommendation implements OnInit {
 
   levelLabel(level: DisplayLevel): string {
     if (level === 'CRITIQUE') return 'Critique';
-    if (level === 'HAUTE') return 'Haute';
-    return 'Moyenne';
+    if (level === 'MOYENNE') return 'Moyenne';
+    return 'Faible';
   }
 
   recommendationContext(item: StudentRecommendation): string {
@@ -108,8 +108,8 @@ export class Recommendation implements OnInit {
   private normalizeLevel(level: string | null | undefined): DisplayLevel | null {
     const normalized = String(level ?? '').trim().toUpperCase();
     if (normalized === 'CRITIQUE') return 'CRITIQUE';
-    if (normalized === 'HAUTE') return 'HAUTE';
     if (normalized === 'MOYENNE') return 'MOYENNE';
+    if (normalized === 'FAIBLE') return 'FAIBLE';
     return null;
   }
 }

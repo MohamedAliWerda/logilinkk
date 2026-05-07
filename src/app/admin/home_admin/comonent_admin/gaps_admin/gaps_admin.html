@@ -3,13 +3,12 @@
         <div class="header-copy">
             <span class="eyebrow">Analyse des gaps</span>
             <h1>Analyse des Gaps</h1>
-            <p>{{ viewMode === 'cohort' ? 'Vue cohorte — adéquation profil, compétences et marché' : 'Vue individuelle — suivi détaillé d’un étudiant' }}</p>
+            <p>{{ viewMode === 'cohort' ? 'Analyse approfondie des profils étudiants : adéquation entre les compétences techniques et le référentiel de compétences.' : 'Vue individuelle — suivi détaillé d’un étudiant' }}</p>
         </div>
 
         <div class="header-controls">
             <div class="cohort-pill">
-                <span class="live-dot"></span>
-                {{ cohortLabel || 'Cohorte —' }}
+                <span class="live-dot"></span> {{ cohortLabel || 'Cohorte —' }}
             </div>
 
             <label class="select-wrap">
@@ -50,18 +49,12 @@
                         <span class="legend-item"><span class="legend-dot is-aligned"></span>Aligné</span>
                         <span class="legend-item"><span class="legend-dot is-partial"></span>Partiel</span>
                         <span class="legend-item"><span class="legend-dot is-gap"></span>Gap fort</span>
-                        <span class="legend-item"><span class="legend-dot is-absent"></span>Absente</span>
+                        <span class="legend-item"><span class="legend-dot is-absent"></span>Insuffisante</span>
                     </div>
                 </div>
 
                 <div class="tab-row" role="tablist" aria-label="Catégories de compétences">
-                    <button
-                        *ngFor="let tab of tabs"
-                        type="button"
-                        class="tab"
-                        [class.is-active]="selectedCategory === tab.key"
-                        (click)="setCategory(tab.key)"
-                    >
+                    <button *ngFor="let tab of tabs" type="button" class="tab" [class.is-active]="selectedCategory === tab.key" (click)="setCategory(tab.key)">
                         {{ tab.label }}
                     </button>
                 </div>
@@ -78,7 +71,6 @@
                             {{ item.gap > 0 ? '+' + item.gap : item.gap }}
                         </div>
                         <div class="skill-badge" [ngClass]="statusClassFor(item.status)">{{ item.status }}</div>
-                        <div class="skill-count">{{ item.count }} étudiant{{ item.count > 1 ? 's' : '' }}</div>
                     </div>
                 </div>
                 <ng-template #noSkills>
@@ -100,7 +92,9 @@
                             <div class="student-avatar" [style.background]="student.bg" [style.color]="student.fg">{{ student.initials }}</div>
                             <div class="student-main">
                                 <div class="student-name">{{ student.name }}</div>
-                                <div class="student-track"><div class="student-fill" [style.width.%]="student.pct" [style.background]="student.color"></div></div>
+                                <div class="student-track">
+                                    <div class="student-fill" [style.width.%]="student.pct" [style.background]="student.color"></div>
+                                </div>
                             </div>
                             <div class="student-pct" [style.color]="student.color">{{ student.pct }}%</div>
                             <div class="student-gaps">{{ student.gaps }} gap{{ student.gaps > 1 ? 's' : '' }}</div>
@@ -115,7 +109,6 @@
                     <div class="panel-head compact">
                         <div>
                             <h2>Top gaps à traiter en priorité</h2>
-                            <p>Les écarts les plus coûteux pour la cohorte</p>
                         </div>
                     </div>
 
@@ -138,7 +131,9 @@
                         <h3>Adéquation moyenne ↔ métiers cibles</h3>
                         <div class="job-row" *ngFor="let job of jobFit">
                             <span class="job-label">{{ job.label }}</span>
-                            <div class="job-track"><div class="job-fill" [ngClass]="'tone-' + job.tone" [style.width.%]="job.pct"></div></div>
+                            <div class="job-track">
+                                <div class="job-fill" [ngClass]="'tone-' + job.tone" [style.width.%]="job.pct"></div>
+                            </div>
                             <span class="job-val" [ngClass]="'tone-' + job.tone">{{ job.pct }}%</span>
                         </div>
                     </div>
@@ -170,23 +165,43 @@
                 </div>
             </section>
 
-            <section class="panel" *ngIf="studentDetails.length > 1">
+            <section class="panel picker-panel" *ngIf="studentDetails.length > 1">
                 <div class="panel-head compact">
                     <div>
-                        <h2>Sélection</h2>
+                        <h2>Classification des étudiants par taux de matching</h2>
                         <p>Choisir un étudiant à inspecter</p>
                     </div>
                 </div>
-                <div class="tab-row">
-                    <button
-                        *ngFor="let s of studentDetails; let i = index"
-                        type="button"
-                        class="tab"
-                        [class.is-active]="selectedStudentIndex === i"
-                        (click)="setStudent(i)"
-                    >
-                        {{ s.name }}
+
+                <div class="picker-filters">
+                    <div class="picker-filter-group">
+                        <label class="picker-filter-label">Filière</label>
+                        <select class="picker-select" [(ngModel)]="filterFiliere">
+                            <option value="">Toutes les filières</option>
+                            <option *ngFor="let f of uniqueFilieres" [value]="f">{{ f }}</option>
+                        </select>
+                    </div>
+                    <div class="picker-filter-group">
+                        <label class="picker-filter-label">Diplôme</label>
+                        <div class="picker-toggle">
+                            <button type="button" class="picker-toggle-btn" [class.active]="filterDiplome === ''" (click)="filterDiplome = ''">Tous</button>
+                            <button type="button" class="picker-toggle-btn" [class.active]="filterDiplome === 'Licence'" (click)="filterDiplome = 'Licence'">Licence</button>
+                            <button type="button" class="picker-toggle-btn" [class.active]="filterDiplome === 'Master'" (click)="filterDiplome = 'Master'">Master</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="student-picker-list">
+                    <button *ngFor="let s of filteredStudentDetails; let i = index" type="button" class="student-picker-row" [class.is-active]="studentDetails.indexOf(s) === selectedStudentIndex" (click)="setStudent(studentDetails.indexOf(s))">
+                        <div class="picker-avatar" [style.background]="s.bg" [style.color]="s.fg">{{ s.initials }}</div>
+                        <div class="picker-info">
+                            <span class="picker-name">{{ s.name }}</span>
+                            <span class="picker-meta">{{ s.filiere || '—' }} · {{ s.diplome }}</span>
+                        </div>
+                        <div class="picker-pct" [style.color]="s.color">{{ s.pct }}%</div>
+                        <div class="picker-rank">#{{ s.cohortRank }}</div>
                     </button>
+                    <p *ngIf="filteredStudentDetails.length === 0" class="empty-hint">Aucun étudiant pour ces filtres.</p>
                 </div>
             </section>
 
@@ -207,12 +222,13 @@
                             </ul>
                         </div>
                         <div>
-                            <h3>Watchouts</h3>
+                            <h3>Fais attention</h3>
                             <ul class="detail-list alert-list">
                                 <li *ngFor="let item of detail.watchouts">{{ item }}</li>
                             </ul>
                         </div>
                     </div>
+
 
                     <div class="next-steps">
                         <h3>Prochaines actions</h3>

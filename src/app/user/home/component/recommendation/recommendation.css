@@ -91,9 +91,9 @@
     border-color: #ffcfd2;
 }
 
-.summary-card.haute {
-    background: #fff5e8;
-    border-color: #ffdbb1;
+.summary-card.faible {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
 }
 
 .summary-card.moyenne {
@@ -192,9 +192,9 @@
     color: #bb2f3f;
 }
 
-.priority-badge.tone-haute {
-    background: #ffeedb;
-    color: #b76913;
+.priority-badge.tone-faible {
+    background: #dcfce7;
+    color: #166534;
 }
 
 .priority-badge.tone-moyenne {

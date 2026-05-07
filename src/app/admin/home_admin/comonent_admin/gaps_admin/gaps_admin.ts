@@ -1,11 +1,12 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 
 type ViewMode = 'cohort' | 'student';
-type SkillStatus = 'Aligné' | 'Partiel' | 'Gap fort' | 'Absente';
+type SkillStatus = 'Aligné' | 'Partiel' | 'Gap fort' | 'Insuffisante';
 
 interface SkillItem {
   label: string;
@@ -36,6 +37,8 @@ interface StudentItem {
   fg: string;
   marketTarget: string;
   cohortRank: number;
+  filiere: string;
+  diplome: string;
 }
 
 interface StudentDetailItem extends StudentItem {
@@ -76,7 +79,7 @@ interface GapsDashboardPayload {
 @Component({
   selector: 'app-gaps-admin',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './gaps_admin.html',
   styleUrl: './gaps_admin.css'
 })
@@ -84,6 +87,9 @@ export class GapsAdmin implements OnInit {
   viewMode: ViewMode = 'cohort';
   selectedCategory = '';
   selectedStudentIndex = 0;
+  filterFiliere = '';
+  filterDiplome = '';
+  showAllStudents = false;
 
   loading = true;
   errorMessage: string | null = null;
@@ -103,7 +109,7 @@ export class GapsAdmin implements OnInit {
     'Aligné': 'status-aligne',
     'Partiel': 'status-partiel',
     'Gap fort': 'status-gap',
-    'Absente': 'status-absente',
+    'Insuffisante': 'status-absente',
   };
 
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
@@ -176,6 +182,18 @@ export class GapsAdmin implements OnInit {
       return;
     }
     this.selectedStudentIndex = index;
+  }
+
+  get uniqueFilieres(): string[] {
+    return [...new Set(this.studentDetails.map(s => s.filiere).filter(f => !!f))].sort();
+  }
+
+  get filteredStudentDetails(): StudentDetailItem[] {
+    return this.studentDetails.filter(s => {
+      const matchFiliere = !this.filterFiliere || s.filiere === this.filterFiliere;
+      const matchDiplome = !this.filterDiplome || s.diplome === this.filterDiplome;
+      return matchFiliere && matchDiplome;
+    });
   }
 
   get selectedStudent(): StudentDetailItem | null {
