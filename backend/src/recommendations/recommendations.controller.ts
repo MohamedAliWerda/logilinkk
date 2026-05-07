@@ -49,6 +49,13 @@ export class RecommendationsController {
     return this.svc.getJob(id);
   }
 
+  @Get('history')
+  async history(@Query('limit') limit?: string) {
+    const parsed = Number(limit ?? '200');
+    const safe = Number.isFinite(parsed) ? Math.max(1, Math.min(500, Math.floor(parsed))) : 200;
+    return { items: await this.svc.listReasonHistory(safe) };
+  }
+
   @Get()
   async list(@Query('status') status?: string) {
     const items = await this.svc.listRecommendations(status && status.trim() ? status.trim() : undefined);
@@ -61,8 +68,10 @@ export class RecommendationsController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() patch: any) {
-    return this.svc.updateRecommendation(id, patch ?? {});
+  async update(@Param('id') id: string, @Req() req: any, @Body() body: any) {
+    const adminAuthId = this.resolveAdminAuthId(req.user);
+    const { comment, ...patch } = body ?? {};
+    return this.svc.updateRecommendation(id, patch, adminAuthId, comment);
   }
 
   @Post(':id/approve')

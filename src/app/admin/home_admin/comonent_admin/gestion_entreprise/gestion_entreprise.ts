@@ -40,7 +40,7 @@ export interface Entreprise {
 export class GestionEntrepriseComponent implements OnInit, OnDestroy {
 
   searchQuery = '';
-  activeTab: 'en_attente' | 'validées' = 'en_attente';
+  activeTab: 'en_attente' | 'validées' | 'archivées' = 'en_attente';
   isLoading = false;
 
   selectedEntreprise: Entreprise | null = null;
@@ -49,10 +49,15 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
   postesError = '';
   showConfirmSupp = false;
   entrepriseToSupp: Entreprise | null = null;
+  showConfirmArchive = false;
+  entrepriseToArchive: Entreprise | null = null;
+  showConfirmDesarchive = false;
+  entrepriseToDesarchive: Entreprise | null = null;
 
   // Start empty - load from Supabase in ngOnInit
   entreprisesEnAttente: Entreprise[] = [];
   entreprisesValidees: Entreprise[] = [];
+  entreprisesArchivees: Entreprise[] = [];
 
 
   // ✅ Getters utilisés dans le HTML
@@ -82,6 +87,18 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
     return this.entreprisesEnAttente.filter(e =>
       e.nom.toLowerCase().includes(q) || e.secteur.toLowerCase().includes(q)
     );
+  }
+
+  get filteredArchivees(): Entreprise[] {
+    if (!this.searchQuery.trim()) return this.entreprisesArchivees;
+    const q = this.searchQuery.toLowerCase();
+    return this.entreprisesArchivees.filter(e =>
+      e.nom.toLowerCase().includes(q) || e.secteur.toLowerCase().includes(q)
+    );
+  }
+
+  get nbArchivees(): number {
+    return this.entreprisesArchivees.length;
   }
 
   // ✅ Corrigé : accepte Entreprise | null (utilisé avec selectedEntreprise! dans le HTML)
@@ -157,6 +174,66 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
   annulerSupp(): void {
     this.showConfirmSupp = false;
     this.entrepriseToSupp = null;
+  }
+
+  // ✅ Déclenche la confirmation d'archivage
+  confirmerArchivage(entreprise: Entreprise): void {
+    this.entrepriseToArchive = entreprise;
+    this.showConfirmArchive = true;
+  }
+
+  // ✅ Annule l'archivage
+  annulerArchive(): void {
+    this.showConfirmArchive = false;
+    this.entrepriseToArchive = null;
+  }
+
+  // ✅ Déclenche la confirmation de désarchivage
+  confirmerDesarchivage(entreprise: Entreprise): void {
+    this.entrepriseToDesarchive = entreprise;
+    this.showConfirmDesarchive = true;
+  }
+
+  // ✅ Annule le désarchivage
+  annulerDesarchivage(): void {
+    this.showConfirmDesarchive = false;
+    this.entrepriseToDesarchive = null;
+  }
+
+  // ✅ Désarchive une entreprise → la remet dans les validées
+  async desarchiverEntreprise(): Promise<void> {
+    if (!this.entrepriseToDesarchive) return;
+    const entreprise = this.entrepriseToDesarchive;
+    this.showConfirmDesarchive = false;
+    this.entrepriseToDesarchive = null;
+    this.cdr.detectChanges();
+    try {
+      this.entreprisesArchivees = this.entreprisesArchivees.filter(e => e.id !== entreprise.id);
+      await this.supabase.updateSocieteSituation(entreprise.id, 'Validée');
+      this.entreprisesValidees = [{ ...entreprise, couleur: '#0ea5e9' }, ...this.entreprisesValidees];
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('❌ Failed to unarchive entreprise:', err);
+      await this.refreshData();
+    }
+  }
+
+  // ✅ Archive une entreprise validée
+  async archiverEntreprise(): Promise<void> {
+    if (!this.entrepriseToArchive) return;
+    const entreprise = this.entrepriseToArchive;
+    this.showConfirmArchive = false;
+    this.entrepriseToArchive = null;
+    this.cdr.detectChanges();
+    try {
+      this.entreprisesValidees = this.entreprisesValidees.filter(e => e.id !== entreprise.id);
+      await this.supabase.updateSocieteSituation(entreprise.id, 'Archivée');
+      this.entreprisesArchivees = [{ ...entreprise, statut: 'validée' }, ...this.entreprisesArchivees];
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('❌ Failed to archive entreprise:', err);
+      await this.refreshData();
+    }
   }
 
   // ✅ Load companies pending validation from Supabase
@@ -274,6 +351,34 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ✅ Load archived companies from Supabase
+  private async loadArchivees(): Promise<void> {
+    try {
+      const rows: any[] = await this.supabase.fetchSocietesBySituations(['Archivée', 'archivée', 'ARCHIVÉE']);
+      if (!rows || rows.length === 0) {
+        this.entreprisesArchivees = [];
+        return;
+      }
+      this.entreprisesArchivees = rows.map(r => ({
+        id: Number(r.id),
+        initiales: (r.denomination_sociale || '').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '??',
+        couleur: '#94a3b8',
+        nom: r.denomination_sociale ?? r.raison_sociale ?? 'Entreprise',
+        secteur: r.secteur_activite ?? r.secteur ?? '',
+        nbPostes: Number(r.nb_postes ?? 0),
+        dateDepuis: r.date_creation ? new Date(r.date_creation).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '',
+        statut: 'validée' as const,
+        localisation: r.adresse ?? '',
+        dateAjout: r.date_creation ? new Date(r.date_creation).toLocaleString('fr-FR') : '',
+        postes: []
+      }));
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('❌ Failed to load entreprises archivées:', err);
+      this.entreprisesArchivees = [];
+    }
+  }
+
   // ✅ Refresh data from Supabase (called on init and manually)
   async refreshData(): Promise<void> {
     console.log('🔄 Refreshing all data from Supabase...');
@@ -281,8 +386,9 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
     try {
       await this.loadEnAttente();
       await this.loadValidees();
+      await this.loadArchivees();
       console.log('✅ Data refresh complete');
-      console.log('📊 Summary - En Attente:', this.entreprisesEnAttente.length, '| Validées:', this.entreprisesValidees.length);
+      console.log('📊 Summary - En Attente:', this.entreprisesEnAttente.length, '| Validées:', this.entreprisesValidees.length, '| Archivées:', this.entreprisesArchivees.length);
       this.cdr.detectChanges();
     } catch (err) {
       console.error('❌ Error during data refresh:', err);

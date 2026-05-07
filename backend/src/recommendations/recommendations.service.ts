@@ -136,6 +136,53 @@ export class RecommendationsService {
     return data ?? [];
   }
 
+  async listReasonHistory(limit = 200): Promise<any[]> {
+    const safeLimit = Number.isFinite(Number(limit))
+      ? Math.max(1, Math.min(500, Math.trunc(Number(limit))))
+      : 200;
+
+    const { data, error } = await this.supabase
+      .from('ai_confirmed_recommendations')
+      .select(
+        'recommendation_id,metier,gap_title,cert_title,cert_provider,raison,confirmed_at,updated_at',
+      )
+      .order('updated_at', { ascending: false, nullsFirst: false })
+      .order('confirmed_at', { ascending: false, nullsFirst: false })
+      .limit(safeLimit);
+    if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    const rows = data ?? [];
+    if (!rows.length) return [];
+
+    const recommendationIds = rows
+      .map((row: any) => String(row?.recommendation_id ?? '').trim())
+      .filter((id: string) => !!id);
+
+    const { data: statusRows, error: statusError } = await this.supabase
+      .from('ai_recommendations')
+      .select('id,status,updated_at')
+      .in('id', recommendationIds);
+    if (statusError) throw new HttpException(statusError.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    const byId = new Map(
+      (statusRows ?? []).map((row: any) => [String(row?.id ?? '').trim(), row]),
+    );
+
+    return rows.map((row: any) => {
+      const recommendationId = String(row?.recommendation_id ?? '').trim();
+      const source = byId.get(recommendationId);
+      const status = String(source?.status ?? 'approved').toLowerCase();
+      const normalizedStatus =
+        status === 'rejected' || status === 'edited' || status === 'approved' ? status : 'approved';
+      return {
+        ...row,
+        recommendation_id: recommendationId,
+        status: normalizedStatus,
+        decision_at: source?.updated_at ?? row?.updated_at ?? row?.confirmed_at ?? null,
+      };
+    });
+  }
+
   async listRecommendations(status?: string): Promise<RecommendationRow[]> {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
     const globalTotalStudents = await this.getGlobalCvStudentsCount();
@@ -210,7 +257,33 @@ export class RecommendationsService {
       .select('*')
       .order('concern_rate', { ascending: false });
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    return data ?? [];
+    const rows = data ?? [];
+    if (!rows.length) return [];
+
+    // Confirmed table is kept as a history source. Only rows whose source recommendation
+    // is currently approved should be exposed to admin approved lists and students.
+    const recommendationIds = rows
+      .map((row: any) => String(row?.recommendation_id ?? row?.id ?? '').trim())
+      .filter((id: string) => !!id);
+
+    if (!recommendationIds.length) return [];
+
+    const { data: statusRows, error: statusError } = await this.supabase
+      .from('ai_recommendations')
+      .select('id,status')
+      .in('id', recommendationIds);
+    if (statusError) throw new HttpException(statusError.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    const approvedIds = new Set(
+      (statusRows ?? [])
+        .filter((row: any) => String(row?.status ?? '').toLowerCase() === 'approved')
+        .map((row: any) => String(row?.id ?? '').trim())
+        .filter((id: string) => !!id),
+    );
+
+    return rows.filter((row: any) =>
+      approvedIds.has(String(row?.recommendation_id ?? row?.id ?? '').trim()),
+    );
   }
 
   private async resolveStudentAuthId(authOrUserId: string): Promise<string | null> {
@@ -303,6 +376,8 @@ export class RecommendationsService {
   async updateRecommendation(
     id: string,
     patch: Partial<RecommendationRow>,
+    adminId?: string | null,
+    comment?: string,
   ): Promise<RecommendationRow> {
     const allowed: (keyof RecommendationRow)[] = [
       'category',
@@ -349,39 +424,78 @@ export class RecommendationsService {
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     if (!data) throw new HttpException('Recommendation not found', HttpStatus.NOT_FOUND);
 
-    // If an approved recommendation is edited, it must leave the confirmed pool
-    // until an explicit re-approval happens.
-    await this.removeConfirmedMirror(id);
+    // Persist the decision reason in confirmed table history and remove current targets
+    // so edited rows are no longer considered active approved recommendations.
+    await this.upsertConfirmedHistoryRow(data as RecommendationRow, comment);
+    await this.removeConfirmedTargets(id);
+
+    await this.logAdminFeedback(id, adminId ?? null, 'edited', data.cert_title ?? '', comment);
 
     const globalTotalStudents = await this.getGlobalCvStudentsCount();
     return this.normalizeConcernRate(data as RecommendationRow, globalTotalStudents);
   }
 
   async rejectRecommendation(id: string, adminId: string | null, comment?: string): Promise<void> {
+    const recommendation = await this.getRecommendation(id);
+
     const { error } = await this.supabase
       .from('ai_recommendations')
       .update({ status: 'rejected', updated_at: new Date().toISOString() })
       .eq('id', id);
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
 
-    // A rejected recommendation must not remain in confirmed tables.
-    await this.removeConfirmedMirror(id);
+    // Persist rejection reason in confirmed table history and remove current targets
+    // so rejected rows are no longer considered active approved recommendations.
+    await this.upsertConfirmedHistoryRow(recommendation, comment);
+    await this.removeConfirmedTargets(id);
 
     await this.logAdminFeedback(id, adminId, 'rejected', '', comment);
   }
 
-  private async removeConfirmedMirror(recommendationId: string): Promise<void> {
+  private async upsertConfirmedHistoryRow(row: RecommendationRow, reason?: string): Promise<void> {
+    const nowIso = new Date().toISOString();
+    const recommendationId = String(row?.id ?? row?.recommendation_id ?? '').trim();
+    if (!recommendationId) {
+      throw new HttpException('Recommendation id missing for history sync', HttpStatus.BAD_REQUEST);
+    }
+
+    const historyRow = {
+      recommendation_id: recommendationId,
+      category: row?.category ?? 'TARGET_METIER',
+      gap_label: row?.gap_label ?? row?.competence_name ?? 'N/A',
+      gap_title: row?.gap_title ?? row?.competence_name ?? 'N/A',
+      level: row?.level ?? 'MOYENNE',
+      metier: row?.metier ?? 'N/A',
+      keywords: row?.keywords ?? [],
+      concern_rate: Number(row?.concern_rate ?? 0),
+      students_impacted: Number(row?.students_impacted ?? 0),
+      total_students: Number(row?.total_students ?? 0),
+      llm_recommendation: row?.llm_recommendation ?? '',
+      cert_title: row?.cert_title ?? 'N/A',
+      cert_description: row?.cert_description ?? null,
+      cert_provider: row?.cert_provider ?? 'N/A',
+      cert_duration: row?.cert_duration ?? 'N/A',
+      cert_pricing: row?.cert_pricing ?? 'N/A',
+      cert_url: row?.cert_url ?? null,
+      cert_id: row?.cert_id ?? null,
+      match_confidence: row?.match_confidence ?? null,
+      raison: reason ?? '',
+      confirmed_at: row?.confirmed_at ?? nowIso,
+      updated_at: nowIso,
+    };
+
+    const { error } = await this.supabase
+      .from('ai_confirmed_recommendations')
+      .upsert(historyRow, { onConflict: 'recommendation_id' });
+    if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  private async removeConfirmedTargets(recommendationId: string): Promise<void> {
     const { error: targetError } = await this.supabase
       .from('ai_confirmed_recommendation_targets')
       .delete()
       .eq('recommendation_id', recommendationId);
     if (targetError) throw new HttpException(targetError.message, HttpStatus.INTERNAL_SERVER_ERROR);
-
-    const { error: confirmedError } = await this.supabase
-      .from('ai_confirmed_recommendations')
-      .delete()
-      .eq('recommendation_id', recommendationId);
-    if (confirmedError) throw new HttpException(confirmedError.message, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
   async approveRecommendation(id: string, adminId: string | null, comment?: string): Promise<RecommendationRow> {
@@ -407,6 +521,7 @@ export class RecommendationsService {
       cert_url: row.cert_url ?? null,
       cert_id: row.cert_id ?? null,
       match_confidence: row.match_confidence ?? null,
+      raison: comment ?? '',
       confirmed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

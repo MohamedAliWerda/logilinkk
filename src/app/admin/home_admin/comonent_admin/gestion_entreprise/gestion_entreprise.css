@@ -661,3 +661,130 @@
   padding: 2rem;
   font-size: 0.875rem;
 }
+
+/* ===== Card Actions (Voir postes + Archiver) ===== */
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.card-actions .btn-voir-postes {
+  flex: 1;
+}
+
+.btn-archiver {
+  background: white;
+  color: #f97316;
+  border: 1.5px solid #fed7aa;
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-archiver:hover {
+  background: #fff7ed;
+}
+
+/* ===== History Tab Badge ===== */
+.tab-badge.grey {
+  background: #f3f4f6;
+  color: #666;
+}
+
+/* ===== Archived Company Card ===== */
+.entreprise-card.archived {
+  opacity: 0.75;
+  background: #fafafa;
+}
+
+.archived-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #888;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.badge-archived {
+  background: #f3f4f6;
+  color: #666;
+  font-size: 0.8rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+/* ===== Archive Confirm Icon ===== */
+.confirm-icon.archive-icon {
+  background: #fff7ed;
+}
+
+.btn-confirm-archive {
+  flex: 1;
+  background: #f97316;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.65rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-confirm-archive:hover {
+  background: #ea6c0a;
+}
+
+.btn-desarchiver {
+  width: 100%;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1.5px solid #a7f3d0;
+  border-radius: 10px;
+  padding: 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  margin-top: 0.625rem;
+}
+
+.btn-desarchiver:hover {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.confirm-icon.desarchive-icon {
+  background: #ecfdf5;
+}
+
+.btn-confirm-desarchive {
+  flex: 1;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.65rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-confirm-desarchive:hover {
+  background: #059669;
+}

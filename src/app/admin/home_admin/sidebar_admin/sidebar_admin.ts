@@ -81,7 +81,7 @@ export class SidebarAdmin implements OnInit, OnDestroy {
     },
     {
       key: 'validation',
-      label: 'Validation Recommandations',
+      label: 'Gestion des recommandations',
       route: '/admin/validation',
       exact: false,
     },
@@ -93,7 +93,7 @@ export class SidebarAdmin implements OnInit, OnDestroy {
     },
         {
       key: 'gestion-entreprise',
-      label: 'Gestion des entreprises',
+      label: 'Espace des sociétés',
       route: '/admin/gestion-entreprise',
       exact: false,
     },
