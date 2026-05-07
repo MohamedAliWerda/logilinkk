@@ -1,4 +1,21 @@
 <div class="page-wrapper">
+  <!-- Success/Error Messages -->
+  <div *ngIf="successMessage" class="alert alert-success" role="alert">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    {{ successMessage }}
+  </div>
+
+  <div *ngIf="errorMessage" class="alert alert-error" role="alert">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="15" y1="9" x2="9" y2="15"></line>
+      <line x1="9" y1="9" x2="15" y2="15"></line>
+    </svg>
+    {{ errorMessage }}
+  </div>
+
   <div class="page-header">
     <div class="header-left">
       <div class="section-badge">
@@ -95,6 +112,16 @@
         </div>
 
         <div class="offre-meta">
+          <span class="meta-item" *ngIf="offre.entreprise || offre.societe">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" />
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+            </svg>
+            {{ offre.entreprise || offre.societe }}
+          </span>
+
+          <span class="meta-separator" *ngIf="offre.createdAt && (offre.entreprise || offre.societe)">·</span>
+
           <span class="meta-item" *ngIf="offre.createdAt">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10" />
@@ -147,23 +174,39 @@
       <div class="form-body">
 
         <label>Titre du poste</label>
-        <input formControlName="titre" placeholder="ex. Développeur Full-Stack" />
+        <input formControlName="titre_poste" placeholder="ex. Développeur Full-Stack" />
+        <div class="form-error" *ngIf="offreForm.get('titre_poste')?.invalid && offreForm.get('titre_poste')?.touched">
+          <span *ngIf="offreForm.get('titre_poste')?.errors?.['required']">Le titre du poste est requis</span>
+          <span *ngIf="offreForm.get('titre_poste')?.errors?.['minlength']">Le titre doit contenir au moins 3 caractères</span>
+        </div>
 
-        <label>Sociéte</label>
-        <input formControlName="entreprise" placeholder="Nom de l'entreprise" />
+        <label>Société</label>
+        <input formControlName="societe" placeholder="Nom de l'entreprise" />
+        <div class="form-error" *ngIf="offreForm.get('societe')?.invalid && offreForm.get('societe')?.touched">
+          <span *ngIf="offreForm.get('societe')?.errors?.['required']">Le nom de la société est requis</span>
+          <span *ngIf="offreForm.get('societe')?.errors?.['minlength']">Le nom doit contenir au moins 2 caractères</span>
+        </div>
 
         <label>Exigences</label>
         <textarea
-          formControlName="description"
+          formControlName="exigences"
           rows="4"
-          placeholder="Décrivez le poste..."
+          placeholder="Décrivez les exigences du poste..."
         ></textarea>
+        <div class="form-error" *ngIf="offreForm.get('exigences')?.invalid && offreForm.get('exigences')?.touched">
+          <span *ngIf="offreForm.get('exigences')?.errors?.['required']">Les exigences sont requises</span>
+          <span *ngIf="offreForm.get('exigences')?.errors?.['minlength']">Les exigences doivent contenir au moins 10 caractères</span>
+        </div>
+        <div class="char-count" *ngIf="offreForm.get('exigences')?.value">
+          {{ (offreForm.get('exigences')?.value || '').length }} / 1000 caractères
+        </div>
 
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="btn-annuler" (click)="closeModals()">Annuler</button>
+        <button type="button" class="btn-annuler" (click)="closeModals()" [disabled]="isSaving">Annuler</button>
         <button type="submit" class="btn-publier" [disabled]="isSaving || offreForm.invalid">
+          <span *ngIf="isSaving" class="spinner-small"></span>
           {{ isSaving ? 'Enregistrement...' : "Enregistrer l'offre" }}
         </button>
       </div>

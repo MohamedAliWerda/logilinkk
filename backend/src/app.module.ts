@@ -6,6 +6,7 @@ import { RefCompetanceModule } from './ref_competance/ref_competance.module';
 import { CvSubmissionModule } from './cv_submission/cv-submission.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
 import { AdminModule } from './admin/admin.module';
+import { OffresModule } from './offres/offres.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AdminModule } from './admin/admin.module';
     CvSubmissionModule,
     RecommendationsModule,
     AdminModule,
+    OffresModule,
   ],
 })
 export class AppModule {}

@@ -1,56 +1,111 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpClientModule } from '@angular/common/http';
+import { OffresService } from '../../services/offres.service';
+import { Subject } from 'rxjs';
+import { finalize, takeUntil } from 'rxjs/operators';
 
 export interface Offre {
   id: string;
-  titre: string;
+  titre_poste?: string;
+  titre?: string;
+  societe?: string;
   entreprise?: string;
   lieu?: string;
   typeContrat?: string;
   source?: string;
-  description: string;
-  competences: string[];
+  exigences?: string;
+  description?: string;
+  competences?: string[];
   candidaturesCount?: number;
   salaireMin?: number;
   salaireMax?: number;
+  date_creation?: string;
   createdAt?: string;
+  status?: string;
 }
 
 @Component({
   selector: 'app-offres',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule],
   templateUrl: './offres.html',
-  styleUrls: ['./offres.css']
+  styleUrls: ['./offres.css'],
+  providers: [OffresService],
 })
-export class Offres implements OnInit {
+export class Offres implements OnInit, OnDestroy {
   offres: Offre[] = [];
   filteredOffres: Offre[] = [];
   searchQuery = '';
   isLoading = false;
+  isSaving = false;
 
   showCreateModal = false;
   showEditModal = false;
   editingOffre: Offre | null = null;
 
   offreForm: FormGroup;
-  isSaving = false;
+
+  successMessage = '';
+  errorMessage = '';
+
+  private destroy$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
     private router: Router,
+    private offresService: OffresService,
   ) {
     this.offreForm = this.fb.group({
-      titre: ['', Validators.required],
-      entreprise: ['', Validators.required],
-      description: ['', Validators.required]
+      titre_poste: ['', [Validators.required, Validators.minLength(3)]],
+      societe: ['', [Validators.required, Validators.minLength(2)]],
+      exigences: ['', [Validators.required, Validators.minLength(10)]],
     });
   }
 
   ngOnInit(): void {
+    this.subscribeToService();
     this.loadOffres();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private subscribeToService(): void {
+    this.offresService.offres$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((offres) => {
+        this.offres = offres.map(o => ({
+          ...o,
+          titre: o.titre_poste,
+          description: o.exigences,
+          entreprise: o.societe,
+          createdAt: o.date_creation,
+        }));
+        this.filterOffres();
+      });
+
+    this.offresService.loading$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((loading) => {
+        this.isLoading = loading;
+      });
+
+    this.offresService.successMessage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((message) => {
+        this.successMessage = message;
+      });
+
+    this.offresService.errorMessage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((message) => {
+        this.errorMessage = message;
+      });
   }
 
   get totalCandidatures(): number {
@@ -67,9 +122,28 @@ export class Offres implements OnInit {
 
   loadOffres(): void {
     this.isLoading = true;
-    this.offres = this.getExempleOffres();
-    this.filteredOffres = [...this.offres];
-    this.isLoading = false;
+    this.offresService.fetchCompanyOffres()
+      .pipe(finalize(() => {
+        this.isLoading = false;
+      }))
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (offres) => {
+          this.offres = (offres || []).map(o => ({
+            ...o,
+            titre: o.titre_poste,
+            description: o.exigences,
+            entreprise: o.societe,
+            createdAt: o.date_creation,
+          }));
+          this.offresService.setOffres(this.offres as any);
+          this.filterOffres();
+        },
+        error: () => {
+          this.offres = [];
+          this.filteredOffres = [];
+        },
+      });
   }
 
   filterOffres(): void {
@@ -78,9 +152,9 @@ export class Offres implements OnInit {
     } else {
       const query = this.searchQuery.toLowerCase();
       this.filteredOffres = this.offres.filter(offre =>
-        offre.titre.toLowerCase().includes(query) ||
-        offre.entreprise?.toLowerCase().includes(query) ||
-        offre.description.toLowerCase().includes(query)
+        (offre.titre || '').toLowerCase().includes(query) ||
+        (offre.entreprise || '').toLowerCase().includes(query) ||
+        (offre.description || '').toLowerCase().includes(query)
       );
     }
   }
@@ -88,15 +162,17 @@ export class Offres implements OnInit {
   openCreateModal(): void {
     this.showCreateModal = true;
     this.offreForm.reset();
+    this.successMessage = '';
+    this.errorMessage = '';
   }
 
   openEditModal(offre: Offre): void {
     this.showEditModal = true;
     this.editingOffre = offre;
     this.offreForm.patchValue({
-      titre: offre.titre,
-      entreprise: offre.entreprise,
-      description: offre.description
+      titre_poste: offre.titre_poste || offre.titre,
+      societe: offre.societe || offre.entreprise,
+      exigences: offre.exigences || offre.description,
     });
   }
 
@@ -110,44 +186,46 @@ export class Offres implements OnInit {
   submitOffre(): void {
     if (this.offreForm.valid) {
       this.isSaving = true;
-      const newOffre: Offre = {
-        id: 'offre-' + Date.now(),
-        titre: this.offreForm.value.titre,
-        entreprise: this.offreForm.value.entreprise,
-        description: this.offreForm.value.description,
-        competences: [],
-        candidaturesCount: 0,
-        createdAt: new Date().toISOString()
+      const formData = {
+        titre_poste: this.offreForm.value.titre_poste,
+        societe: this.offreForm.value.societe,
+        exigences: this.offreForm.value.exigences,
       };
-      this.offres.unshift(newOffre);
-      this.filterOffres();
-      this.closeModals();
-      this.isSaving = false;
+
+      this.offresService.createOffre(formData)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.isSaving = false;
+            this.closeModals();
+          },
+          error: () => {
+            this.isSaving = false;
+            // Error message is handled by service
+          },
+        });
     }
   }
 
   submitEditOffre(): void {
     if (this.offreForm.valid && this.editingOffre) {
-      this.isSaving = true;
-      const index = this.offres.findIndex(o => o.id === this.editingOffre!.id);
-      if (index !== -1) {
-        this.offres[index] = {
-          ...this.editingOffre,
-          titre: this.offreForm.value.titre,
-          entreprise: this.offreForm.value.entreprise,
-          description: this.offreForm.value.description
-        };
-      }
-      this.filterOffres();
-      this.closeModals();
-      this.isSaving = false;
+      // Edit functionality can be added later if needed
+      console.log('Edit functionality not yet implemented');
     }
   }
 
   deleteOffre(offre: Offre): void {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette offre ?')) {
-      this.offres = this.offres.filter(o => o.id !== offre.id);
-      this.filterOffres();
+      this.offresService.deleteOffre(offre.id)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            // Success message handled by service
+          },
+          error: () => {
+            // Error message handled by service
+          },
+        });
     }
   }
 
@@ -164,52 +242,5 @@ export class Offres implements OnInit {
     if (diff < 7) return `Il y a ${diff} jours`;
     if (diff < 14) return 'Il y a 1 semaine';
     return `Il y a ${Math.floor(diff / 7)} semaines`;
-  }
-
-  private getExempleOffres(): Offre[] {
-    return [
-      {
-        id: 'exemple-1',
-        titre: 'Développeur Full-Stack Senior',
-        entreprise: 'TechCorp',
-        lieu: 'Casablanca · Hybride',
-        typeContrat: 'CDI',
-        source: 'partenaire',
-        description: 'Rejoignez notre équipe pour bâtir la prochaine génération de notre plateforme logistique.',
-        competences: ['React', 'Node.js', 'PostgreSQL', 'AWS', 'TypeScript'],
-        candidaturesCount: 24,
-        salaireMin: 1800,
-        salaireMax: 2800,
-        createdAt: new Date(Date.now() - 3 * 86400000).toISOString()
-      },
-      {
-        id: 'exemple-2',
-        titre: 'Data Scientist — IA Matching',
-        entreprise: 'DataVision',
-        lieu: 'Rabat · Remote',
-        typeContrat: 'CDI',
-        source: 'partenaire',
-        description: "Améliorez nos modèles de scoring ATS et d'employabilité grâce au machine learning.",
-        competences: ['Python', 'PyTorch', 'NLP', 'MLOps'],
-        candidaturesCount: 17,
-        salaireMin: 2000,
-        salaireMax: 3200,
-        createdAt: new Date(Date.now() - 7 * 86400000).toISOString()
-      },
-      {
-        id: 'exemple-3',
-        titre: 'Designer UX/UI',
-        entreprise: 'CreativeStudio',
-        lieu: 'Sfax · Présentiel',
-        typeContrat: 'CDD',
-        source: 'linkedin',
-        description: 'Concevez des interfaces intuitives et modernes pour nos applications web et mobile.',
-        competences: ['Figma', 'Adobe XD', 'Prototypage', 'Design System'],
-        candidaturesCount: 31,
-        salaireMin: 1200,
-        salaireMax: 1800,
-        createdAt: new Date(Date.now() - 2 * 86400000).toISOString()
-      }
-    ];
   }
 }
