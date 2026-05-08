@@ -75,7 +75,7 @@ export class SidebarAdmin implements OnInit, OnDestroy {
     },
     {
       key: 'etud',
-      label: 'Gestion des étudiants',
+      label: 'Suivi des étudiants',
       route: '/admin/etud',
       exact: false,
     },

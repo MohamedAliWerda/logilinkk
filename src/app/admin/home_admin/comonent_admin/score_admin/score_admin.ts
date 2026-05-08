@@ -36,8 +36,8 @@ export class ScoreAdmin implements OnInit, OnDestroy {
   barWidth = 0;
 
   stats = [
-    { value: '...', label: "Étudiants avec profil scoré" },
-    { value: '...', label: "Profils Excellents (≥ 75%)" },
+    { value: '...', label: "Nombre d’étudiants inscrits sur la plateforme" },
+    { value: '...', label: "Meilleurs profils (≥ 75%)" },
   ];
 
   private employabilitySubscription: any;
@@ -49,8 +49,8 @@ export class ScoreAdmin implements OnInit, OnDestroy {
     this.fetchAndUpdateScoreDistribution();
     this.fetchAndUpdateFiliereScore();
     this.fetchAndUpdateParcoursScore();
-    this.fetchCount('score_employabilité', "Étudiants avec profil scoré");
-    this.fetchCount('score_employabilité', "Profils Excellents (≥ 75%)", { gte: ['score_final', 75] });
+    this.fetchCount('score_employabilité', "Nombre d’étudiants inscrits sur la plateforme");
+    this.fetchCount('score_employabilité', "Meilleurs profils (≥ 75%)", { gte: ['score_final', 75] });
     this.setupRealtimeSubscription();
   }
 
@@ -167,8 +167,8 @@ export class ScoreAdmin implements OnInit, OnDestroy {
         this.fetchAndUpdateScoreDistribution();
         this.fetchAndUpdateFiliereScore();
         this.fetchAndUpdateParcoursScore();
-        this.fetchCount('score_employabilité', "Étudiants avec profil scoré");
-        this.fetchCount('score_employabilité', "Profils Excellents (≥ 75%)", { gte: ['score_final', 75] });
+        this.fetchCount('score_employabilité', "Nombre d’étudiants inscrits sur la plateforme");
+        this.fetchCount('score_employabilité', "Meilleurs profils (≥ 75%)", { gte: ['score_final', 75] });
       })
       .subscribe();
   }

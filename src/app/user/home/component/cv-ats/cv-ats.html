@@ -6,7 +6,7 @@
         <div class="page-header global-panel-banner">
             <div>
                 <h1 class="page-title">Créer mon CV ATS</h1>
-                <p class="page-sub">Structure guidée ISGIS orientée ATS, simple à compléter et à télécharger.</p>
+                <p class="page-sub">Structure ATS extraite des données officielles de l’ISGIS.</p>
             </div>
             <div class="step-counter">Étape {{ step }} / {{ totalSteps }}</div>
         </div>
@@ -20,11 +20,11 @@
                 </div>
                 <div class="banner-text">
                     <strong>Données restaurées</strong>
-                    <p>Vos informations précédentes ont été automatiquement restaurées depuis votre dernier CV{{ restoredFromDate() ? ' (' + restoredFromDate() + ')' : '' }}.</p>
+                    <p>Vos informations précédentes ont été automatiquement restaurées depuis votre dernier CV.</p>
                 </div>
                 <button type="button" class="banner-action-btn" (click)="clearRestoredForm()" title="Effacer les données et recommencer">
                     <i class="fa-solid fa-trash"></i>
-                    Recommencer à zéro
+                   Reconfigurer
                 </button>
             </div>
         </div>
@@ -56,8 +56,8 @@
     <div class="block-header">
         <div class="block-icon"><i class="fa-solid fa-user"></i></div>
         <div>
-            <h2 class="block-title">Bloc 1 — En-tête & informations personnelles</h2>
-            <p class="block-sub">Champs essentiels ATS + contexte transport/logistique (permis inclus).</p>
+            <h2 class="block-title">Bloc 1 — Informations personnelles</h2>
+            <p class="block-sub">Compléter les informations personnelles.</p>
         </div>
     </div>
     <div class="form-grid-2">
@@ -102,7 +102,7 @@
             <span class="helper">{{ lockedFieldMessage('sexe') }}</span> }
         </div>
         <div class="form-group">
-            <label>Nationalite</label>
+            <label>Nationalité</label>
             <input class="form-control" [(ngModel)]="info.nationalite" [disabled]="isInfoFieldLocked('nationalite')" placeholder="Tunisienne" /> @if (isInfoFieldLocked('nationalite')) {
             <span class="helper">{{ lockedFieldMessage('nationalite') }}</span> }
         </div>
@@ -122,11 +122,6 @@
                   }
                 </select>
         </div>
-        <div class="form-group">
-            <label>Photo (optionnel)</label>
-            <input class="form-control" type="file" accept="image/*" (change)="onPhotoSelected($event)" /> @if (info.photoName) {
-            <span class="helper">Fichier sélectionné : {{ info.photoName }}</span> }
-        </div>
     </div>
     }
 
@@ -135,13 +130,13 @@
     <div class="block-header">
         <div class="block-icon"><i class="fa-solid fa-bullseye"></i></div>
         <div>
-            <h2 class="block-title">Bloc 2 — Titre professionnel & objectif</h2>
-            <p class="block-sub">Zone stratégique de matching ATS.</p>
+            <h2 class="block-title">Bloc 2 — Titre professionnel</h2>
+            <p class="block-sub">Choix du poste visé.</p>
         </div>
     </div>
     <div class="form-grid-2">
         <div class="form-group">
-            <label>Titre du poste visé <span class="req">*</span></label>
+            <label>Poste visé <span class="req">*</span></label>
             <select class="form-control" [(ngModel)]="selectedMetierId" (ngModelChange)="onMetierChange($event)">
                                     <option value="">Sélectionnez un métier...</option>
                                     @for (m of metiers; track m._id) {
@@ -150,12 +145,12 @@
                                 </select>
         </div>
         <div class="form-group">
-            <label>Sous-titre / spécialisation</label>
-            <input class="form-control" [(ngModel)]="specialization" placeholder="Spécialisation Logistique Internationale" />
+            <label>Domaine</label>
+            <input class="form-control" [(ngModel)]="specialization" placeholder="Spécialisation Logistique Internationale" disabled readonly />
         </div>
     </div>
     <div class="form-group full">
-        <label>Résumé professionnel (3-5 lignes) <span class="req">*</span></label>
+        <label>Résumé professionnel <span class="req">*</span></label>
         <textarea class="form-control textarea-lg" maxlength="500" [(ngModel)]="objectif" placeholder="Étudiant(e) en [DIPLÔME] à l'ISGIS, spécialisé(e) en [DOMAINE]..."></textarea>
         <span class="char-count">{{ objectif.length }} / 500</span>
     </div>
@@ -176,40 +171,40 @@
         <div class="entry-fields">
             <div class="form-grid-2">
                 <div class="form-group">
-                    <label>Diplôme exact</label>
+                    <label>Diplôme</label>
                     <input class="form-control" [(ngModel)]="f.diplome" [disabled]="isFormationDiplomaLocked(i)" placeholder="Licence en Transport & Logistique" /> @if (isFormationDiplomaLocked(i)) {
                     <span class="helper">{{ formationDiplomaHelper(i) }}</span> }
                 </div>
                 <div class="form-group">
                     <label>Établissement <span class="req">*</span></label>
-                    <input class="form-control" [(ngModel)]="f.institution" placeholder="ISGIS - Université de Sfax" />
+                    <input class="form-control" [(ngModel)]="f.institution" placeholder="Institut Supérieur De Gestion Industrielle De Sfax" />
                 </div>
                 <div class="form-group">
-                    <label>Début</label>
+                    <label>Date de première inscription</label>
                     <input class="form-control" type="month" [(ngModel)]="f.dateDebut" />
                 </div>
                 <div class="form-group">
-                    <label>Fin</label>
+                    <label>Obtention du diplôme</label>
                     <input class="form-control" type="month" [(ngModel)]="f.dateFin" />
                 </div>
                 <div class="form-group">
-                    <label>Moyenne / Mention</label>
-                    <input class="form-control" [(ngModel)]="f.moyenne" placeholder="14.50 / Très bien" />
+                    <label>Moyenne </label>
+                    <input class="form-control" [(ngModel)]="f.moyenne" placeholder="Moyenne/20" />
                 </div>
                 <div class="form-group">
                     <label>Modules clés</label>
                     <input class="form-control" [(ngModel)]="f.modules" placeholder="Incoterms, Douane, WMS, Lean..." />
                 </div>
                 <div class="form-group">
-                    <label>PFE — Titre</label>
+                    <label>Titre de PFE</label>
                     <input class="form-control" [(ngModel)]="f.pfeTitre" placeholder="Optimisation de la chaîne d'approvisionnement" />
                 </div>
                 <div class="form-group">
-                    <label>PFE — Entreprise</label>
-                    <input class="form-control" [(ngModel)]="f.pfeEntreprise" placeholder="Entreprise d'accueil" />
+                    <label>Centre d’accueil de stage</label>
+                    <input class="form-control" [(ngModel)]="f.pfeEntreprise" placeholder="Centre d’accueil" />
                 </div>
                 <div class="form-group full">
-                    <label>PFE — Technologies</label>
+                    <label>Mots clés</label>
                     <input class="form-control" [(ngModel)]="f.pfeTechnologies" placeholder="Power BI, Python, SQL" />
                 </div>
             </div>
@@ -230,7 +225,7 @@
         <div class="block-icon"><i class="fa-solid fa-briefcase"></i></div>
         <div>
             <h2 class="block-title">Bloc 4 — Stages</h2>
-            <p class="block-sub">Méthode STAR/CAR et mots-clés techniques.</p>
+            <p class="block-sub">Compléter les stages effectués.</p>
         </div>
     </div>
     @for (e of experiences; track $index; let i = $index) {
@@ -239,12 +234,12 @@
         <div class="entry-fields">
             <div class="form-grid-2">
                 <div class="form-group">
-                    <label>Intitulé poste / stage <span class="req">*</span></label>
+                    <label>stage <span class="req">*</span></label>
                     <input class="form-control" [(ngModel)]="e.poste" placeholder="Stagiaire Supply Chain" />
                 </div>
                 <div class="form-group">
-                    <label>Entreprise <span class="req">*</span></label>
-                    <input class="form-control" [(ngModel)]="e.entreprise" placeholder="Entreprise logistique" />
+                    <label>Centre d’accueil de stage <span class="req">*</span></label>
+                    <input class="form-control" [(ngModel)]="e.entreprise" placeholder="Centre d’accueil" />
                 </div>
                 <div class="form-group">
                     <label>Secteur d'activité</label>
@@ -268,11 +263,11 @@
                     <input class="form-control" type="month" [(ngModel)]="e.dateFin" />
                 </div>
                 <div class="form-group full">
-                    <label>Missions / réalisations (3-6 points) <span class="req">*</span></label>
-                    <textarea class="form-control" [(ngModel)]="e.description" placeholder="Action: Optimisé... Contexte: ... Résultat chiffré: ..."></textarea>
+                    <label>Missions / réalisations<span class="req">*</span></label>
+                    <textarea class="form-control" [(ngModel)]="e.description" placeholder="Description des missions et réalisations"></textarea>
                 </div>
                 <div class="form-group full">
-                    <label>Mots-clés techniques utilisés <span class="req">*</span></label>
+                    <label>Mots-clés<span class="req">*</span></label>
                     <input class="form-control" [(ngModel)]="e.motsCles" placeholder="WMS, TMS, Incoterms 2020, SAP, Excel avancé" />
                 </div>
             </div>
@@ -284,7 +279,7 @@
     </div>
     }
     <button type="button" class="btn-add-entry" (click)="addExperience()">
-              <i class="fa-solid fa-plus"></i> Ajouter une expérience
+              <i class="fa-solid fa-plus"></i> Ajouter un stage
             </button> }
 
     <!-- ─── STEP 5 : Hard Skills ─── -->
@@ -292,8 +287,8 @@
     <div class="block-header">
         <div class="block-icon"><i class="fa-solid fa-code"></i></div>
         <div>
-            <h2 class="block-title">Bloc 5 — Compétences techniques (hard skills)</h2>
-            <p class="block-sub">Référentiel métier, outils, technologies, méthodes et normes.</p>
+            <h2 class="block-title">Bloc 5 — Hard Skills</h2>
+            <p class="block-sub">Compétences techniques.</p>
         </div>
     </div>
     @if (skillsLoading) {
@@ -347,8 +342,8 @@
     <div class="block-header">
         <div class="block-icon"><i class="fa-solid fa-people-group"></i></div>
         <div>
-            <h2 class="block-title">Bloc 6 — Compétences transversales (soft skills)</h2>
-            <p class="block-sub">Top soft skills avec mise en situation optionnelle.</p>
+            <h2 class="block-title">Bloc 6 — Soft Skills</h2>
+            <p class="block-sub">Compétences comportementales.</p>
         </div>
     </div>
     @for (s of softSkills; track $index; let i = $index) {
@@ -369,8 +364,8 @@
                       </select>
                 </div>
                 <div class="form-group full">
-                    <label>Mise en situation (optionnel)</label>
-                    <textarea class="form-control" [(ngModel)]="s.contexte" placeholder="Exemple concret (1-2 phrases)"></textarea>
+                    <label>Mise en situation</label>
+                    <textarea class="form-control" [(ngModel)]="s.contexte" placeholder="Exemple concret"></textarea>
                 </div>
             </div>
             @if (softSkills.length > 1) {
@@ -390,7 +385,7 @@
         <div class="block-icon"><i class="fa-solid fa-globe"></i></div>
         <div>
             <h2 class="block-title">Bloc 7 — Langues</h2>
-            <p class="block-sub">Niveau CECRL et certifications associées.</p>
+            <p class="block-sub">Niveau  et certifications associées.</p>
         </div>
     </div>
     <div class="skills-grid">
@@ -404,7 +399,7 @@
                         <input class="form-control" [(ngModel)]="l.langue" placeholder="Français" />
                     </div>
                     <div class="form-group">
-                        <label>Niveau CECRL <span class="req">*</span></label>
+                        <label>Niveau<span class="req">*</span></label>
                         <select class="form-control" [(ngModel)]="l.niveau">
                           @for (n of niveauxLangue; track n) {
                             <option [value]="n">{{ n }}</option>
@@ -438,7 +433,7 @@
         <div class="block-icon"><i class="fa-solid fa-diagram-project"></i></div>
         <div>
             <h2 class="block-title">Bloc 8 — Projets académiques & personnels</h2>
-            <p class="block-sub">Proxy d'expérience pour profil junior.</p>
+            <p class="block-sub">Projets réalisés.</p>
         </div>
     </div>
     @for (p of projets; track $index; let i = $index) {
@@ -447,7 +442,7 @@
         <div class="entry-fields">
             <div class="form-grid-2">
                 <div class="form-group">
-                    <label>Titre du projet</label>
+                    <label>Projet</label>
                     <input class="form-control" [(ngModel)]="p.titre" placeholder="Optimisation des tournées" />
                 </div>
                 <div class="form-group">
@@ -455,8 +450,8 @@
                     <input class="form-control" [(ngModel)]="p.technologies" placeholder="Python, Power BI, Excel, SQL" />
                 </div>
                 <div class="form-group full">
-                    <label>Description (2-3 lignes)</label>
-                    <textarea class="form-control" [(ngModel)]="p.description" placeholder="Problème, méthode, résultat mesurable"></textarea>
+                    <label>Description</label>
+                    <textarea class="form-control" [(ngModel)]="p.description" placeholder="Problème, méthode, résultat"></textarea>
                 </div>
                 <div class="form-group full">
                     <label>Lien (GitHub, rapport, démo)</label>
@@ -479,8 +474,8 @@
     <div class="block-header">
         <div class="block-icon"><i class="fa-solid fa-award"></i></div>
         <div>
-            <h2 class="block-title">Bloc 9 — Certifications & formations continues</h2>
-            <p class="block-sub">Boost ATS fort en transport & logistique.</p>
+            <h2 class="block-title">Bloc 9 — Certifications</h2>
+            <p class="block-sub">Certificats obtenus.</p>
         </div>
     </div>
     @for (c of certifications; track $index; let i = $index) {
@@ -493,7 +488,7 @@
                     <input class="form-control" [(ngModel)]="c.titre" placeholder="IATA DGR" />
                 </div>
                 <div class="form-group">
-                    <label>Organisme émetteur</label>
+                    <label>Certificateur</label>
                     <input class="form-control" [(ngModel)]="c.organisme" placeholder="IATA, APICS, FIATA..." />
                 </div>
                 <div class="form-group">
@@ -522,7 +517,7 @@
         <div class="block-icon"><i class="fa-solid fa-handshake-angle"></i></div>
         <div>
             <h2 class="block-title">Bloc 10 — Activités para-universitaires</h2>
-            <p class="block-sub">Section humaine post-filtrage ATS.</p>
+            <p class="block-sub">Activités complémentaires.</p>
         </div>
     </div>
     @for (e of engagements; track $index; let i = $index) {
@@ -559,11 +554,11 @@
     </div>
     }
     <button type="button" class="btn-add-entry" (click)="addEngagement()">
-              <i class="fa-solid fa-plus"></i> Ajouter un engagement
+              <i class="fa-solid fa-plus"></i> Ajouter une activité
             </button>
 
     <div class="interest-wrap">
-        <h3>Centres d'intérêt (max 5)</h3>
+        <h3>Loisirs et centres d'intérêt</h3>
         @for (it of interests; track $index; let i = $index) {
         <div class="interest-row">
             <input class="form-control" [(ngModel)]="it.label" placeholder="Voyages, sport, lecture, veille supply chain" /> @if (interests.length > 1) {
@@ -572,9 +567,6 @@
                     </button> }
         </div>
         }
-        <button type="button" class="btn-add-entry" (click)="addInterest()" [disabled]="interests.length >= 5">
-                <i class="fa-solid fa-plus"></i> Ajouter un centre d'intérêt
-              </button>
     </div>
     }
 
@@ -595,14 +587,13 @@
 
     <label class="consent-row">
               <input type="checkbox" [(ngModel)]="consentGiven" />
-              <span>Je consens au traitement de mes données pour la génération du CV ATS (Loi tunisienne + RGPD).</span>
+              <span>J’ai lu et j’approuve la génération et la création de mon CV.</span>
             </label>
 
     <div class="summary-box">
         <i class="fa-solid fa-circle-check summary-icon"></i>
         <div>
             <p class="summary-title">Votre CV est prêt à être généré.</p>
-            <p class="summary-sub">Vérifiez vos informations, acceptez le consentement, puis cliquez sur Générer.</p>
         </div>
     </div>
 
@@ -666,7 +657,7 @@
                     </button>
             <button type="button" class="btn-get-score" (click)="getYourScoreAndGoDashboard()" [disabled]="getScoreLoading">
                 @if (!getScoreLoading) {
-                <span><i class="fa-solid fa-chart-bar"></i> Get your score</span>
+                <span><i class="fa-solid fa-chart-bar"></i> Évaluer votre CV</span>
                 } @else {
                 <span><i class="fa-solid fa-spinner fa-spin"></i> Calcul en cours...</span>
                 }

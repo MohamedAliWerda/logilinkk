@@ -602,7 +602,7 @@ export class CvAts {
   niveaux: Level[] = ['Debutant', 'Notions', 'Intermediaire', 'Avance', 'Expert'];
   niveauxLangue = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   secteurOptions = ['Transport routier', 'Transport maritime', 'Transport aerien', 'Logistique 3PL/4PL', 'Supply Chain', 'Douane'];
-  engagementTypes = ['Associatif', 'Sport', 'Benevolat', 'Club'];
+  engagementTypes = ['Associatif', 'Sport', 'Bénévolat', 'Club'];
   permisOptions = ['Aucun', 'B', 'C', 'CE', 'D'];
 
   atsJobDescription = '';
@@ -622,7 +622,7 @@ export class CvAts {
 
   lockedFieldMessage(fieldName: keyof CvAts['info']): string {
     return this.isInfoFieldLocked(fieldName)
-      ? 'Renseigne automatiquement depuis votre profil.'
+      ? 'Renseigné automatiquement à partir de votre profil.'
       : '';
   }
 
@@ -632,7 +632,7 @@ export class CvAts {
 
   formationDiplomaHelper(index: number): string {
     return this.isFormationDiplomaLocked(index)
-      ? 'Renseigne automatiquement depuis votre profil (Filiere).'
+      ? 'Renseigné automatiquement à partir de votre profil'
       : '';
   }
 

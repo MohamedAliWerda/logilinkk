@@ -37,7 +37,7 @@ export class DashboardAdmin implements OnInit, OnDestroy {
   stats = [
     { value: '...', label: 'Étudiants inscrits' },
     { value: '...', label: "Taux d'employabilité" },
-    { value: '...', label: "Nombre d'étudiants avec profil scoré" },
+    { value: '...', label: "Nombre d’étudiants inscrits sur la plateforme" },
     { value: '...', label: 'Nombre de matière' },
   ];
 
@@ -651,7 +651,7 @@ export class DashboardAdmin implements OnInit, OnDestroy {
   }
 
   updateScoredStat(newValue: string) {
-    const statIndex = this.stats.findIndex(s => s.label === "Nombre d'étudiants avec profil scoré");
+    const statIndex = this.stats.findIndex(s => s.label === "Nombre d’étudiants inscrits sur la plateforme");
     if (statIndex !== -1) {
       const updatedStats = [...this.stats];
       updatedStats[statIndex] = { ...updatedStats[statIndex], value: newValue };
