@@ -494,6 +494,28 @@ export class CvSubmissionService {
     }
   }
 
+  async fetchStudentFiliere(): Promise<string | null> {
+    try {
+      const rawUser = localStorage.getItem('user');
+      if (!rawUser) return null;
+      const user = JSON.parse(rawUser) as Record<string, any>;
+      const cin = user?.['cin_passport'];
+      if (!cin) return null;
+
+      const { data, error } = await this.supabase
+        .from('profils_etudiant')
+        .select('filiere')
+        .eq('cin_passport', cin)
+        .single();
+
+      if (error || !data) return null;
+      const filiere = (data as any)['filiere'];
+      return typeof filiere === 'string' && filiere.trim().length > 0 ? filiere.trim() : null;
+    } catch {
+      return null;
+    }
+  }
+
   private normalizeMatchingAnalysis(raw: any): MatchingAnalysisResponse | null {
     if (!raw || typeof raw !== 'object') return null;
 

@@ -88,7 +88,6 @@ export class GapsAdmin implements OnInit {
   selectedCategory = '';
   selectedStudentIndex = 0;
   filterFiliere = '';
-  filterDiplome = '';
   showAllStudents = false;
 
   loading = true;
@@ -184,16 +183,18 @@ export class GapsAdmin implements OnInit {
     this.selectedStudentIndex = index;
   }
 
+  get headerSubtitle(): string {
+    return this.viewMode === 'cohort'
+      ? 'Analyse approfondie des profils étudiants : adéquation entre les compétences techniques et le référentiel de compétences.'
+      : 'Suivi détaillé d\'un étudiant';
+  }
+
   get uniqueFilieres(): string[] {
     return [...new Set(this.studentDetails.map(s => s.filiere).filter(f => !!f))].sort();
   }
 
   get filteredStudentDetails(): StudentDetailItem[] {
-    return this.studentDetails.filter(s => {
-      const matchFiliere = !this.filterFiliere || s.filiere === this.filterFiliere;
-      const matchDiplome = !this.filterDiplome || s.diplome === this.filterDiplome;
-      return matchFiliere && matchDiplome;
-    });
+    return this.studentDetails.filter(s => !this.filterFiliere || s.filiere === this.filterFiliere);
   }
 
   get selectedStudent(): StudentDetailItem | null {

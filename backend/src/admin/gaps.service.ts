@@ -96,10 +96,9 @@ export class GapsService {
   private readonly supabase = getSupabase();
 
   async getDashboard(): Promise<GapsDashboardPayload> {
-    const [metierRows, competenceRows] = await Promise.all([
-      this.fetchTopMetierScores(),
-      this.fetchCompetenceResults(),
-    ]);
+    const metierRows = await this.fetchTopMetierScores();
+    const latestAnalysisIds = metierRows.map((r) => String(r.analysis_id ?? '')).filter(Boolean);
+    const competenceRows = await this.fetchCompetenceResults(latestAnalysisIds);
 
     const studentNameMap = await this.buildStudentNameMap(
       Array.from(new Set(metierRows.map((row) => String(row.auth_id ?? '')).filter(Boolean))),
@@ -130,23 +129,36 @@ export class GapsService {
     const { data, error } = await this.supabase
       .from('cv_matching_metier_scores')
       .select(
-        'analysis_id, cv_submission_id, auth_id, rank_position, metier_name, domaine_name, n_competences, matched_competences, coverage_pct, avg_score, top_skills',
+        'analysis_id, cv_submission_id, auth_id, rank_position, metier_name, domaine_name, n_competences, matched_competences, coverage_pct, avg_score, top_skills, created_at',
       )
-      .eq('rank_position', 1);
+      .eq('rank_position', 1)
+      .order('created_at', { ascending: false });
     if (error) {
       this.logger.error('cv_matching_metier_scores fetch failed: ' + error.message);
       throw new Error(error.message);
     }
-    return data ?? [];
+    // Keep only the most recent analysis per student
+    const seen = new Set<string>();
+    const deduped: any[] = [];
+    for (const row of data ?? []) {
+      const authId = String(row.auth_id ?? '');
+      if (authId && !seen.has(authId)) {
+        seen.add(authId);
+        deduped.push(row);
+      }
+    }
+    return deduped;
   }
 
-  private async fetchCompetenceResults(): Promise<any[]> {
+  private async fetchCompetenceResults(analysisIds: string[]): Promise<any[]> {
+    if (!analysisIds.length) return [];
     const { data, error } = await this.supabase
       .from('cv_matching_competence_results')
       .select(
         'analysis_id, cv_submission_id, auth_id, metier_name, domaine_name, metier_rank, is_top_metier, status, competence_name, competence_type, similarity_score, best_cv_skill',
       )
-      .eq('is_top_metier', true);
+      .eq('is_top_metier', true)
+      .in('analysis_id', analysisIds);
     if (error) {
       this.logger.error('cv_matching_competence_results fetch failed: ' + error.message);
       throw new Error(error.message);

@@ -1,12 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
-
 /* ── Reset & host ─────────────────────────────────────────────────────── */
 :host {
     display: block;
     min-height: 100%;
     background: #f5f2ec;
     color: #1a1916;
-    font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+    font-family: 'Segoe UI', Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -51,37 +49,25 @@
     gap: 1.25rem;
     flex-wrap: wrap;
     margin-bottom: 24px;
-    background: linear-gradient(135deg, #fff7eb 0%, #ffe7c5 60%, #ffd49a 100%);
-    border-radius: 20px;
-    padding: 1.2rem 1.5rem;
-    border: 1px solid rgba(224, 120, 0, 0.15);
-    box-shadow: 0 6px 24px rgba(80, 58, 12, 0.09);
-}
-
-.eyebrow {
-    display: inline-flex;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: #b06820;
-    margin-bottom: 4px;
+    background: linear-gradient(135deg, #fff7eb 0%, #ffe7c5 58%, #ffd9a0 100%);
+    border-radius: 16px;
+    padding: 1rem 1.2rem;
+    border: 1px solid rgba(224, 120, 0, 0.18);
+    box-shadow: 0 4px 14px rgba(80, 58, 12, 0.08);
 }
 
 .header-copy h1 {
-    margin: 0 0 4px;
-    font-size: 1.35rem;
-    color: #3e2a0e;
+    margin: 0;
+    font-size: 1.3rem;
+    color: #4f3314;
     font-weight: 800;
-    letter-spacing: -0.02em;
 }
 
 .header-copy p {
-    margin: 0;
-    color: #7a5630;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    max-width: 480px;
+    margin: 0.35rem 0 0;
+    color: #6f4d24;
+    font-size: 0.92rem;
+    line-height: 1.45;
 }
 
 .header-controls {
@@ -417,7 +403,7 @@
 .job-val {
     font-size: 11px;
     font-weight: 700;
-    font-family: 'DM Mono', monospace;
+    font-family: monospace;
     letter-spacing: -0.02em;
 }
 
@@ -462,6 +448,30 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+
+.student-list-footer {
+    display: flex;
+    justify-content: center;
+    padding-top: 10px;
+}
+
+.btn-toggle-list {
+    padding: 6px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(200,160,80,0.4);
+    background: rgba(255,255,255,0.85);
+    color: #d97706;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, box-shadow 0.12s;
+}
+
+.btn-toggle-list:hover {
+    background: #fef3c7;
+    box-shadow: 0 2px 8px rgba(217,119,6,0.15);
 }
 
 .student-row {
@@ -594,7 +604,7 @@
 
 .priority-gap {
     color: #dc2626;
-    font-family: 'DM Mono', monospace;
+    font-family: monospace;
     font-size: 12px;
     font-weight: 700;
 }
@@ -783,6 +793,11 @@
 /* ── Picker panel ─────────────────────────────────────────────────────── */
 .picker-panel { padding: 0; overflow: hidden; }
 
+.picker-panel .panel-head {
+    padding: 18px 22px 14px;
+    margin-bottom: 0;
+}
+
 .picker-filters {
     display: flex;
     gap: 20px;
@@ -907,7 +922,7 @@
 .picker-pct {
     font-size: 14px;
     font-weight: 800;
-    font-family: 'DM Mono', monospace;
+    font-family: monospace;
     text-align: right;
 }
 
@@ -916,7 +931,7 @@
     font-weight: 600;
     color: #b5aea5;
     text-align: right;
-    font-family: 'DM Mono', monospace;
+    font-family: monospace;
 }
 
 /* ── Misc ─────────────────────────────────────────────────────────────── */

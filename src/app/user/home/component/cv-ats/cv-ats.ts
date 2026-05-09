@@ -68,6 +68,7 @@ export class CvAts {
   formRestored = signal(false);
   restoredFromDate = signal<string | null>(null);
   readonly sharedProfileInfo = buildCvAtsPrefill(STUDENT_PROFILE_DATA);
+  private studentFiliere = '';
 
   constructor(
     private cvSubmissionService: CvSubmissionService,
@@ -280,8 +281,8 @@ export class CvAts {
 
     this.formations = [
       {
-        diplome: this.sharedProfileInfo.filiere,
-        institution: 'ISGIS - Universite de Sfax',
+        diplome: this.studentFiliere || this.sharedProfileInfo.filiere,
+        institution: 'Institut Supérieur De Gestion Industrielle De Sfax',
         dateDebut: '',
         dateFin: '',
         moyenne: '',
@@ -343,6 +344,14 @@ export class CvAts {
       this.checkSavedCv();
       // Try to auto-restore form data for returning users
       await this.autoRestoreFormState();
+
+      // Fetch real filiere from profils_etudiant and apply to formations[0].diplome
+      const filiere = await this.cvSubmissionService.fetchStudentFiliere();
+      if (filiere) {
+        this.studentFiliere = filiere;
+        this.formations[0].diplome = filiere;
+        this.cd.markForCheck();
+      }
     } catch (err) {
       console.error('Failed to load metiers', err);
     }
@@ -534,8 +543,8 @@ export class CvAts {
 
   formations = [
     {
-      diplome: this.sharedProfileInfo.filiere,
-      institution: 'ISGIS - Universite de Sfax',
+      diplome: this.studentFiliere || this.sharedProfileInfo.filiere,
+      institution: 'Institut Supérieur De Gestion Industrielle De Sfax',
       dateDebut: '',
       dateFin: '',
       moyenne: '',
@@ -1047,7 +1056,7 @@ export class CvAts {
   addFormation() {
     this.formations.push({
       diplome: '',
-      institution: 'ISGIS - Universite de Sfax',
+      institution: 'Institut Supérieur De Gestion Industrielle De Sfax',
       dateDebut: '',
       dateFin: '',
       moyenne: '',

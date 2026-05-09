@@ -1,9 +1,8 @@
 <main class="gaps-page">
     <header class="page-header" aria-label="Analyse des gaps">
         <div class="header-copy">
-            <span class="eyebrow">Analyse des gaps</span>
             <h1>Analyse des Gaps</h1>
-            <p>{{ viewMode === 'cohort' ? 'Analyse approfondie des profils étudiants : adéquation entre les compétences techniques et le référentiel de compétences.' : 'Vue individuelle — suivi détaillé d’un étudiant' }}</p>
+            <p>{{ headerSubtitle }}</p>
         </div>
 
         <div class="header-controls">
@@ -88,7 +87,7 @@
                     </div>
 
                     <div class="student-list" *ngIf="students.length > 0; else noStudents">
-                        <div class="student-row" *ngFor="let student of students">
+                        <div class="student-row" *ngFor="let student of (showAllStudents ? students : students.slice(0, 10))">
                             <div class="student-avatar" [style.background]="student.bg" [style.color]="student.fg">{{ student.initials }}</div>
                             <div class="student-main">
                                 <div class="student-name">{{ student.name }}</div>
@@ -98,6 +97,11 @@
                             </div>
                             <div class="student-pct" [style.color]="student.color">{{ student.pct }}%</div>
                             <div class="student-gaps">{{ student.gaps }} gap{{ student.gaps > 1 ? 's' : '' }}</div>
+                        </div>
+                        <div class="student-list-footer" *ngIf="students.length > 10">
+                            <button type="button" class="btn-toggle-list" (click)="showAllStudents = !showAllStudents">
+                                {{ showAllStudents ? 'Top 10' : 'Voir tout (' + students.length + ')' }}
+                            </button>
                         </div>
                     </div>
                     <ng-template #noStudents>
@@ -181,14 +185,6 @@
                             <option *ngFor="let f of uniqueFilieres" [value]="f">{{ f }}</option>
                         </select>
                     </div>
-                    <div class="picker-filter-group">
-                        <label class="picker-filter-label">Diplôme</label>
-                        <div class="picker-toggle">
-                            <button type="button" class="picker-toggle-btn" [class.active]="filterDiplome === ''" (click)="filterDiplome = ''">Tous</button>
-                            <button type="button" class="picker-toggle-btn" [class.active]="filterDiplome === 'Licence'" (click)="filterDiplome = 'Licence'">Licence</button>
-                            <button type="button" class="picker-toggle-btn" [class.active]="filterDiplome === 'Master'" (click)="filterDiplome = 'Master'">Master</button>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="student-picker-list">
@@ -264,32 +260,6 @@
                 </article>
             </section>
 
-            <section class="panel student-grid-bottom">
-                <div class="panel-head compact">
-                    <div>
-                        <h2>Repères cohorte</h2>
-                        <p>Positionnement relatif dans la promotion</p>
-                    </div>
-                </div>
-
-                <div class="student-grid-mini">
-                    <article class="mini-card">
-                        <span class="mini-label">Adéquation</span>
-                        <strong>{{ detail.pct }}%</strong>
-                        <p>score global du profil</p>
-                    </article>
-                    <article class="mini-card">
-                        <span class="mini-label">Alerte principale</span>
-                        <strong>{{ detail.watchouts[0] }}</strong>
-                        <p>écart prioritaire à traiter</p>
-                    </article>
-                    <article class="mini-card">
-                        <span class="mini-label">Orientation</span>
-                        <strong>{{ detail.marketTarget }}</strong>
-                        <p>métier cible actuel</p>
-                    </article>
-                </div>
-            </section>
         </section>
     </ng-container>
 </main>
