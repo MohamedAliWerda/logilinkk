@@ -361,6 +361,117 @@ export class OffresService {
     }
   }
 
+  async saveSelection(data: { id_etudiant: number | string; id_post: number | string; id_societe?: number | string }) {
+    try {
+      const studentId = Number(data?.id_etudiant);
+      const postId = Number(data?.id_post);
+      const societeId = Number(data?.id_societe ?? 0) || undefined;
+
+      if (!Number.isInteger(studentId) || studentId <= 0) {
+        throw new Error('id_etudiant invalide');
+      }
+
+      if (!Number.isInteger(postId) || postId <= 0) {
+        throw new Error('id_post invalide');
+      }
+
+      const application = { id_post: postId, id_societe: societeId } as ApplyRequest;
+      const post = await this.getPostForApplication(application);
+      if (!post) {
+        throw new Error('Post introuvable');
+      }
+
+      const idSociete = Number(post.id_societe ?? societeId ?? 0);
+      const idPost = Number(post.id_post);
+
+      if (!Number.isInteger(idSociete) || idSociete <= 0 || !Number.isInteger(idPost) || idPost <= 0) {
+        throw new Error('Informations de post invalides');
+      }
+
+      const exists = await this.applicationExists(idSociete, idPost, studentId);
+      if (exists) {
+        return { success: true, data: { inserted: 0, skipped: 1 }, message: 'Déjà enregistré' };
+      }
+
+      const studentIdentity = await this.getStudentIdentity(studentId).catch(() => ({ id: studentId, nom: '', prenom: '', cinPassport: undefined }));
+      const studentProfile = await this.getStudentProfile(studentId, studentIdentity.cinPassport).catch(() => ({ ville: '', email: '' }));
+      const scoreReference = await this.getScoreReference(studentId).catch(() => ({ idScore: undefined, scoreFinal: 0 }));
+
+      const payload: Record<string, unknown> = {
+        id_societe: idSociete,
+        id_post: idPost,
+        id_etudiant: studentId,
+        date_creation: new Date().toISOString(),
+        nom: studentIdentity.nom,
+        prenom: studentIdentity.prenom,
+        id_score: scoreReference.idScore,
+        score_employabilite: scoreReference.scoreFinal,
+        score_ats: null,
+        'score ats': null,
+        ville: studentProfile.ville,
+        email: studentProfile.email,
+      };
+
+      await this.insertEtudiantPost(payload);
+
+      return { success: true, data: { inserted: 1, skipped: 0 }, message: 'Enregistré avec succès' };
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : 'Erreur lors de l enregistrement';
+      // Handle duplicate constraint gracefully
+      if (errMsg.includes('duplicate') || errMsg.includes('unique') || errMsg.includes('constraint')) {
+        return { success: true, data: { inserted: 0, skipped: 1 }, message: 'Déjà enregistré' };
+      }
+      return { success: false, error: errMsg, data: null };
+    }
+  }
+
+  async removeSelection(data: { id_etudiant: number | string; id_post: number | string; id_societe?: number | string }) {
+    try {
+      const studentId = Number(data?.id_etudiant);
+      const postId = Number(data?.id_post);
+      const societeId = data?.id_societe !== undefined ? Number(data.id_societe) : undefined;
+
+      if (!Number.isInteger(studentId) || studentId <= 0) {
+        throw new Error('id_etudiant invalide');
+      }
+
+      if (!Number.isInteger(postId) || postId <= 0) {
+        throw new Error('id_post invalide');
+      }
+
+      const tableCandidates = ['etudiant_post', 'Etudiant_post'];
+      let deleted = false;
+      for (const tableName of tableCandidates) {
+        let query = this.supabase
+          .from(tableName)
+          .delete()
+          .eq('id_post', postId)
+          .eq('id_etudiant', studentId);
+
+        if (Number.isInteger(societeId) && (societeId as number) > 0) {
+          query = (query as any).eq('id_societe', societeId as number);
+        }
+
+        const { error } = await query;
+        if (error) {
+          if (this.isMissingTableError(error.message)) {
+            continue;
+          }
+          throw new Error(`Supabase error: ${error.message}`);
+        }
+
+        // deletion succeeded (even if 0 rows matched)
+        deleted = true;
+        break;
+      }
+
+      // success regardless of whether record existed
+      return { success: true, message: 'Suppression OK' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erreur suppression', data: null };
+    }
+  }
+
   async getCompanyCandidatures(societeId: string) {
     try {
       const parsedSocieteId = Number(societeId);

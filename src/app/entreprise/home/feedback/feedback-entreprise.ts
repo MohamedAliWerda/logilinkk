@@ -68,7 +68,7 @@ export class FeedbackEntreprise implements OnInit {
   readonly steps: FeedbackStep[] = [
     {
       tag: 'Question 1 / 7',
-      question: 'Quelle est la situation actuelle du diplômé dans votre entreprise ?',
+      question: 'Quelle est la situation actuelle du diplômé dans votre Société ?',
       type: 'radio',
       options: ['Toujours en poste - même fonction', 'Toujours en poste - promu / changement de fonction', 'Mutation interne (autre département)', 'A quitté l\'entreprise (démission)', 'Fin de contrat (CDD/SIVP non renouvelé)', 'Licenciement / Rupture de période d\'essai'],
     },
@@ -319,7 +319,7 @@ export class FeedbackEntreprise implements OnInit {
     return {
       id_soc: societeId,
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      "1. Quelle est la situation actuelle du diplômé dans votre ent": this.form.q1,
+      "1. Quelle est la situation actuelle du diplômé dans votre Société": this.form.q1,
       "2. [Compétences techniques métier]": this.form.ratings.tech,
       "2. [Résolution de problèmes]": this.form.ratings.prob,
       "2. [Travail en équipe / Collaboration]": this.form.ratings.team,

@@ -83,6 +83,89 @@ export class SupabaseService {
     return data ?? null;
   }
 
+  async checkSocieteEmailExists(email: string): Promise<boolean> {
+    const { data, error } = await this.supabaseAdmin
+      .from('Societe')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+    return data !== null;
+  }
+
+  /**
+   * Check for an existing Societe matching any of the main identity fields.
+   * Returns the first conflicting row found (id + fields) or null.
+   */
+  async findConflictingSociete(payload: {
+    nomEntreprise?: string;
+    email?: string;
+    telephone?: string;
+    adresse?: string;
+    description?: string;
+  }) {
+    // Perform safe, per-column checks to avoid building a raw OR expression
+    // which can break when values contain commas, spaces or special chars.
+    if (payload.email) {
+      // case-insensitive match
+      const { data, error } = await this.supabaseAdmin
+        .from('Societe')
+        .select('id,denomination_sociale,email,telephone,adresse,secteur_activite')
+        .ilike('email', payload.email)
+        .limit(1);
+      if (error) throw error;
+      if (data && data.length > 0) return data[0];
+    }
+
+    if (payload.telephone) {
+      const { data, error } = await this.supabaseAdmin
+        .from('Societe')
+        .select('id,denomination_sociale,email,telephone,adresse,secteur_activite')
+        .eq('telephone', payload.telephone)
+        .limit(1);
+      if (error) throw error;
+      if (data && data.length > 0) return data[0];
+    }
+
+    if (payload.nomEntreprise) {
+      // case-insensitive match for company name
+      const { data, error } = await this.supabaseAdmin
+        .from('Societe')
+        .select('id,denomination_sociale,email,telephone,adresse,secteur_activite')
+        .ilike('denomination_sociale', payload.nomEntreprise)
+        .limit(1);
+      if (error) throw error;
+      if (data && data.length > 0) return data[0];
+    }
+
+    if (payload.adresse) {
+      // case-insensitive address match
+      const { data, error } = await this.supabaseAdmin
+        .from('Societe')
+        .select('id,denomination_sociale,email,telephone,adresse,secteur_activite')
+        .ilike('adresse', payload.adresse)
+        .limit(1);
+      if (error) throw error;
+      if (data && data.length > 0) return data[0];
+    }
+
+    if (payload.description) {
+      // case-insensitive sector match
+      const { data, error } = await this.supabaseAdmin
+        .from('Societe')
+        .select('id,denomination_sociale,email,telephone,adresse,secteur_activite')
+        .ilike('secteur_activite', payload.description)
+        .limit(1);
+      if (error) throw error;
+      if (data && data.length > 0) return data[0];
+    }
+
+    return null;
+  }
+
   async fetchSocietesBySituation(situation: string) {
     const { data, error } = await this.supabaseAdmin
       .from('Societe')
@@ -153,7 +236,7 @@ export class SupabaseService {
       })
       .eq('id', id)
       .select('*')
-      .single();
+      .maybeSingle();
 
     if (error) {
       throw error;
@@ -218,7 +301,7 @@ export class SupabaseService {
       .update({ situation })
       .eq('id', id)
       .select('*')
-      .single();
+      .maybeSingle();
 
     if (error) {
       throw error;
@@ -240,16 +323,15 @@ export class SupabaseService {
     
     // Get the next sequential ID
     console.log('🟦 Fetching max ID from Societe...');
-    const { data: maxIdData, error: maxIdError } = await this.supabaseAdmin
+    const { data: maxIdDataArray, error: maxIdError } = await this.supabaseAdmin
       .from('Societe')
       .select('id')
       .order('id', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
 
     let nextId = 1;
-    if (!maxIdError && maxIdData?.id) {
-      nextId = (maxIdData.id as number) + 1;
+    if (!maxIdError && maxIdDataArray && maxIdDataArray.length > 0) {
+      nextId = ((maxIdDataArray[0] as any)?.id as number) + 1;
     }
     console.log('🟦 Next ID to insert:', nextId);
 
@@ -277,7 +359,7 @@ export class SupabaseService {
           .from(tableName)
           .insert([row])
           .select('id')
-          .single();
+          .maybeSingle();
 
         console.log(`🟦 Response received from ${tableName}`, { data, error });
 

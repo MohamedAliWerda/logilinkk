@@ -70,7 +70,8 @@
             <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
                 <label for="email">Email</label>
                 <input id="email" formControlName="email"
-                    type="email" placeholder="contact@entreprise.tn" />
+                    type="email" placeholder="Société@gmail.tn" />
+                <p *ngIf="emailError" class="field-error">{{ emailError }}</p>
 
                 <label for="password">Mot de passe</label>
                 <div class="password-field">
@@ -79,7 +80,9 @@
                     <button type="button" (click)="togglePasswordVisibility()" class="toggle-password"
                         [attr.aria-label]="hidePassword ? 'Afficher' : 'Masquer'">&#x1F441;</button>
                 </div>
+                <p *ngIf="passwordError" class="field-error">{{ passwordError }}</p>
 
+                <p *ngIf="pendingNotice" class="auth-pending">{{ pendingNotice }}</p>
                 <p *ngIf="authError" class="auth-error">{{ authError }}</p>
                 <a class="forgot" routerLink="/entreprise/forgot-password">mot de passe oublié ?</a>
 
@@ -91,7 +94,7 @@
             <!-- ✅ Lien vers inscription entreprise -->
             <p class="register-link">
                 Pas encore de compte ?
-                <a routerLink="/register-entreprise" class="register-anchor">Créer un compte entreprise</a>
+                <a routerLink="/register-entreprise" class="register-anchor">Créer un compte société</a>
             </p>
             
         </div>

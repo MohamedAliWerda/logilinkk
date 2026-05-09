@@ -55,6 +55,16 @@ export class OffresController {
     return await this.offresService.applyToOffres(data);
   }
 
+  @Post('selection')
+  async saveSelection(@Body() data: { id_etudiant: number | string; id_post: number | string; id_societe?: number | string }) {
+    return await this.offresService.saveSelection(data);
+  }
+
+  @Post('selection/remove')
+  async removeSelection(@Body() data: { id_etudiant: number | string; id_post: number | string; id_societe?: number | string }) {
+    return await this.offresService.removeSelection(data);
+  }
+
   @Put(':id')
   async updateOffre(@Param('id') id: string, @Body() data: any) {
     return await this.offresService.updateOffre(id, data);

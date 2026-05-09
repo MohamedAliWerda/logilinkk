@@ -227,7 +227,7 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
     try {
       this.entreprisesValidees = this.entreprisesValidees.filter(e => e.id !== entreprise.id);
-      await this.supabase.updateSocieteSituation(entreprise.id, 'Archivée');
+      await this.supabase.updateSocieteSituation(entreprise.id, 'Archiver');
       this.entreprisesArchivees = [{ ...entreprise, statut: 'validée' }, ...this.entreprisesArchivees];
       this.cdr.detectChanges();
     } catch (err) {
@@ -360,7 +360,7 @@ export class GestionEntrepriseComponent implements OnInit, OnDestroy {
   // ✅ Load archived companies from Supabase
   private async loadArchivees(): Promise<void> {
     try {
-      const rows: any[] = await this.supabase.fetchSocietesBySituations(['Archivée', 'archivée', 'ARCHIVÉE']);
+      const rows: any[] = await this.supabase.fetchSocietesBySituations(['Archiver', 'archiver', 'ARCHIVER']);
       const postCounts = await this.resolvePostCounts(rows);
       if (!rows || rows.length === 0) {
         this.entreprisesArchivees = [];

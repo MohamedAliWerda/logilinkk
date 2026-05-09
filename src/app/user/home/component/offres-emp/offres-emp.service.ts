@@ -75,6 +75,32 @@ export class OffresEmpService {
     );
   }
 
+  saveSelection(payload: { id_etudiant: number | string; id_post: number | string; id_societe?: number | string }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/selection`, payload).pipe(
+      timeout(10000),
+      map((response) => {
+        const normalized = this.normalizeResponse(response);
+        if (!normalized.success) {
+          throw new Error(normalized.error || 'Erreur lors de l enregistrement');
+        }
+        return normalized.data || {};
+      }),
+    );
+  }
+
+  removeSelection(payload: { id_etudiant: number | string; id_post: number | string; id_societe?: number | string }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/selection/remove`, payload).pipe(
+      timeout(10000),
+      map((response) => {
+        const normalized = this.normalizeResponse(response);
+        if (!normalized.success) {
+          throw new Error(normalized.error || 'Erreur lors de la suppression');
+        }
+        return normalized.data || {};
+      }),
+    );
+  }
+
   private normalizeResponse(response: any): {
     success: boolean;
     data: any;

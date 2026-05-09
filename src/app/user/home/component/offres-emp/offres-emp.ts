@@ -86,6 +86,11 @@ export class OffresEmpComponent implements OnInit, OnDestroy {
           this.clearLoadWatchdog();
           this.ngZone.run(() => {
             this.jobs = (offres || []).map((offre) => this.toJob(offre));
+            // restore persisted selections for current user
+            const persisted = this.loadPersistedSelections();
+            this.jobs.forEach((j) => {
+              j.selected = persisted.has(String(j.id));
+            });
             this.isLoading = false;
             this.cdr.detectChanges();
           });
@@ -155,8 +160,123 @@ export class OffresEmpComponent implements OnInit, OnDestroy {
     return Array.from(groups.values());
   }
 
+  // Persistence helpers: store selected job ids per-user in localStorage
+  private storageKey(): string {
+    try {
+      const userRaw = localStorage.getItem('user');
+      const user = userRaw ? JSON.parse(userRaw) : null;
+      const uid = user?.id ? `user_${user.id}` : 'anon';
+      return `logilink_selected_offres_${uid}`;
+    } catch {
+      return 'logilink_selected_offres_anon';
+    }
+  }
+
+  private loadPersistedSelections(): Set<string> {
+    try {
+      const raw = localStorage.getItem(this.storageKey());
+      if (!raw) return new Set<string>();
+      const arr = JSON.parse(raw);
+      return new Set(Array.isArray(arr) ? arr.map((v) => String(v)) : []);
+    } catch {
+      return new Set<string>();
+    }
+  }
+
+  private savePersistedSelections(set: Set<string>): void {
+    try {
+      localStorage.setItem(this.storageKey(), JSON.stringify(Array.from(set)));
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  private extractPostId(jobId: string): number {
+    // Extract numeric ID from potentially composite ID (e.g., "123_456" -> "123")
+    const match = String(jobId).match(/^(\d+)/);
+    return Number(match?.[1] ?? jobId);
+  }
+
   toggleJob(job: Job): void {
-    job.selected = !job.selected;
+    const newState = !job.selected;
+    // optimistic UI change
+    job.selected = newState;
+    const persisted = this.loadPersistedSelections();
+    if (newState) persisted.add(String(job.id)); else persisted.delete(String(job.id));
+    this.savePersistedSelections(persisted);
+
+    // sync to server: save or remove selection
+    const userRaw = localStorage.getItem('user');
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    const studentId = Number(user?.id);
+    if (!Number.isInteger(studentId) || studentId <= 0) {
+      // cannot sync, leave persisted locally
+      return;
+    }
+
+    const postId = this.extractPostId(job.id);
+    if (newState) {
+      this.offresEmpService.saveSelection({ id_etudiant: studentId, id_post: postId, id_societe: job.societeId })
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            // ok
+          },
+          error: (err) => {
+            // revert on error
+            job.selected = false;
+            const p = this.loadPersistedSelections();
+            p.delete(String(job.id));
+            this.savePersistedSelections(p);
+            this.showSubmitMessage('error', err?.message || 'Impossible d enregister l offre');
+          }
+        });
+    } else {
+      this.offresEmpService.removeSelection({ id_etudiant: studentId, id_post: postId, id_societe: job.societeId })
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            // ok
+          },
+          error: (err) => {
+            // revert on error
+            job.selected = true;
+            const p = this.loadPersistedSelections();
+            p.add(String(job.id));
+            this.savePersistedSelections(p);
+            this.showSubmitMessage('error', err?.message || 'Impossible de supprimer l enregistrement');
+          }
+        });
+    }
+  }
+
+  removeJob(job: Job, event?: Event): void {
+    if (event) event.stopPropagation();
+    if (!job.selected) return;
+    // optimistic
+    job.selected = false;
+    const persisted = this.loadPersistedSelections();
+    persisted.delete(String(job.id));
+    this.savePersistedSelections(persisted);
+
+    const userRaw = localStorage.getItem('user');
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    const studentId = Number(user?.id);
+    if (!Number.isInteger(studentId) || studentId <= 0) return;
+
+    const postId = this.extractPostId(job.id);
+    this.offresEmpService.removeSelection({ id_etudiant: studentId, id_post: postId, id_societe: job.societeId })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {},
+        error: (err) => {
+          job.selected = true;
+          const p2 = this.loadPersistedSelections();
+          p2.add(String(job.id));
+          this.savePersistedSelections(p2);
+          this.showSubmitMessage('error', err?.message || 'Erreur lors de la suppression');
+        }
+      });
   }
 
   postuler(): void {
@@ -194,9 +314,10 @@ export class OffresEmpComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (result) => {
-          this.jobs.forEach((job) => {
-            job.selected = false;
-          });
+          // keep selections checked as requested; ensure persisted storage still contains them
+          const persisted = this.loadPersistedSelections();
+          this.selectedJobs.forEach((j) => persisted.add(String(j.id)));
+          this.savePersistedSelections(persisted);
           this.showSubmitMessage('success', 'Candidature(s) envoyée(s)');
         },
         error: (error) => {

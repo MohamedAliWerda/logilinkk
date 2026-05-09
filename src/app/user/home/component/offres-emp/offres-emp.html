@@ -50,9 +50,14 @@
         <div class="radio"></div>
         <span>{{ job.title }}</span>
         <span class="tag">{{ job.type }}</span>
-        <button class="details-btn" (click)="$event.stopPropagation(); openDetails(job)">
-          Détails
-        </button>
+        <div class="card-actions">
+          <button class="details-btn" (click)="$event.stopPropagation(); openDetails(job)">
+            Détails
+          </button>
+          <button *ngIf="job.selected" class="eliminer-btn" (click)="$event.stopPropagation(); removeJob(job, $event)">
+            Éliminer
+          </button>
+        </div>
       </div>
     </div>
   </div>
