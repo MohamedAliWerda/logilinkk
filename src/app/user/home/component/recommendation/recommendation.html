@@ -31,6 +31,24 @@
             </article>
         </section>
 
+        <section class="score-v2-locked-block" aria-label="Score employabilite v2">
+            <div class="score-v2-head">
+                <div class="score-v2-title-wrap">
+                    <h2>Score employabilité après les certifications</h2>
+                </div>
+                <button type="button" class="score-v2-btn" (click)="computeScoreV2()" [disabled]="scoreV2Loading()">
+                    {{ scoreV2Loading() ? 'Calcul en cours...' : 'Prédire votre nouveau score' }}
+                </button>
+            </div>
+
+            <div class="score-v2-content">
+                <strong class="score-v2-value">{{ scoreV2PercentLabel() }}</strong>
+                @if (scoreV2Error()) {
+                    <p class="score-v2-error">{{ scoreV2Error() }}</p>
+                }
+            </div>
+        </section>
+
         @if (loading()) {
             <div class="state-box">Chargement des recommandations...</div>
         }

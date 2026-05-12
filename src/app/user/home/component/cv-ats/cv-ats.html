@@ -625,7 +625,7 @@
               </button> } @else {
         <div></div>
         } @if (step
-        < totalSteps) { <button type="button" class="btn-next" (click)="next()" [disabled]="navigationLock || !canGoNext()">
+        < totalSteps) { <button type="button" class="btn-next" (click)="next()" [disabled]="!(step === 5 && hardSkillsClosed) && (navigationLock || !canGoNext())">
             Continuer <i class="fa-solid fa-arrow-right"></i>
             </button>
             }

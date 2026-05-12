@@ -669,10 +669,11 @@ export class CvAts {
   }
 
   async next(): Promise<void> {
-    if (this.navigationLock) return;
-    this.navigationLock = true;
+    const allowClosedHardSkillsContinue = this.step === 5 && this.hardSkillsClosed;
+    if (this.navigationLock && !allowClosedHardSkillsContinue) return;
+    if (!allowClosedHardSkillsContinue) this.navigationLock = true;
     try {
-      if (!this.canGoNext()) {
+      if (!this.canGoNext() && !allowClosedHardSkillsContinue) {
         this.formError = 'Veuillez remplir les champs obligatoires de cette etape.';
         return;
       }
@@ -690,7 +691,9 @@ export class CvAts {
         try { this.cd.detectChanges(); } catch {}
       }
     } finally {
-      this.navigationLock = false;
+      if (!allowClosedHardSkillsContinue) {
+        this.navigationLock = false;
+      }
     }
   }
 

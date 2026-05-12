@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RecommendationService, StudentRecommendation } from './recommendation.service';
+import { RecommendationService, ScoreV2Item, StudentRecommendation } from './recommendation.service';
 
 type DisplayLevel = 'CRITIQUE' | 'MOYENNE' | 'FAIBLE';
 
@@ -24,6 +24,9 @@ export class Recommendation implements OnInit {
   readonly loading = signal(false);
   readonly loadError = signal('');
   readonly approvedRecommendations = signal<StudentRecommendation[]>([]);
+  readonly scoreV2Loading = signal(false);
+  readonly scoreV2Error = signal('');
+  readonly scoreV2Value = signal<ScoreV2Item | null>(null);
 
   readonly critiqueRecommendations = computed(() => this.byLevel('CRITIQUE'));
   readonly moyenneRecommendations = computed(() => this.byLevel('MOYENNE'));
@@ -38,6 +41,7 @@ export class Recommendation implements OnInit {
 
   ngOnInit(): void {
     void this.refresh();
+    void this.refreshScoreV2();
   }
 
   async refresh(): Promise<void> {
@@ -67,6 +71,53 @@ export class Recommendation implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  async refreshScoreV2(): Promise<void> {
+    this.scoreV2Loading.set(true);
+    this.scoreV2Error.set('');
+
+    try {
+      const item = await this.recommendationService.getScoreV2();
+      this.scoreV2Value.set(item);
+    } catch (error: unknown) {
+      const detail = (error as { error?: { detail?: string; message?: string }; message?: string })?.error?.detail
+        ?? (error as { error?: { detail?: string; message?: string }; message?: string })?.error?.message
+        ?? (error as { message?: string })?.message
+        ?? '';
+      this.scoreV2Error.set(typeof detail === 'string' && detail.trim().length
+        ? detail
+        : 'Impossible de charger le score employabilite v2.');
+      this.scoreV2Value.set(null);
+    } finally {
+      this.scoreV2Loading.set(false);
+    }
+  }
+
+  async computeScoreV2(): Promise<void> {
+    this.scoreV2Loading.set(true);
+    this.scoreV2Error.set('');
+
+    try {
+      const item = await this.recommendationService.computeScoreV2();
+      this.scoreV2Value.set(item);
+    } catch (error: unknown) {
+      const detail = (error as { error?: { detail?: string; message?: string }; message?: string })?.error?.detail
+        ?? (error as { error?: { detail?: string; message?: string }; message?: string })?.error?.message
+        ?? (error as { message?: string })?.message
+        ?? '';
+      this.scoreV2Error.set(typeof detail === 'string' && detail.trim().length
+        ? detail
+        : 'Impossible de calculer le score employabilite v2.');
+    } finally {
+      this.scoreV2Loading.set(false);
+    }
+  }
+
+  scoreV2PercentLabel(): string {
+    const value = this.scoreV2Value();
+    if (!value) return '--%';
+    return `${Number(value.scoreEmpV2).toFixed(2)}%`;
   }
 
   recommendationTitle(item: StudentRecommendation): string {

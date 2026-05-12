@@ -33,7 +33,7 @@ OLLAMA_GENERATE_ENDPOINT: str = urljoin(OLLAMA_BASE_URL, "/api/generate")
 OLLAMA_LIST_ENDPOINT: str = urljoin(OLLAMA_BASE_URL, "/api/tags")
 
 OLLAMA_MODEL_PRIORITY: List[str] = [
-    "qwen2.5:7b-instruct-q4_K_M",
+    "qwen2.5:7b",
     "qwen3:8b",
     
 ]

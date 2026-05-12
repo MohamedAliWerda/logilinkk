@@ -64,6 +64,84 @@
     margin-bottom: 1rem;
 }
 
+.score-v2-locked-block {
+    margin-bottom: 1rem;
+    border-radius: 14px;
+    border: 1px solid #cfd9ea;
+    background:
+        linear-gradient(160deg, #f4f8ff 0%, #eef3fb 100%);
+    padding: 0.9rem;
+}
+
+.score-v2-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.score-v2-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.score-v2-title-wrap h2 {
+    margin: 0;
+    font-size: 1rem;
+    color: #16345b;
+}
+
+.lock-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid #d1d9ea;
+    color: #516987;
+    background: #fff;
+}
+
+.score-v2-btn {
+    border: 1px solid #2e6298;
+    background: #2d6aab;
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.score-v2-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.score-v2-content {
+    margin-top: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.score-v2-value {
+    font-size: 2rem;
+    line-height: 1;
+    color: #0f3e73;
+}
+
+.score-v2-sub {
+    margin: 0;
+    color: #567197;
+    font-size: 0.86rem;
+}
+
+.score-v2-error {
+    margin: 0.2rem 0 0;
+    color: #a12735;
+    font-size: 0.85rem;
+}
+
 .summary-card {
     border-radius: 12px;
     border: 1px solid #d7deea;
@@ -263,6 +341,11 @@
 
     .summary-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .score-v2-head {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .card-grid {

@@ -17,6 +17,10 @@ type StudentRecommendationDocument = {
   last_synced_at: string;
 };
 
+type ScoreV2Document = {
+  id: string;
+};
+
 @Injectable()
 export class RecommendationsSyncService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RecommendationsSyncService.name);
@@ -199,7 +203,15 @@ export class RecommendationsSyncService implements OnModuleInit, OnModuleDestroy
       .from('profils_etudiant')
       .select('id,cin_passport');
     if (studentsError) throw new Error(`profils_etudiant fetch failed: ${studentsError.message}`);
-    if (!students || !students.length) return result;
+    if (!students || !students.length) {
+      const deletedOrphans = await this.deleteOrphanScoreV2Documents(db);
+      if (deletedOrphans > 0) {
+        this.logger.log(
+          `Score v2 cleanup removed ${deletedOrphans} orphan document(s) after recommendations sync.`,
+        );
+      }
+      return result;
+    }
 
     const cinValues = students
       .map((s: any) => String(s?.cin_passport ?? '').trim())
@@ -340,8 +352,35 @@ export class RecommendationsSyncService implements OnModuleInit, OnModuleDestroy
       }
     }
 
+    const deletedOrphans = await this.deleteOrphanScoreV2Documents(db);
+    if (deletedOrphans > 0) {
+      this.logger.log(
+        `Score v2 cleanup removed ${deletedOrphans} orphan document(s) after recommendations sync.`,
+      );
+    }
+
     this.lastTargetsFingerprint = currentTargetsFingerprint;
     return result;
+  }
+
+  private async deleteOrphanScoreV2Documents(db: Db): Promise<number> {
+    const recommendationsCollection = db.collection<StudentRecommendationDocument>('student_recommendations');
+    const scoreV2Collection = db.collection<ScoreV2Document>('score v2');
+
+    const recommendationIds = await recommendationsCollection.distinct('id_etudiant');
+    const validScoreIds = recommendationIds
+      .map((id) => String(id ?? '').trim())
+      .filter((id) => id.length > 0);
+
+    if (!validScoreIds.length) {
+      const deleteAll = await scoreV2Collection.deleteMany({});
+      return deleteAll.deletedCount ?? 0;
+    }
+
+    const deleteResult = await scoreV2Collection.deleteMany({
+      id: { $nin: validScoreIds },
+    });
+    return deleteResult.deletedCount ?? 0;
   }
 
   async close(): Promise<void> {
