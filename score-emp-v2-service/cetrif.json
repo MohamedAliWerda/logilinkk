@@ -1,0 +1,38 @@
+﻿[
+{
+"title": "DEA — Bloc Relation Patient, Empathie et Secret Professionnel",
+"source": "IFA / Instituts de formation en santé",
+"duration_hours": 630,
+"description": "Développe la compétence : adopter empathie, discrétion et sang-froid avec les patients."
+},
+{
+"title": "Formation Manutention de Patients et Brancardage — Prévention TMS (INRS/HAS)",
+"source": "INRS / HAS",
+"duration_hours": 14,
+"description": "Développe la compétence : assurer la manutention de patients (brancardage) en sécurité."
+},
+{
+"title": "Diplôme d'État d'Ambulancier (DEA) — Bloc Conduite en Situation d'Urgence",
+"source": "Instituts de Formation Ambulanciers (IFA)",
+"duration_hours": 630,
+"description": "Développe la compétence : conduire de manière souple et sécurisée en situation d’urgence."
+},
+{
+"title": "DEA — Bloc Préparation Matériel Médical et Hygiène en Ambulance",
+"source": "Instituts de Formation Ambulanciers (IFA)",
+"duration_hours": 630,
+"description": "Développe la compétence : préparer et vérifier le matériel médical avant mission."
+},
+{
+"title": "AFGSU Niveau 2 — Attestation de Formation aux Gestes et Soins d'Urgence",
+"source": "IFA / Ministère de la Santé",
+"duration_hours": 70,
+"description": "Développe la compétence : réaliser les gestes et procédures de premiers secours."
+},
+{
+"title": "Formation Transmission SAMU C15 — Protocoles de Communication Urgences",
+"source": "IFA / SAMU Centre 15",
+"duration_hours": 14,
+"description": "Développe la compétence : transmettre des informations pertinentes au SAMU et aux équipes médicales."
+}
+]

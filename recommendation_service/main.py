@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Recommendation Service v2 — ISGIS
 FastAPI micro-service que :
@@ -839,6 +838,82 @@ def _to_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _is_metier_match(left: Any, right: Any) -> bool:
+    left_norm = _normalize_text(left)
+    right_norm = _normalize_text(right)
+    if not left_norm or not right_norm:
+        return False
+
+    if left_norm == right_norm:
+        return True
+    if left_norm in right_norm or right_norm in left_norm:
+        return True
+
+    left_tokens = set(_TOKEN_RE.findall(left_norm))
+    right_tokens = set(_TOKEN_RE.findall(right_norm))
+    if not left_tokens or not right_tokens:
+        return False
+
+    common = left_tokens & right_tokens
+    if len(common) >= 2:
+        return True
+
+    return len(common) >= 1 and (len(left_tokens) <= 1 or len(right_tokens) <= 1)
+
+
+def sync_confirmed_targets_for_approved_recommendations() -> int:
+    approved_rows = supabase_select(
+        "ai_recommendations",
+        {"select": "id,metier", "status": "eq.approved"},
+    )
+    if not approved_rows:
+        return 0
+
+    submission_rows = supabase_select(
+        "cv_submissions",
+        {"select": "auth_id,professional_title"},
+    )
+    if not submission_rows:
+        return 0
+
+    students: list[tuple[str, str]] = []
+    for row in submission_rows:
+        auth_id = str(row.get("auth_id") or "").strip()
+        target_job = str(row.get("professional_title") or "").strip()
+        if auth_id and target_job:
+            students.append((auth_id, target_job))
+    if not students:
+        return 0
+
+    rows_to_upsert: list[dict[str, str]] = []
+    seen_pairs: set[tuple[str, str]] = set()
+
+    for row in approved_rows:
+        recommendation_id = str(row.get("id") or "").strip()
+        metier = str(row.get("metier") or "").strip()
+        if not recommendation_id or not metier:
+            continue
+
+        for auth_id, target_job in students:
+            if not _is_metier_match(metier, target_job):
+                continue
+            key = (recommendation_id, auth_id)
+            if key in seen_pairs:
+                continue
+            seen_pairs.add(key)
+            rows_to_upsert.append({"recommendation_id": recommendation_id, "auth_id": auth_id})
+
+    if not rows_to_upsert:
+        return 0
+
+    supabase_upsert(
+        "ai_confirmed_recommendation_targets",
+        rows_to_upsert,
+        on_conflict="recommendation_id,auth_id",
+    )
+    return len(rows_to_upsert)
+
+
 def load_and_cluster_gaps(st_model: Any | None) -> tuple[pd.DataFrame, list[dict[str, Any]], int]:
     """Fetch Supabase data, aggregate gaps, embed + cluster competences."""
     submissions_raw = supabase_select(
@@ -1027,10 +1102,13 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
                     job_id, total, len(cluster_summaries), n_students_total)
 
         if total == 0:
+            auto_confirmed_targets_synced = sync_confirmed_targets_for_approved_recommendations()
             stats = {
                 "stage": "done",
                 "total_generated": 0,
                 "targets": 0,
+                "confirmed_targets_synced": 0,
+                "auto_confirmed_targets_synced": auto_confirmed_targets_synced,
                 "preserved_non_pending": 0,
                 "pruned_stale_pending": 0,
                 "pruned_stale_targets": 0,
@@ -1256,15 +1334,49 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
         if upsertable_reco:
             supabase_upsert("ai_recommendations", upsertable_reco, on_conflict="id")
 
-        target_rows_upsertable = [
-            t for t in target_rows if t.get("recommendation_id") not in preserved_ids
-        ]
-        if target_rows_upsertable:
+        # Keep target mappings in sync for active recommendations (pending/approved/edited).
+        # This ensures newly impacted students are attached even when a recommendation
+        # is preserved because it is already approved.
+        deduped_target_rows: list[dict[str, Any]] = []
+        seen_target_keys: set[tuple[str, str]] = set()
+        for target in target_rows:
+            recommendation_id = str(target.get("recommendation_id") or "").strip()
+            auth_id = str(target.get("auth_id") or "").strip()
+            if not recommendation_id or not auth_id:
+                continue
+
+            status = existing_status.get(recommendation_id, "")
+            if status == "rejected":
+                continue
+
+            key = (recommendation_id, auth_id)
+            if key in seen_target_keys:
+                continue
+            seen_target_keys.add(key)
+            deduped_target_rows.append({"recommendation_id": recommendation_id, "auth_id": auth_id})
+
+        if deduped_target_rows:
             supabase_upsert(
                 "ai_recommendation_targets",
-                target_rows_upsertable,
+                deduped_target_rows,
                 on_conflict="recommendation_id,auth_id",
             )
+
+        confirmed_target_rows = [
+            t
+            for t in deduped_target_rows
+            if existing_status.get(t["recommendation_id"], "") == "approved"
+        ]
+        if confirmed_target_rows:
+            supabase_upsert(
+                "ai_confirmed_recommendation_targets",
+                confirmed_target_rows,
+                on_conflict="recommendation_id,auth_id",
+            )
+
+        # Auto-sync all approved recommendations against current student target jobs.
+        # This keeps confirmed targets fresh when new students are added to a job.
+        auto_confirmed_targets_synced = sync_confirmed_targets_for_approved_recommendations()
 
         # Prune stale pending rows that no longer appear in this run.
         latest_pending_ids = {row["id"] for row in upsertable_reco}
@@ -1279,7 +1391,9 @@ def generate_recommendations_pipeline(job_id: str, triggered_by: Optional[str] =
         stats = {
             "stage": "done",
             "total_generated": len(upsertable_reco),
-            "targets": len(target_rows_upsertable),
+            "targets": len(deduped_target_rows),
+            "confirmed_targets_synced": len(confirmed_target_rows),
+            "auto_confirmed_targets_synced": auto_confirmed_targets_synced,
             "preserved_non_pending": len(preserved_ids),
             "pruned_stale_pending": pruned_pending,
             "pruned_stale_targets": pruned_targets,

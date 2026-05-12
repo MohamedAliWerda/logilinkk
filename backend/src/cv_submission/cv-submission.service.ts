@@ -423,6 +423,164 @@ export class CvSubmissionService {
     return d.toISOString().slice(0, 10);
   }
 
+  private normalizeRecommendationText(value: unknown): string {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, ' ');
+  }
+
+  private isRecommendationMetierMatch(metier: unknown, professionalTitle: unknown): boolean {
+    const normalizedMetier = this.normalizeRecommendationText(metier);
+    const normalizedTitle = this.normalizeRecommendationText(professionalTitle);
+    if (!normalizedMetier || !normalizedTitle) return false;
+
+    if (normalizedMetier === normalizedTitle) return true;
+    if (normalizedMetier.includes(normalizedTitle) || normalizedTitle.includes(normalizedMetier)) return true;
+
+    const metierTokens = normalizedMetier.split(' ').filter(Boolean);
+    const titleTokens = new Set(normalizedTitle.split(' ').filter(Boolean));
+    const commonTokenCount = metierTokens.filter((token) => titleTokens.has(token)).length;
+
+    return commonTokenCount >= 2
+      || (commonTokenCount >= 1 && (metierTokens.length <= 1 || titleTokens.size <= 1));
+  }
+
+  private async syncConfirmedTargetsForStudent(authId: string, professionalTitle?: unknown): Promise<void> {
+    const normalizedAuthId = String(authId ?? '').trim();
+    if (!normalizedAuthId) return;
+
+    let targetJob = String(professionalTitle ?? '').trim();
+    if (!targetJob) {
+      const { data: cvRow, error: cvError } = await this.supabase
+        .from('cv_submissions')
+        .select('professional_title')
+        .eq('auth_id', normalizedAuthId)
+        .maybeSingle();
+      if (cvError) throw cvError;
+      targetJob = String(cvRow?.professional_title ?? '').trim();
+    }
+
+    // Refresh all students of the same target job cohort to keep counts in sync.
+    const { data: submissionRows, error: submissionsError } = await this.supabase
+      .from('cv_submissions')
+      .select('auth_id,professional_title');
+    if (submissionsError) throw submissionsError;
+
+    const titleByAuth = new Map<string, string>();
+    for (const row of submissionRows ?? []) {
+      const rowAuthId = String((row as any)?.auth_id ?? '').trim();
+      const rowTitle = String((row as any)?.professional_title ?? '').trim();
+      if (!rowAuthId) continue;
+      titleByAuth.set(rowAuthId, rowTitle);
+    }
+
+    if (!titleByAuth.has(normalizedAuthId)) {
+      titleByAuth.set(normalizedAuthId, targetJob);
+    }
+
+    const normalizedTargetJob = String(targetJob ?? '').trim();
+    const cohortAuthIds = Array.from(titleByAuth.entries())
+      .filter(([, title]) => this.isRecommendationMetierMatch(title, normalizedTargetJob))
+      .map(([rowAuthId]) => rowAuthId);
+
+    const uniqueCohortAuthIds = Array.from(new Set(cohortAuthIds));
+    if (!uniqueCohortAuthIds.length) {
+      uniqueCohortAuthIds.push(normalizedAuthId);
+    }
+
+    // Primary source of recommendation content is confirmed snapshots.
+    const { data: confirmedRows, error: confirmedError } = await this.supabase
+      .from('ai_confirmed_recommendations')
+      .select('recommendation_id,metier');
+    if (confirmedError) throw confirmedError;
+
+    const recommendationIds = (confirmedRows ?? [])
+      .map((row: any) => String(row?.recommendation_id ?? '').trim())
+      .filter((id: string) => !!id);
+
+    const approvedIds = new Set<string>();
+    for (let i = 0; i < recommendationIds.length; i += 200) {
+      const chunk = recommendationIds.slice(i, i + 200);
+      if (!chunk.length) continue;
+      const { data: statusRows, error: statusError } = await this.supabase
+        .from('ai_recommendations')
+        .select('id,status')
+        .in('id', chunk);
+      if (statusError) throw statusError;
+      for (const statusRow of statusRows ?? []) {
+        const recommendationId = String((statusRow as any)?.id ?? '').trim();
+        const status = String((statusRow as any)?.status ?? '').trim().toLowerCase();
+        if (recommendationId && status === 'approved') {
+          approvedIds.add(recommendationId);
+        }
+      }
+    }
+
+    let approvedRecommendationRows = (confirmedRows ?? [])
+      .map((row: any) => ({
+        recommendation_id: String(row?.recommendation_id ?? '').trim(),
+        metier: String(row?.metier ?? '').trim(),
+      }))
+      .filter((row: any) => !!row.recommendation_id && approvedIds.has(row.recommendation_id));
+
+    // Fallback when confirmed snapshots are not yet populated for some approved rows.
+    if (!approvedRecommendationRows.length) {
+      const { data: approvedRows, error: approvedError } = await this.supabase
+        .from('ai_recommendations')
+        .select('id,metier,status')
+        .eq('status', 'approved');
+      if (approvedError) throw approvedError;
+      approvedRecommendationRows = (approvedRows ?? [])
+        .map((row: any) => ({
+          recommendation_id: String(row?.id ?? '').trim(),
+          metier: String(row?.metier ?? '').trim(),
+        }))
+        .filter((row: any) => !!row.recommendation_id);
+    }
+
+    for (let i = 0; i < uniqueCohortAuthIds.length; i += 200) {
+      const chunk = uniqueCohortAuthIds.slice(i, i + 200);
+      const { error: deleteError } = await this.supabase
+        .from('ai_confirmed_recommendation_targets')
+        .delete()
+        .in('auth_id', chunk);
+      if (deleteError) throw deleteError;
+    }
+
+    const rowsToUpsert: Array<{ recommendation_id: string; auth_id: string }> = [];
+    const seenPairs = new Set<string>();
+
+    for (const rowAuthId of uniqueCohortAuthIds) {
+      const studentTitle = String(titleByAuth.get(rowAuthId) ?? '').trim();
+      if (!studentTitle) continue;
+
+      for (const recommendation of approvedRecommendationRows) {
+        if (!this.isRecommendationMetierMatch(recommendation.metier, studentTitle)) continue;
+        const key = `${recommendation.recommendation_id}|${rowAuthId}`;
+        if (seenPairs.has(key)) continue;
+        seenPairs.add(key);
+        rowsToUpsert.push({
+          recommendation_id: recommendation.recommendation_id,
+          auth_id: rowAuthId,
+        });
+      }
+    }
+
+    if (!rowsToUpsert.length) return;
+
+    for (let i = 0; i < rowsToUpsert.length; i += 500) {
+      const chunk = rowsToUpsert.slice(i, i + 500);
+      const { error: upsertError } = await this.supabase
+        .from('ai_confirmed_recommendation_targets')
+        .upsert(chunk, { onConflict: 'recommendation_id,auth_id' });
+      if (upsertError) throw upsertError;
+    }
+  }
+
   async upsertCv(authId: string, payload: any): Promise<void> {
     // Upsert main row using auth_id as unique key
     const { data: mainRow, error: mainError } = await this.supabase
@@ -445,7 +603,7 @@ export class CvSubmissionService {
           updated_at: new Date().toISOString(),
         },
       ], { onConflict: 'auth_id' })
-      .select('id')
+      .select('id,professional_title')
       .single();
 
     if (mainError) throw mainError;
@@ -576,6 +734,11 @@ export class CvSubmissionService {
         throw enErr;
       }
     }
+
+    const effectiveProfessionalTitle = String(
+      mainRow?.professional_title ?? payload?.professionalTitle ?? '',
+    ).trim();
+    await this.syncConfirmedTargetsForStudent(authId, effectiveProfessionalTitle);
   }
 
   private normalizeSkillKey(value: unknown): string {
