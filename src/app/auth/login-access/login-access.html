@@ -1,5 +1,4 @@
-<!-- login_entreprise.html -->
-<div class="main-login-layout entreprise-theme">
+<div class="main-login-layout login-access-layout">
     <div class="login-left">
         <div class="deco deco-ring deco-ring-1"></div>
         <div class="deco deco-ring deco-ring-2"></div>
@@ -45,53 +44,43 @@
 
     <div class="login-right">
         <div class="login-box">
-            <a class="access-back" routerLink="/login">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M15 18l-6-6 6-6"/>
-                </svg>
-                Changer le type d'accès
-            </a>
-
             <div class="login-header">
                 <img src="isgi-sfax-logo-.png" alt="ISGI Sfax" class="logo-left">
                 <img src="djagora-removebg-preview.png" alt="Djagora" class="logo-right">
             </div>
 
-            
-
             <h2>Connexion</h2>
-            
+            <p class="subtitle">Choisissez votre type d'accès pour continuer</p>
 
-            <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
-                <label for="email">Email</label>
-                <input id="email" formControlName="email"
-                    type="email" placeholder="Société@gmail.tn" />
-                <p *ngIf="emailError" class="field-error">{{ emailError }}</p>
+            <div class="access-grid">
+                <a class="access-card" routerLink="/login-etudiant">
+                    <span class="access-icon access-icon-student">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 10l-10-5-10 5 10 5 10-5z" />
+                            <path d="M6 12v5a6 6 0 0 0 12 0v-5" />
+                        </svg>
+                    </span>
+                    <span class="access-title">Étudiant</span>
+                    <span class="access-desc">Accédez à votre compte étudiant.</span>
+                </a>
 
-                <label for="password">Mot de passe</label>
-                <div class="password-field">
-                    <input [type]="hidePassword ? 'password' : 'text'" formControlName="password"
-                        placeholder="••••••••" aria-label="Mot de passe" />
-                    <button type="button" (click)="togglePasswordVisibility()" class="toggle-password"
-                        [attr.aria-label]="hidePassword ? 'Afficher' : 'Masquer'">&#x1F441;</button>
-                </div>
-                <p *ngIf="passwordError" class="field-error">{{ passwordError }}</p>
-
-                <p *ngIf="pendingNotice" class="auth-pending">{{ pendingNotice }}</p>
-                <p *ngIf="authError" class="auth-error">{{ authError }}</p>
-                <a class="forgot" routerLink="/entreprise/forgot-password">mot de passe oublié ?</a>
-
-                <button class="login-btn" type="submit" [disabled]="isSubmitting">
-                    {{ isSubmitting ? 'Connexion...' : 'Se Connecter' }}
-                </button>
-            </form>
-
-            <!-- ✅ Lien vers inscription entreprise -->
-            <p class="register-link">
-                Pas encore de compte ?
-                <a routerLink="/register-entreprise" class="register-anchor">Créer un compte société</a>
-            </p>
-            
+                <a class="access-card" routerLink="/entreprise/loginen">
+                    <span class="access-icon access-icon-company">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 22h18" />
+                            <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
+                            <path d="M9 7h2" />
+                            <path d="M13 7h2" />
+                            <path d="M9 11h2" />
+                            <path d="M13 11h2" />
+                            <path d="M9 15h2" />
+                            <path d="M13 15h2" />
+                        </svg>
+                    </span>
+                    <span class="access-title">Société</span>
+                    <span class="access-desc">Accédez à votre compte société.</span>
+                </a>
+            </div>
         </div>
     </div>
 </div>

@@ -19,11 +19,6 @@ export class SettingsAdmin {
     role: 'Administrateur principal',
   };
 
-  notifications = {
-    push: true,
-    email: true,
-  };
-
   platform = {
     autoMatching: true,
     darkMode: false,

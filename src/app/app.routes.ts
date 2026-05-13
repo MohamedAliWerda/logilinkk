@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { Login } from './auth/login/login';
+import { LoginAccess } from './auth/login-access/login-access';
 import { Verify } from './auth/verify/verify';
 import { ForgetPasswordComponent } from './auth/forgot-pass/forget-password.component';
 import { VerifyCodeComponent } from './auth/forgot-pass/verify-code.component';
@@ -29,7 +30,8 @@ import { OffresEmpComponent } from './user/home/component/offres-emp/offres-emp'
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
-  { path: 'login', component: Login },
+  { path: 'login', component: LoginAccess },
+  { path: 'login-etudiant', component: Login },
   { path: 'register-entreprise', component: RegisterEntreprise },
   { path: 'verify', component: Verify },
   { path: 'forgot-password', component: ForgetPasswordComponent },

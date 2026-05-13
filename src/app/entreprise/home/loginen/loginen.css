@@ -371,6 +371,28 @@ input:focus {
     text-decoration: none;
 }
 
+.access-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: #6b7280;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    width: 100%;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+
+.access-back svg {
+    width: 16px;
+    height: 16px;
+}
+
+.access-back:hover {
+    color: #1a1a2e;
+}
+
 /* ── Badge Espace Entreprise ── */
 .entreprise-badge {
     display: inline-flex;

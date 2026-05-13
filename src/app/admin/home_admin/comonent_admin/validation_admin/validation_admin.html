@@ -121,17 +121,6 @@
         [(ngModel)]="searchQuery"
       />
     </label>
-    <div class="search-actions">
-      <button
-        type="button"
-        class="btn-ghost"
-        [disabled]="!searchQuery"
-        (click)="clearSearch()"
-      >
-        Effacer
-      </button>
-      <button type="button" class="btn-ghost" (click)="refresh()">Rafraîchir</button>
-    </div>
     <span class="result-count">{{ filteredRecommendations.length }} résultat(s)</span>
   </div>
 
