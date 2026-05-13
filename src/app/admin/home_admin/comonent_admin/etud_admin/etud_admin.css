@@ -146,7 +146,7 @@
 .dashboard-styled-table td {
     padding: 1rem 0;
     font-size: 0.95rem;
-    color: #555;
+    color: rgb(102, 102, 102);
 }
 
 .text-center {
@@ -161,32 +161,32 @@
 /* ─── COLUMNS ─────────────────────────────────────────── */
 
 .col-name {
-    font-weight: 700;
-    color: #1a1a2e;
+    font-weight: 400;
+    color: rgb(102, 102, 102);
     width: 22%;
 }
 
 .col-id {
-    color: #aaa;
+    color: rgb(102, 102, 102);
     width: 14%;
 }
 
 .col-score {
-    font-weight: 700;
+    font-weight: 400;
     font-size: 1rem;
     width: 14%;
 }
 
 .score-ats {
-    color: #16a34a;
+    color: rgb(102, 102, 102);
 }
 
 .score-emp {
-    color: #e07800;
+    color: rgb(102, 102, 102);
 }
 
 .score-syn {
-    color: #0891b2;
+    color: rgb(102, 102, 102);
 }
 
 .col-actions {
@@ -215,12 +215,13 @@
     padding: 0.28rem 0.85rem;
     border-radius: 2rem;
     font-size: 0.83rem;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .filiere-pill.large {
     padding: 0.4rem 1.1rem;
     font-size: 0.9rem;
+    font-weight: 400;
 }
 
 .filiere-pill[data-filiere="Logistique"] {

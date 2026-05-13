@@ -32,6 +32,29 @@ export class CvAts {
     return String(v);
   }
 
+  private formatToMonth(value: any): string {
+    const raw = this.asString(value).trim();
+    if (!raw) return '';
+
+    // Already YYYY-MM
+    const ym = raw.match(/^(\d{4})-(\d{2})$/);
+    if (ym) return `${ym[1]}-${ym[2]}`;
+
+    // If YYYY-MM-DD or ISO date, extract year-month
+    const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (ymd) return `${ymd[1]}-${ymd[2]}`;
+
+    // Try Date parse for other formats
+    const parsed = new Date(raw);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+    }
+
+    return '';
+  }
+
   private normalizeMetierId(value: unknown): string {
     if (value === undefined || value === null) return '';
 
@@ -160,13 +183,13 @@ export class CvAts {
       this.formations = cv.formations.map((f: any) => ({
         diplome: this.asString(f.diplome ?? this.formations[0]?.diplome),
         institution: this.asString(f.institution ?? ''),
-        dateDebut: this.asString(f.dateDebut ?? ''),
-        dateFin: this.asString(f.dateFin ?? ''),
+        dateDebut: this.formatToMonth(f.dateDebut ?? f.date_debut ?? ''),
+        dateFin: this.formatToMonth(f.dateFin ?? f.date_fin ?? ''),
         moyenne: this.asString(f.moyenne ?? ''),
         modules: this.asString(f.modules ?? ''),
-        pfeTitre: this.asString(f.pfeTitre ?? ''),
-        pfeEntreprise: this.asString(f.pfeEntreprise ?? ''),
-        pfeTechnologies: this.asString(f.pfeTechnologies ?? ''),
+        pfeTitre: this.asString(f.pfeTitre ?? f.pfe_titre ?? ''),
+        pfeEntreprise: this.asString(f.pfeEntreprise ?? f.pfe_entreprise ?? ''),
+        pfeTechnologies: this.asString(f.pfeTechnologies ?? f.pfe_technologies ?? ''),
       }));
     }
 
@@ -176,11 +199,11 @@ export class CvAts {
         poste: this.asString(e.poste ?? ''),
         entreprise: this.asString(e.entreprise ?? ''),
         secteur: this.asString(e.secteur ?? ''),
-        dateDebut: this.asString(e.dateDebut ?? ''),
-        dateFin: this.asString(e.dateFin ?? ''),
+        dateDebut: this.formatToMonth(e.dateDebut ?? e.date_debut ?? ''),
+        dateFin: this.formatToMonth(e.dateFin ?? e.date_fin ?? ''),
         lieu: this.asString(e.lieu ?? ''),
         description: this.asString(e.description ?? ''),
-        motsCles: this.asString(e.motsCles ?? ''),
+        motsCles: this.asString(e.motsCles ?? e.mots_cles ?? ''),
       }));
     }
 
@@ -208,7 +231,7 @@ export class CvAts {
     if (Array.isArray(cv.langues) && cv.langues.length > 0) {
       this.langues = cv.langues.map((l: any) => ({
         langue: this.asString(l.langue ?? ''),
-        niveau: this.asString(l.niveau ?? 'B1'),
+        niveau: this.asString(l.niveau ?? l.niveau_cecrl ?? 'B1'),
         certification: this.asString(l.certification ?? ''),
         score: this.asString(l.score ?? ''),
       }));
@@ -229,7 +252,7 @@ export class CvAts {
       this.certifications = cv.certifications.map((c: any) => ({
         titre: this.asString(c.titre ?? ''),
         organisme: this.asString(c.organisme ?? ''),
-        date: this.asString(c.date ?? ''),
+        date: this.formatToMonth(c.date ?? c.date_obtenue ?? ''),
         verification: this.asString(c.verification ?? ''),
       }));
     }
@@ -239,8 +262,8 @@ export class CvAts {
       this.engagements = cv.engagements.map((e: any) => ({
         type: this.asString(e.type ?? 'Associatif'),
         role: this.asString(e.role ?? ''),
-        dateDebut: this.asString(e.dateDebut ?? ''),
-        dateFin: this.asString(e.dateFin ?? ''),
+        dateDebut: this.formatToMonth(e.dateDebut ?? e.date_debut ?? ''),
+        dateFin: this.formatToMonth(e.dateFin ?? e.date_fin ?? ''),
       }));
     }
 

@@ -12,16 +12,6 @@ interface Competence {
   domain: string;
 }
 
-interface PartnerSkill {
-  code: string;
-  name: string;
-  description: string;
-  category: string;
-  domain: string;
-  startDate: string;
-  partner: string;
-}
-
 @Component({
   selector: 'app-formations-admin',
   standalone: true,
@@ -48,45 +38,6 @@ export class FormationsAdmin implements OnInit {
   ngOnInit(): void {
     void this.loadCompetences();
   }
-
-  partnerSkills: PartnerSkill[] = [
-    {
-      code: 'PART-SAP-01',
-      name: 'Expertise SAP S/4HANA',
-      description: 'Maitrise avancée des modules logistiques et intégration des processus supply chain.',
-      category: 'Technique',
-      domain: 'Digitalization',
-      startDate: '2026-03-20',
-      partner: 'SAP Academic Alliances'
-    },
-    {
-      code: 'PART-CMA-02',
-      name: 'Opérations Portuaires',
-      description: 'Formation spécialisée sur la gestion des escales et le suivi des conteneurs.',
-      category: 'Technique',
-      domain: 'Logistique Maritime',
-      startDate: '2026-04-10',
-      partner: 'CMA CGM Academy'
-    },
-    {
-      code: 'PART-GEOD-03',
-      name: 'Freight Forwarding Export',
-      description: 'Optimisation des plans de transport internationaux et gestion documentaire.',
-      category: 'Technique',
-      domain: 'Transit',
-      startDate: '2026-05-15',
-      partner: 'GEODIS University'
-    },
-    {
-      code: 'PART-DHL-04',
-      name: 'E-commerce Logistics',
-      description: 'Stratégies de dernier kilomètre et gestion des retours automatisée.',
-      category: 'Organisationnelle',
-      domain: 'Supply Chain',
-      startDate: '2026-02-01',
-      partner: 'DHL Supply Chain'
-    }
-  ];
 
   get stats() {
     return {
@@ -179,44 +130,5 @@ export class FormationsAdmin implements OnInit {
       this.sortColumn = column;
       this.sortDirection = 'asc';
     }
-  }
-
-  showPartnerForm: boolean = false;
-  newPartnerSkill: PartnerSkill = this.initPartnerSkill();
-  categories: string[] = ['Technique', 'Organisationnelle', 'Physique', 'Comportementale'];
-
-  private initPartnerSkill(): PartnerSkill {
-    return {
-      code: '',
-      name: '',
-      description: '',
-      category: 'Technique',
-      domain: '',
-      startDate: new Date().toISOString().split('T')[0],
-      partner: ''
-    };
-  }
-
-  openPartnerForm(): void {
-    this.showPartnerForm = true;
-    this.newPartnerSkill = this.initPartnerSkill();
-  }
-
-  closePartnerForm(): void {
-    this.showPartnerForm = false;
-  }
-
-  addPartnerSkill(): void {
-    if (this.newPartnerSkill.code && this.newPartnerSkill.name && this.newPartnerSkill.partner) {
-      this.partnerSkills = [
-        { ...this.newPartnerSkill },
-        ...this.partnerSkills
-      ];
-      this.closePartnerForm();
-    }
-  }
-
-  trackByCode(index: number, item: { code: string }): string {
-    return item.code;
   }
 }

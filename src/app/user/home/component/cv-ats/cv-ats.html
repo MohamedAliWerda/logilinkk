@@ -557,17 +557,7 @@
               <i class="fa-solid fa-plus"></i> Ajouter une activité
             </button>
 
-    <div class="interest-wrap">
-        <h3>Loisirs et centres d'intérêt</h3>
-        @for (it of interests; track $index; let i = $index) {
-        <div class="interest-row">
-            <input class="form-control" [(ngModel)]="it.label" placeholder="Voyages, sport, lecture, veille supply chain" /> @if (interests.length > 1) {
-            <button type="button" class="btn-del-sm" (click)="removeInterest(i)">
-                      <i class="fa-solid fa-xmark"></i>
-                    </button> }
-        </div>
-        }
-    </div>
+
     }
 
     <!-- ─── STEP 11 : Validation + Génération ─── -->

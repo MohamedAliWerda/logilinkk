@@ -61,13 +61,6 @@
               <path d="M7 10l5 5 5-5H7z" />
             </svg>
                     </th>
-                    <th (click)="setSort('scoreSynergie')" class="sortable text-center">
-                        Score Synergie
-                        <svg class="sort-indicator" [class.active]="sortColumn === 'scoreSynergie'" [class.desc]="sortDirection === 'desc'" viewBox="0 0 24 24">
-              <path d="M7 10l5 5 5-5H7z" />
-            </svg>
-                    </th>
-                    <th class="text-right">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -80,71 +73,15 @@
                 {{ s.filiere }}
               </span>
                     </td>
-                    <td class="col-score score-ats text-center">{{ s.scoreAts }}/100</td>
-                    <td class="col-score score-emp text-center">{{ s.scoreEmployability }}/100</td>
-                    <td class="col-score score-syn text-center">{{ s.scoreSynergie }}/100</td>
-                    <td class="col-actions">
-                                                <button type="button" class="voir-profil-link" (click)="viewProfile(s.id)">
-                                Voir le profil
-                            </button>
-                    </td>
+                    <td class="col-score score-ats text-center">{{ s.scoreAts }}%</td>
+                    <td class="col-score score-emp text-center">{{ s.scoreEmployabilityRaw ?? s.scoreEmployability }}%</td>
                 </tr>
                 } @empty {
                 <tr>
-                    <td colspan="7" class="empty-msg">Aucun étudiant trouvé</td>
+                    <td colspan="5" class="empty-msg">Aucun étudiant trouvé</td>
                 </tr>
                 }
             </tbody>
         </table>
     </div>
-
-    <!-- PROFILE MODAL -->
-    @if (showProfileModal && selectedStudent) {
-    <div class="modal-overlay" (click)="closeProfileModal()">
-        <div class="profile-modal-card" (click)="$event.stopPropagation()">
-            <header class="modal-header">
-                <h3 class="modal-title">{{ selectedStudent.fullName }} - {{ selectedStudent.id }}</h3>
-                <button class="close-btn" (click)="closeProfileModal()">Fermer</button>
-            </header>
-
-            <div class="modal-body profile-body">
-                <div class="profile-summary">
-                    <span class="filiere-pill large" [attr.data-filiere]="selectedStudent.filiere">{{ selectedStudent.filiere }}</span>
-                    <span class="score-indicator">CV ATS: <strong class="text-green">{{ selectedStudent.scoreAts }}/100</strong></span>
-                    <span class="score-indicator">Employabilité: <strong class="text-orange">{{ selectedStudent.scoreEmployability }}/100</strong></span>
-                    <span class="score-indicator">Synergie: <strong class="text-blue">{{ selectedStudent.scoreSynergie }}/100</strong></span>
-                </div>
-
-                <div class="profile-grid">
-                    <div class="info-card">
-                        <h4>Appariements</h4>
-                        <ul>
-                            @for (m of selectedStudent.matchings; track m) {
-                            <li>{{ m }}</li>
-                            }
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Écarts</h4>
-                        <ul>
-                            @for (g of selectedStudent.gaps; track g) {
-                            <li>{{ g }}</li>
-                            }
-                        </ul>
-                    </div>
-
-                    <div class="info-card wide">
-                        <h4>Les recommandations</h4>
-                        <ul>
-                            @for (r of selectedStudent.recommendations; track r) {
-                            <li>{{ r }}</li>
-                            }
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    }
 </section>

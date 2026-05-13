@@ -112,7 +112,7 @@
     </div>
 
     <!-- ── Recent students table ── -->
-    <div class="table-card">
+    <div class="table-panel">
         <div class="panel-header">
             <h3 class="table-title">Liste des étudiants</h3>
             <button class="table-panel-link" type="button" (click)="openStudentsPopup()">Voir tout →</button>
@@ -123,73 +123,26 @@
         <table *ngIf="recentStudents.length > 0" class="students-table">
             <thead>
                 <tr>
-                    <th>Étudiant</th>
                     <th>ID</th>
+                    <th>Étudiant</th>
                     <th>Spécialisation</th>
                     <th>Score CV ATS</th>
                     <th>Score Employabilité</th>
-                    <th class="col-actions">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                <tr *ngFor="let s of recentStudents">
-                    <td class="col-name">{{ s.name }}</td>
+                <tr *ngFor="let s of recentStudents; let i = index">
                     <td class="col-id">{{ s.id }}</td>
+                    <td class="col-name">{{ s.name }}</td>
                     <td>
-                        <span class="badge" [style.background]="getBadgeStyle(s.speciality).bg" [style.color]="getBadgeStyle(s.speciality).color">
-              {{ s.speciality }}
-            </span>
+                        <span>{{ s.speciality }}</span>
                     </td>
-                    <td class="col-score" [style.color]="scoreColor(s.score)">{{ s.score }}/100</td>
-                    <td class="col-score" [style.color]="scoreColor(s.employabilityScore)">{{ s.employabilityScore }}/100</td>
-                    <td class="col-actions"><button type="button" class="voir-profil" (click)="openStudentProfile(s)">Voir le profil</button></td>
+                    <td class="col-score">{{ s.score }}/100</td>
+                    <td class="col-score">{{ i < 5 ? (s.employabilityScoreRaw ?? (s.employabilityScore + '/100')) : '' }}</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
-    <!-- Student profile modal is still used for individual view, but the full list modal is removed -->
-
-    <div class="students-modal-overlay" *ngIf="showStudentProfilePopup" (click)="closeStudentProfile()">
-        <div class="students-modal profile-modal" (click)="$event.stopPropagation()" *ngIf="selectedStudent as profile">
-            <div class="students-modal-header">
-                <h3>{{ profile.name }} - {{ profile.id }}</h3>
-                <button class="students-modal-close" type="button" (click)="closeStudentProfile()">Fermer</button>
-            </div>
-
-            <div class="students-modal-body profile-body">
-                <div class="profile-summary">
-                    <span class="badge" [style.background]="getBadgeStyle(profile.speciality).bg" [style.color]="getBadgeStyle(profile.speciality).color">
-            {{ profile.speciality }}
-          </span>
-                    <span class="profile-score">CV ATS: <strong [style.color]="scoreColor(profile.score)">{{ profile.score
-              }}/100</strong></span>
-                    <span class="profile-score">Employabilité: <strong [style.color]="scoreColor(profile.employabilityScore)">{{
-              profile.employabilityScore }}/100</strong></span>
-                </div>
-
-                <div class="profile-grid">
-                    <div class="profile-card">
-                        <h4>Appariements</h4>
-                        <ul>
-                            <li *ngFor="let item of profile.details.matchings">{{ item }}</li>
-                        </ul>
-                    </div>
-                    <div class="profile-card">
-                        <h4>Écarts</h4>
-                        <ul>
-                            <li *ngFor="let item of profile.details.gaps">{{ item }}</li>
-                        </ul>
-                    </div>
-                    <div class="profile-card profile-card-wide">
-                        <h4>Les recommandations</h4>
-                        <ul>
-                            <li *ngFor="let item of profile.details.recommendations">{{ item }}</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
 </main>

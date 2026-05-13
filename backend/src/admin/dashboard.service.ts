@@ -15,6 +15,7 @@ export interface DashboardStudent {
   speciality: string;
   score: number;
   employabilityScore: number;
+  employabilityScoreRaw?: string;
   details: {
     matchings: string[];
     gaps: string[];
@@ -83,37 +84,37 @@ export class DashboardService {
   }
 
   async getRecentStudents(limit = 5): Promise<DashboardStudent[]> {
-    const { data: cvRows, error: cvError } = await this.supabase
-      .from('cv_submissions')
-      .select('id, auth_id, ats_score, professional_title, specialization, updated_at')
-      .order('updated_at', { ascending: false })
-      .limit(Math.max(1, Math.min(2000, limit * 4)));
-    if (cvError) {
-      this.logger.error('cv_submissions fetch failed: ' + cvError.message);
-      throw new Error(cvError.message);
+    // Fetch students ordered by employability score (score_final) descending
+    const { data: scoreRows, error: scoreError } = await this.supabase
+      .from('score_employabilité')
+      .select('etudiant, score_final')
+      .order('score_final', { ascending: false })
+      .limit(Math.max(1, Math.min(500, limit)));
+    if (scoreError) {
+      this.logger.error('score_employabilité fetch failed: ' + scoreError.message);
+      throw new Error(scoreError.message);
     }
 
-    const submissions = cvRows ?? [];
-    if (submissions.length === 0) return [];
+    const scores = scoreRows ?? [];
+    if (scores.length === 0) return [];
 
-    const authIds = Array.from(new Set(submissions.map((row: any) => String(row.auth_id ?? '')).filter(Boolean)));
+    const etudiantIds = Array.from(new Set(scores.map((r: any) => String(r.etudiant ?? '')).filter(Boolean)));
 
+    // Fetch users by internal id (etudiant)
     const [users, metierScores, competenceResults, recommendationTargets, recommendations] = await Promise.all([
-      this.fetchUsers(authIds),
-      this.fetchTopMetierScores(authIds),
-      this.fetchCompetenceResults(authIds),
-      this.fetchRecommendationTargets(authIds),
+      this.fetchUsersByIds(etudiantIds),
+      this.fetchTopMetierScores([]),
+      this.fetchCompetenceResults([]),
+      this.fetchRecommendationTargets([]),
       this.fetchRecommendationRows(),
     ]);
 
-    const userByAuth = new Map<string, { id: string; cinPassport: string; email: string; nom: string; prenom: string; filiere: string }>();
+    const userById = new Map<string, { authId: string; id: string; cinPassport: string; email: string; nom: string; prenom: string; filiere: string }>();
     for (const u of users) {
-      userByAuth.set(u.authId, u);
+      userById.set(u.id, u);
     }
 
-    const profileByCin = await this.fetchProfilesByCin(Array.from(userByAuth.values()).map((u) => u.cinPassport).filter(Boolean));
-
-    const employabilityByEtudiant = await this.fetchEmployabilityScores(Array.from(userByAuth.values()).map((u) => u.id).filter(Boolean));
+    const profileByCin = await this.fetchProfilesByCin(Array.from(userById.values()).map((u) => u.cinPassport).filter(Boolean));
 
     const metierByAuth = new Map<string, any[]>();
     for (const row of metierScores) {
@@ -152,57 +153,55 @@ export class DashboardService {
       recommendationLabelsByAuth.set(authId, list);
     }
 
-    const seenAuthIds = new Set<string>();
     const result: DashboardStudent[] = [];
-
-    for (const submission of submissions) {
+    for (const row of scores) {
       if (result.length >= limit) break;
-      const authId = String(submission.auth_id ?? '');
-      if (!authId || seenAuthIds.has(authId)) continue;
-      seenAuthIds.add(authId);
-
-      const userInfo = userByAuth.get(authId);
+      const etudiant = String(row.etudiant ?? '');
+      if (!etudiant) continue;
+      const userInfo = userById.get(etudiant);
       const profile = userInfo?.cinPassport ? profileByCin.get(String(userInfo.cinPassport)) : undefined;
 
       const userName = `${(userInfo?.prenom ?? '').trim()} ${(userInfo?.nom ?? '').trim()}`.trim();
       const profileName = `${(profile?.prenom ?? '').trim()} ${(profile?.nom ?? '').trim()}`.trim();
-      const fullName =
-        userName ||
-        profileName ||
-        this.deriveNameFromEmail(userInfo?.email ?? '') ||
-        'Étudiant';
+      const fullName = userName || profileName || this.deriveNameFromEmail(userInfo?.email ?? '') || 'Étudiant';
 
-      const filiere =
-        (userInfo?.filiere ?? '').trim() ||
-        (profile?.filiere ?? '').trim() ||
-        String(submission.specialization ?? submission.professional_title ?? '').trim() ||
-        'Non renseignée';
+      const filiere = (userInfo?.filiere ?? '').trim() || (profile?.filiere ?? '').trim() || 'Non renseignée';
 
-      const studentId = String(profile?.cin_passport ?? userInfo?.cinPassport ?? userInfo?.id ?? submission.id ?? '').trim();
+      // Attempt to get CV ATS score for this user (by auth_id)
+      let atsScore = 0;
+      const authId = userInfo?.authId ?? '';
+      if (authId) {
+        const { data: latestCv } = await this.supabase
+          .from('cv_submissions')
+          .select('ats_score')
+          .eq('auth_id', authId)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        if (latestCv && latestCv[0]) atsScore = Number(latestCv[0].ats_score ?? 0);
+      }
 
       const matchings = (metierByAuth.get(authId) ?? [])
         .slice(0, 3)
-        .map((row) => String(row.metier_name ?? '').trim())
+        .map((r) => String(r.metier_name ?? '').trim())
         .filter(Boolean);
 
       const gaps = (competenceByAuth.get(authId) ?? [])
-        .filter((row) => row.status === 'gap')
+        .filter((r) => r.status === 'gap')
         .sort((a, b) => Number(a.similarity_score ?? 0) - Number(b.similarity_score ?? 0))
         .slice(0, 3)
-        .map((row) => String(row.competence_name ?? '').trim())
+        .map((r) => String(r.competence_name ?? '').trim())
         .filter(Boolean);
 
       const recos = (recommendationLabelsByAuth.get(authId) ?? []).slice(0, 3);
 
-      const employabilityRaw = userInfo?.id ? employabilityByEtudiant.get(String(userInfo.id)) : undefined;
-
       result.push({
-        id: studentId || authId,
-        authId,
+        id: etudiant,
+        authId: authId || '',
         name: fullName,
         speciality: filiere,
-        score: this.roundScore(submission.ats_score),
-        employabilityScore: this.roundScore(employabilityRaw),
+        score: this.roundScore(atsScore),
+        employabilityScore: this.roundScore(row.score_final),
+        employabilityScoreRaw: row.score_final != null ? String(row.score_final) : undefined,
         details: {
           matchings: matchings.length ? matchings : ['Aucun métier identifié'],
           gaps: gaps.length ? gaps : ['Aucun gap critique'],
@@ -212,6 +211,27 @@ export class DashboardService {
     }
 
     return result;
+  }
+
+  private async fetchUsersByIds(ids: string[]): Promise<Array<{ authId: string; id: string; cinPassport: string; email: string; nom: string; prenom: string; filiere: string }>> {
+    if (!ids.length) return [];
+    const { data, error } = await this.supabase
+      .from('user')
+      .select('*')
+      .in('id', ids);
+    if (error) {
+      this.logger.warn('fetchUsersByIds failed: ' + error.message);
+      return [];
+    }
+    return (data ?? []).map((row: any) => ({
+      authId: String(row.auth_id ?? ''),
+      id: row.id != null ? String(row.id) : '',
+      cinPassport: row.cin_passport != null ? String(row.cin_passport) : '',
+      email: String(row.email ?? ''),
+      nom: String(row.nom ?? row.last_name ?? ''),
+      prenom: String(row.prenom ?? row.first_name ?? ''),
+      filiere: String(row.filiere ?? row.specialite ?? row.specialty ?? row.specialization ?? ''),
+    }));
   }
 
   private async fetchUsers(authIds: string[]): Promise<Array<{ authId: string; id: string; cinPassport: string; email: string; nom: string; prenom: string; filiere: string }>> {
@@ -309,8 +329,8 @@ export class DashboardService {
     return data ?? [];
   }
 
-  private async fetchEmployabilityScores(etudiantIds: string[]): Promise<Map<string, number>> {
-    const result = new Map<string, number>();
+  private async fetchEmployabilityScores(etudiantIds: string[]): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
     if (!etudiantIds.length) return result;
     const { data, error } = await this.supabase
       .from('score_employabilité')
@@ -323,8 +343,9 @@ export class DashboardService {
     for (const row of data ?? []) {
       const key = String(row.etudiant ?? '');
       if (!key) continue;
-      const score = Number(row.score_final);
-      if (Number.isFinite(score)) result.set(key, score);
+      // Preserve raw value as string so callers can display exact decimal representation
+      const raw = row.score_final != null ? String(row.score_final) : '';
+      if (raw !== '') result.set(key, raw);
     }
     return result;
   }

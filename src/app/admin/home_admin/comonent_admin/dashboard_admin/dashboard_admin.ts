@@ -17,22 +17,10 @@ export class DashboardAdmin implements OnInit, OnDestroy {
   sidebarCollapsed = false;
   activeMenu = 'dashboard';
   showStudentsPopup = false;
-  showStudentProfilePopup = false;
   readonly barW = 76;
   activeScoreFilter: 'cvAts' | 'employability' = 'cvAts';
 
-  selectedStudent: {
-    name: string;
-    id: string;
-    speciality: string;
-    score: number;
-    employabilityScore: number;
-    details: {
-      matchings: string[];
-      gaps: string[];
-      recommendations: string[];
-    };
-  } | null = null;
+  selectedStudent: null = null;
 
   stats = [
     { value: '...', label: 'Étudiants inscrits' },
@@ -56,6 +44,7 @@ export class DashboardAdmin implements OnInit, OnDestroy {
     speciality: string;
     score: number;
     employabilityScore: number;
+    employabilityScoreRaw?: string;
     details: {
       matchings: string[];
       gaps: string[];
@@ -81,7 +70,7 @@ export class DashboardAdmin implements OnInit, OnDestroy {
   }
 
   scoreColor(score: number): string {
-    return score >= 85 ? '#5dbf7a' : '#e07800';
+    return 'rgb(102, 102, 102)';
   }
 
   openStudentsPopup() {
@@ -90,27 +79,6 @@ export class DashboardAdmin implements OnInit, OnDestroy {
 
   closeStudentsPopup() {
     this.showStudentsPopup = false;
-  }
-
-  openStudentProfile(student: {
-    name: string;
-    id: string;
-    speciality: string;
-    score: number;
-    employabilityScore: number;
-    details: {
-      matchings: string[];
-      gaps: string[];
-      recommendations: string[];
-    };
-  }) {
-    this.selectedStudent = student;
-    this.showStudentProfilePopup = true;
-  }
-
-  closeStudentProfile() {
-    this.showStudentProfilePopup = false;
-    this.selectedStudent = null;
   }
 
   donutSegments: { color: string; dashArray: string; dashOffset: number }[] = [];
@@ -508,25 +476,30 @@ export class DashboardAdmin implements OnInit, OnDestroy {
     this.recentStudentsLoading = true;
     this.recentStudentsError = null;
     try {
-      const url = `${environment.apiUrl}/admin/dashboard/students?limit=5`;
+      const url = `${environment.apiUrl}/admin/dashboard/students`;
       const response = await firstValueFrom(
         this.http.get<{ data?: any[] } | any[]>(url),
       );
       const rows = Array.isArray(response)
         ? response
         : (response as { data?: any[] })?.data ?? [];
-      this.recentStudents = (rows ?? []).map((row: any) => ({
+      const mapped = (rows ?? []).map((row: any) => ({
         name: String(row?.name ?? '').trim() || 'Étudiant',
         id: String(row?.id ?? '').trim(),
         speciality: String(row?.speciality ?? '').trim() || 'Non renseignée',
         score: Number(row?.score ?? 0),
         employabilityScore: Number(row?.employabilityScore ?? 0),
+        employabilityScoreRaw: row?.employabilityScoreRaw != null ? String(row.employabilityScoreRaw) : undefined,
         details: {
           matchings: Array.isArray(row?.details?.matchings) ? row.details.matchings : [],
           gaps: Array.isArray(row?.details?.gaps) ? row.details.gaps : [],
           recommendations: Array.isArray(row?.details?.recommendations) ? row.details.recommendations : [],
         },
       }));
+
+      // Sort by employabilityScore descending and keep top 10
+      mapped.sort((a, b) => (b.employabilityScore ?? 0) - (a.employabilityScore ?? 0));
+      this.recentStudents = mapped.slice(0, 10);
     } catch (err) {
       console.error('Failed to load recent students:', err);
       this.recentStudentsError = 'Impossible de charger la liste des étudiants.';

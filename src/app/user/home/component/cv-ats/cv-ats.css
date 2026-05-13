@@ -92,6 +92,13 @@
     border-radius: 12px;
 }
 
+/* Disable manual user clicks on stepper tabs/items while preserving
+   current visual styles and programmatic navigation (Next/Prev). */
+.stepper .stepper-item {
+    pointer-events: none;
+    cursor: default;
+}
+
 .stepper-item.active {
     background: #fff4e3;
     color: #9a3b00;
