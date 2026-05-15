@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { CandidaturesService, CompanyCandidature } from './candidatures.service';
@@ -9,6 +10,7 @@ import { CvPreview } from '../../../user/home/component/cv-preview/cv-preview';
 interface CandidatureItem {
   id: string;
   idEtudiant: number;
+  idPost: number;
   prenom: string;
   nom: string;
   email: string;
@@ -29,10 +31,12 @@ interface CandidatureItem {
 })
 export class Candidatures implements OnInit, OnDestroy {
   private readonly candidaturesService = inject(CandidaturesService);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroy$ = new Subject<void>();
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly ngZone = inject(NgZone);
   private loadWatchdog: number | null = null;
+  private filteredOffreId: number | null = null;
 
   searchQuery = '';
   selectedPoste = 'Tous';
@@ -49,6 +53,8 @@ export class Candidatures implements OnInit, OnDestroy {
   candidatures: CandidatureItem[] = [];
 
   ngOnInit(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    this.filteredOffreId = id ? Number(id) : null;
     this.loadCandidatures();
   }
 
@@ -113,12 +119,13 @@ export class Candidatures implements OnInit, OnDestroy {
     return {
       id: String(row.id),
       idEtudiant: Number(row.id_etudiant) || 0,
+      idPost: Number(row.id_post) || 0,
       prenom: String(row.prenom || '').trim() || 'Etudiant',
       nom: String(row.nom || '').trim() || '',
       email: String(row.email || '').trim(),
       ville: String(row.ville || '').trim() || 'N/A',
       timeAgo: this.getTimeAgo(row.date_creation),
-      score: Number.isFinite(score) ? Math.round(score) : 0,
+      score: Number.isFinite(score) ? score : 0,
       scoreATS: null,
       poste: String(row.poste || '').trim() || 'Poste',
       competences: Array.isArray(row.competences) ? row.competences : [],
@@ -138,6 +145,7 @@ export class Candidatures implements OnInit, OnDestroy {
     const q = this.searchQuery.toLowerCase();
     return this.candidatures
       .filter(c =>
+        (this.filteredOffreId === null || c.idPost === this.filteredOffreId) &&
         (this.selectedPoste === 'Tous' || c.poste === this.selectedPoste) &&
         (!q ||
           c.prenom.toLowerCase().includes(q) ||
@@ -152,10 +160,12 @@ export class Candidatures implements OnInit, OnDestroy {
     const q = this.searchQuery.toLowerCase();
     const allSorted = this.candidatures
       .filter(c =>
-        !q ||
-        c.prenom.toLowerCase().includes(q) ||
-        c.nom.toLowerCase().includes(q) ||
-        c.competences.some(s => s.toLowerCase().includes(q))
+        (this.filteredOffreId === null || c.idPost === this.filteredOffreId) &&
+        (!q ||
+          c.prenom.toLowerCase().includes(q) ||
+          c.nom.toLowerCase().includes(q) ||
+          c.competences.some(s => s.toLowerCase().includes(q))
+        )
       )
       .sort((a, b) => b.score - a.score);
 
@@ -177,10 +187,7 @@ export class Candidatures implements OnInit, OnDestroy {
 
   get avgScore(): number {
     if (!this.filteredCandidatures.length) return 0;
-    return Math.round(
-      this.filteredCandidatures.reduce((s, c) => s + c.score, 0) /
-      this.filteredCandidatures.length
-    );
+    return this.filteredCandidatures.reduce((s, c) => s + c.score, 0) / this.filteredCandidatures.length;
   }
 
   // ✅ top = score >= 90
