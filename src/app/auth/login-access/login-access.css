@@ -1,0 +1,79 @@
+.login-access-layout .login-box {
+    max-width: 420px;
+}
+
+.access-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.2rem;
+    margin-top: 1.6rem;
+}
+
+.access-card {
+    border: 1.5px solid #e5e7eb;
+    border-radius: 1.1rem;
+    padding: 1.4rem 1.25rem;
+    background: #fff;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    align-items: center;
+    text-align: center;
+    transition: border 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.access-card:hover {
+    border-color: #fca63a;
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+    transform: translateY(-2px);
+}
+
+.access-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef1f6;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+}
+
+.access-icon-student {
+    background: #eef4ff;
+    color: #355cf7;
+}
+
+.access-icon-company {
+    background: #fff1df;
+    color: #e07b00;
+}
+
+.access-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #1a1a2e;
+}
+
+.access-desc {
+    font-size: 0.88rem;
+    color: #6b7280;
+    line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+    .main-login-layout {
+        width: 100%;
+        min-height: 100vh;
+        border-radius: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .access-grid {
+        grid-template-columns: 1fr;
+    }
+}

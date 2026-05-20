@@ -1,0 +1,203 @@
+:host {
+    display: block;
+}
+
+.metier-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+
+/* ── Header ──────────────────────────────────────────────── */
+
+.metier-header {
+    background: linear-gradient(135deg, #fff7eb 0%, #ffe7c5 58%, #ffd9a0 100%);
+    border-radius: 16px;
+    padding: 1.2rem 1.5rem;
+    border: 1px solid rgba(224, 120, 0, 0.18);
+    box-shadow: 0 4px 14px rgba(80, 58, 12, 0.08);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-icon {
+    font-size: 1.8rem;
+    background: rgba(255, 255, 255, 0.5);
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.metier-header h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: #4f3314;
+    font-weight: 800;
+}
+
+.metier-header p {
+    margin: 0.3rem 0 0;
+    color: #6f4d24;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+
+/* ── Parcours Grid ───────────────────────────────────────── */
+
+.parcours-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.parcours-panel {
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    border: 1px solid #f0f2f7;
+}
+
+.parcours-title {
+    margin: 0 0 1.5rem 0;
+    color: #1f263b;
+    font-size: 1.2rem;
+    font-weight: 800;
+    position: relative;
+    padding-bottom: 0.5rem;
+}
+
+.parcours-title::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40px;
+    height: 3px;
+    background: #e07800;
+    border-radius: 2px;
+}
+
+
+/* ── Table Header ───────────────────────────────────────── */
+
+.table-header {
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    padding: 0.8rem 1rem;
+    background: #fafbfc;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.th-name,
+.th-rate {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #7e869a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.th-rate {
+    text-align: left;
+}
+
+
+/* ── Metier List ────────────────────────────────────────── */
+
+.metier-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.metier-row {
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #f5f6f9;
+    transition: background 0.2s ease;
+}
+
+.metier-row:last-child {
+    border-bottom: none;
+}
+
+.metier-row:hover {
+    background: #fffaf5;
+}
+
+.metier-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #263044;
+}
+
+.rate-column {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+
+/* ── Progress Bar ───────────────────────────────────────── */
+
+.progress-track {
+    flex: 1;
+    height: 8px;
+    background: #f0f2f7;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ffc46a, #e07800);
+    border-radius: 999px;
+    transition: width 0.6s cubic-bezier(0.1, 0.42, 0.41, 1);
+}
+
+.rate-value {
+    width: 42px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #1f263b;
+    background: #fff3e6;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    text-align: center;
+}
+
+
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .table-header,
+    .metier-row {
+        grid-template-columns: 1fr 180px;
+    }
+}
+
+@media (max-width: 600px) {
+    .table-header {
+        display: none;
+    }
+    .metier-row {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+    }
+    .rate-column {
+        width: 100%;
+    }
+}

@@ -1,0 +1,112 @@
+<section class="referentiel-container">
+    <!-- PREVIOUS TABLE SECTION -->
+    <header class="referentiel-header">
+        <div class="header-main">
+            <h1 class="title">Référentiel Compétences</h1>
+            <p class="subtitle">Répertoire complet des compétences Transport & Logistique</p>
+        </div>
+    </header>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-info">
+                <span class="stat-label">Total</span>
+                <span class="stat-value">{{ stats.total }}</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-info">
+                <span class="stat-label">Techniques</span>
+                <span class="stat-value">{{ stats.tech }}</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-info">
+                <span class="stat-label">Organisationnelle</span>
+                <span class="stat-value">{{ stats.org }}</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-info">
+                <span class="stat-label">Physique</span>
+                <span class="stat-value">{{ stats.phys }}</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-info">
+                <span class="stat-label">Comportementale</span>
+                <span class="stat-value">{{ stats.comp }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="search-bar-wrap">
+        <div class="search-box">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+            <input type="text" [(ngModel)]="searchTerm" placeholder="Rechercher une compétence..." />
+        </div>
+        <div class="domain-filter-box">
+            <select [(ngModel)]="selectedDomain">
+        <option value="">Tous les domaines</option>
+        @for (domain of domainOptions; track domain) {
+        <option [value]="domain">{{ domain }}</option>
+        }
+      </select>
+        </div>
+    </div>
+
+    <div class="table-feedback" *ngIf="loadingCompetences">Chargement des competences...</div>
+    <div class="table-feedback table-feedback-error" *ngIf="!loadingCompetences && competencesError">
+        {{ competencesError }}
+    </div>
+
+    <div class="table-panel">
+        <table class="standard-table">
+            <thead>
+                <tr>
+                    <th (click)="setSort('code')" class="sortable">
+                        Code
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'code'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+                    </th>
+                    <th (click)="setSort('name')" class="sortable">
+                        Compétence
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'name'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+                    </th>
+                    <th (click)="setSort('category')" class="sortable">
+                        Catégorie
+                        <svg class="sort-indicator" [class.active]="sortColumn === 'category'" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+                    </th>
+                    <th>Domaine</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (c of filteredCompetences; track c.code) {
+                <tr>
+                    <td class="code-col">{{ c.code }}</td>
+                    <td class="name-col">{{ c.name }}</td>
+                    <td>
+                        <span class="cat-pill" [attr.data-cat]="c.category">
+              {{ c.category }}
+            </span>
+                    </td>
+                    <td class="domain-col">{{ c.domain }}</td>
+                </tr>
+                }
+                @if (!loadingCompetences && !competencesError && filteredCompetences.length === 0) {
+                <tr>
+                    <td colspan="4" class="empty-state">Aucune competence trouvee.</td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

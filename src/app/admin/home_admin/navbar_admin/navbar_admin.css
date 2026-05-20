@@ -1,0 +1,179 @@
+:host {
+  display: block;
+}
+
+.top-navbar {
+  position: fixed;
+  top: 0;
+  left: 260px;
+  width: calc(100% - 260px);
+  height: 70px;
+  background: #ffffff;
+  border-bottom: 1px solid #e8ebef;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  box-sizing: border-box;
+  gap: 0.9rem;
+  transition: left 0.24s ease, width 0.24s ease;
+}
+
+:host-context(.sidebar-collapsed) .top-navbar {
+  left: 65px;
+  width: calc(100% - 65px);
+}
+
+.navbar-left,
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.menu-btn {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 0.6rem;
+  color: #4b5563;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+  flex-shrink: 0;
+}
+
+.menu-btn:hover {
+  background: #f5f7fa;
+  color: #334155;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.brand-logo {
+  height: 80px;
+  width: auto;
+  object-fit: contain;
+}
+
+.user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: #ffffff;
+  border: 1.5px solid #ef8e2e;
+  border-radius: 999px;
+  padding: 0.6rem 1.25rem;
+  color: #111827;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.user-pill:hover {
+  background: #fff7f0;
+  box-shadow: 0 2px 8px rgba(239, 142, 46, 0.15);
+}
+
+.user-icon {
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+}
+
+.user-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.logout-icon-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 0.8rem;
+  border: 1.5px solid #c3c8cf;
+  background: #f8fafc;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.logout-icon-btn:hover {
+  border-color: #ef8e2e;
+  color: #ef8e2e;
+  background: #fff9f3;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1024px) and (min-width: 601px) {
+  .top-navbar {
+    left: 260px;
+    width: calc(100% - 260px);
+    height: 64px;
+    padding: 0 16px;
+  }
+
+  :host-context(.sidebar-collapsed) .top-navbar {
+    left: 65px;
+    width: calc(100% - 65px);
+  }
+
+  .brand-logo {
+    height: 60px;
+  }
+
+  .user-name {
+    font-size: 0.95rem;
+  }
+
+  .logout-icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 600px) {
+  .top-navbar {
+    left: 0;
+    width: 100%;
+    height: 56px;
+    padding: 0 12px;
+    z-index: 1200;
+  }
+
+  :host-context(.sidebar-collapsed) .top-navbar {
+    left: 0;
+    width: 100%;
+  }
+
+  .brand-logo {
+    height: 44px;
+  }
+
+  .user-name {
+    display: none;
+  }
+
+  .user-pill {
+    padding: 0.5rem 0.7rem;
+    gap: 0;
+  }
+
+  .logout-icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 0.6rem;
+  }
+}

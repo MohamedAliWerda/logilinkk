@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('main.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python *)",
+      "PowerShell(if \\($env:GEMINI_API_KEY\\) { \"GEMINI_API_KEY is set in this shell session: $env:GEMINI_API_KEY\" } else { \"GEMINI_API_KEY is NOT set in this shell session.\" })",
+      "PowerShell($user = [Environment]::GetEnvironmentVariable\\('GEMINI_API_KEY','User'\\); $machine = [Environment]::GetEnvironmentVariable\\('GEMINI_API_KEY','Machine'\\); \"User scope:    $user\"; \"Machine scope: $machine\")",
+      "PowerShell($bytes = [System.IO.File]::ReadAllBytes\\('C:\\\\Users\\\\MSI\\\\Desktop\\\\Nouveau dossier \\(3\\)\\\\logilinkk\\\\recommendation_service\\\\__pycache__\\\\main.cpython-313.pyc'\\); $text = [System.Text.Encoding]::ASCII.GetString\\($bytes\\); \\($text | Select-String -Pattern 'AIza[A-Za-z0-9_-]+' -AllMatches\\).Matches.Value | Sort-Object -Unique)",
+      "PowerShell(foreach \\($f in 'main.cpython-312.pyc','main.cpython-313.pyc','main.cpython-314.pyc'\\) { $p = \"C:\\\\Users\\\\MSI\\\\Desktop\\\\Nouveau dossier \\(3\\)\\\\logilinkk\\\\recommendation_service\\\\__pycache__\\\\$f\"; $bytes = [System.IO.File]::ReadAllBytes\\($p\\); $text = [System.Text.Encoding]::ASCII.GetString\\($bytes\\); $key = \\($text | Select-String -Pattern 'AIza[A-Za-z0-9_-]+' -AllMatches\\).Matches.Value | Sort-Object -Unique; \"${f}: $key\" })",
+      "PowerShell(Get-Process *)",
+      "Bash(xargs grep -l \"admin.*feedback\")",
+      "Bash(xargs grep -l \"Routes\\\\|RouterModule\\\\|routing\")",
+      "Bash(Select-String -Path \"C:\\\\Users\\\\MSI\\\\Desktop\\\\Nouveau dossier \\(6\\)\\\\logilinkk\\\\src\\\\app\\\\entreprise\\\\home\\\\offres\\\\offres.css\" -Pattern \"form-error|input|\\\\.modal\")",
+      "Bash(Select-Object -Last 10)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\MSI\\\\Desktop\\\\Nouveau dossier \\(6\\)\\\\logilinkk\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(xargs grep -l \"stat-row\\\\|kpi-card\\\\|insertion\\\\|employabilit\")",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(npm install *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Nouveau dossier \\(12\\)\\\\logilinkk\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(node -e \"require\\('@supabase/supabase-js'\\); console.log\\('ok'\\)\")",
+      "Bash(node import-posts.js)",
+      "Bash(git check-ignore *)"
+    ]
+  }
+}
