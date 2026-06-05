@@ -7,8 +7,6 @@ import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 
 type AtsScoreResult = {
-  matchScore: number;
-  successScore: number;
   atsScore: number;
   rawResponse: string;
   scoringSource: 'gemini' | 'fallback';
@@ -75,6 +73,8 @@ type MatchingGapEntry = {
   bestCvNiveau: string;
   similarityScore: number;
   status: 'match' | 'gap';
+  // 'strong' (>= strong cut-off) | 'partial' (covered but below strong) | 'gap'
+  matchTier: 'strong' | 'partial' | 'gap';
 };
 
 type MatchingStudentSkillInput = {
@@ -165,8 +165,9 @@ export class CvSubmissionService {
   private static readonly DEFAULT_EMPLOYABILITY_TIMEOUT_MS = 120_000;
   private static readonly WINDOWS_PYTHON_FALLBACKS = ['py', 'python', 'python3'];
   private static readonly POSIX_PYTHON_FALLBACKS = ['python3', 'python'];
-  private static readonly MATCHING_ANALYSIS_VERSION = 'v4-traceable-persistence';
+  private static readonly MATCHING_ANALYSIS_VERSION = 'v9-strict-80-threshold';
   private static readonly MATCH_STATUS_THRESHOLD = 0.60;
+  private static readonly STRONG_MATCH_THRESHOLD = 0.80;
   private static readonly MAX_MATCHING_GAPS = 5000;
   private static readonly AUTO_SKILL_CONTEXT = '__auto_generated_from_notes__';
 
@@ -423,29 +424,193 @@ export class CvSubmissionService {
     return d.toISOString().slice(0, 10);
   }
 
+  private normalizeRecommendationText(value: unknown): string {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, ' ');
+  }
+
+  private isRecommendationMetierMatch(metier: unknown, professionalTitle: unknown): boolean {
+    const normalizedMetier = this.normalizeRecommendationText(metier);
+    const normalizedTitle = this.normalizeRecommendationText(professionalTitle);
+    if (!normalizedMetier || !normalizedTitle) return false;
+
+    if (normalizedMetier === normalizedTitle) return true;
+    if (normalizedMetier.includes(normalizedTitle) || normalizedTitle.includes(normalizedMetier)) return true;
+
+    const metierTokens = normalizedMetier.split(' ').filter(Boolean);
+    const titleTokens = new Set(normalizedTitle.split(' ').filter(Boolean));
+    const commonTokenCount = metierTokens.filter((token) => titleTokens.has(token)).length;
+
+    return commonTokenCount >= 2
+      || (commonTokenCount >= 1 && (metierTokens.length <= 1 || titleTokens.size <= 1));
+  }
+
+  private async syncConfirmedTargetsForStudent(authId: string, professionalTitle?: unknown): Promise<void> {
+    const normalizedAuthId = String(authId ?? '').trim();
+    if (!normalizedAuthId) return;
+
+    let targetJob = String(professionalTitle ?? '').trim();
+    if (!targetJob) {
+      const { data: cvRow, error: cvError } = await this.supabase
+        .from('cv_submissions')
+        .select('professional_title')
+        .eq('auth_id', normalizedAuthId)
+        .maybeSingle();
+      if (cvError) throw cvError;
+      targetJob = String(cvRow?.professional_title ?? '').trim();
+    }
+
+    // Refresh all students of the same target job cohort to keep counts in sync.
+    const { data: submissionRows, error: submissionsError } = await this.supabase
+      .from('cv_submissions')
+      .select('auth_id,professional_title');
+    if (submissionsError) throw submissionsError;
+
+    const titleByAuth = new Map<string, string>();
+    for (const row of submissionRows ?? []) {
+      const rowAuthId = String((row as any)?.auth_id ?? '').trim();
+      const rowTitle = String((row as any)?.professional_title ?? '').trim();
+      if (!rowAuthId) continue;
+      titleByAuth.set(rowAuthId, rowTitle);
+    }
+
+    if (!titleByAuth.has(normalizedAuthId)) {
+      titleByAuth.set(normalizedAuthId, targetJob);
+    }
+
+    const normalizedTargetJob = String(targetJob ?? '').trim();
+    const cohortAuthIds = Array.from(titleByAuth.entries())
+      .filter(([, title]) => this.isRecommendationMetierMatch(title, normalizedTargetJob))
+      .map(([rowAuthId]) => rowAuthId);
+
+    const uniqueCohortAuthIds = Array.from(new Set(cohortAuthIds));
+    if (!uniqueCohortAuthIds.length) {
+      uniqueCohortAuthIds.push(normalizedAuthId);
+    }
+
+    // Primary source of recommendation content is confirmed snapshots.
+    const { data: confirmedRows, error: confirmedError } = await this.supabase
+      .from('ai_confirmed_recommendations')
+      .select('recommendation_id,metier');
+    if (confirmedError) throw confirmedError;
+
+    const recommendationIds = (confirmedRows ?? [])
+      .map((row: any) => String(row?.recommendation_id ?? '').trim())
+      .filter((id: string) => !!id);
+
+    const approvedIds = new Set<string>();
+    for (let i = 0; i < recommendationIds.length; i += 200) {
+      const chunk = recommendationIds.slice(i, i + 200);
+      if (!chunk.length) continue;
+      const { data: statusRows, error: statusError } = await this.supabase
+        .from('ai_recommendations')
+        .select('id,status')
+        .in('id', chunk);
+      if (statusError) throw statusError;
+      for (const statusRow of statusRows ?? []) {
+        const recommendationId = String((statusRow as any)?.id ?? '').trim();
+        const status = String((statusRow as any)?.status ?? '').trim().toLowerCase();
+        if (recommendationId && status === 'approved') {
+          approvedIds.add(recommendationId);
+        }
+      }
+    }
+
+    let approvedRecommendationRows = (confirmedRows ?? [])
+      .map((row: any) => ({
+        recommendation_id: String(row?.recommendation_id ?? '').trim(),
+        metier: String(row?.metier ?? '').trim(),
+      }))
+      .filter((row: any) => !!row.recommendation_id && approvedIds.has(row.recommendation_id));
+
+    // Fallback when confirmed snapshots are not yet populated for some approved rows.
+    if (!approvedRecommendationRows.length) {
+      const { data: approvedRows, error: approvedError } = await this.supabase
+        .from('ai_recommendations')
+        .select('id,metier,status')
+        .eq('status', 'approved');
+      if (approvedError) throw approvedError;
+      approvedRecommendationRows = (approvedRows ?? [])
+        .map((row: any) => ({
+          recommendation_id: String(row?.id ?? '').trim(),
+          metier: String(row?.metier ?? '').trim(),
+        }))
+        .filter((row: any) => !!row.recommendation_id);
+    }
+
+    for (let i = 0; i < uniqueCohortAuthIds.length; i += 200) {
+      const chunk = uniqueCohortAuthIds.slice(i, i + 200);
+      const { error: deleteError } = await this.supabase
+        .from('ai_confirmed_recommendation_targets')
+        .delete()
+        .in('auth_id', chunk);
+      if (deleteError) throw deleteError;
+    }
+
+    const rowsToUpsert: Array<{ recommendation_id: string; auth_id: string }> = [];
+    const seenPairs = new Set<string>();
+
+    for (const rowAuthId of uniqueCohortAuthIds) {
+      const studentTitle = String(titleByAuth.get(rowAuthId) ?? '').trim();
+      if (!studentTitle) continue;
+
+      for (const recommendation of approvedRecommendationRows) {
+        if (!this.isRecommendationMetierMatch(recommendation.metier, studentTitle)) continue;
+        const key = `${recommendation.recommendation_id}|${rowAuthId}`;
+        if (seenPairs.has(key)) continue;
+        seenPairs.add(key);
+        rowsToUpsert.push({
+          recommendation_id: recommendation.recommendation_id,
+          auth_id: rowAuthId,
+        });
+      }
+    }
+
+    if (!rowsToUpsert.length) return;
+
+    for (let i = 0; i < rowsToUpsert.length; i += 500) {
+      const chunk = rowsToUpsert.slice(i, i + 500);
+      const { error: upsertError } = await this.supabase
+        .from('ai_confirmed_recommendation_targets')
+        .upsert(chunk, { onConflict: 'recommendation_id,auth_id' });
+      if (upsertError) throw upsertError;
+    }
+  }
+
   async upsertCv(authId: string, payload: any): Promise<void> {
+    const hasAtsScore = Number.isFinite(Number(payload?.atsScore));
     // Upsert main row using auth_id as unique key
+    const mainRowPayload: Record<string, any> = {
+      auth_id: authId,
+      metier_id: this.normalizeMetierId(payload?.metierId) || null,
+      professional_title: payload.professionalTitle,
+      specialization: payload.specialization,
+      objectif: payload.objectif,
+      permis: payload.info?.permis,
+      linkedin: payload.info?.linkedin,
+      date_naissance: this.sanitizeDate(payload.info?.dateNaissance),
+      photo_url: payload.info?.photoUrl,
+      consent_given: payload.consentGiven,
+      consent_at: payload.consentGiven ? new Date().toISOString() : null,
+      status: 'draft',
+      updated_at: new Date().toISOString(),
+    };
+
+    if (hasAtsScore) {
+      mainRowPayload.ats_score = this.clampScore(Number(payload.atsScore));
+    }
+
     const { data: mainRow, error: mainError } = await this.supabase
       .from('cv_submissions')
       .upsert([
-        {
-          auth_id: authId,
-          metier_id: this.normalizeMetierId(payload?.metierId) || null,
-          professional_title: payload.professionalTitle,
-          specialization: payload.specialization,
-          objectif: payload.objectif,
-          permis: payload.info?.permis,
-          linkedin: payload.info?.linkedin,
-          date_naissance: this.sanitizeDate(payload.info?.dateNaissance),
-          photo_url: payload.info?.photoUrl,
-          ats_score: payload.atsScore,
-          consent_given: payload.consentGiven,
-          consent_at: payload.consentGiven ? new Date().toISOString() : null,
-          status: 'draft',
-          updated_at: new Date().toISOString(),
-        },
+        mainRowPayload,
       ], { onConflict: 'auth_id' })
-      .select('id')
+      .select('id,professional_title')
       .single();
 
     if (mainError) throw mainError;
@@ -576,6 +741,11 @@ export class CvSubmissionService {
         throw enErr;
       }
     }
+
+    const effectiveProfessionalTitle = String(
+      mainRow?.professional_title ?? payload?.professionalTitle ?? '',
+    ).trim();
+    await this.syncConfirmedTargetsForStudent(authId, effectiveProfessionalTitle);
   }
 
   private normalizeSkillKey(value: unknown): string {
@@ -591,16 +761,16 @@ export class CvSubmissionService {
     const normalized = this.normalizeSkillKey(value);
     if (!normalized) return 'Intermediaire';
     if (normalized.includes('expert')) return 'Expert';
-    if (normalized.includes('avance')) return 'Avance';
+    if (normalized.includes('avance')) return 'Avancé';
     if (normalized.includes('intermediaire')) return 'Intermediaire';
     if (normalized.includes('notion')) return 'Notions';
     if (
-      normalized.includes('debutant')
+      normalized.includes('débutant')
       || normalized.includes('faible')
       || normalized.includes('non acquis')
       || normalized === 'non_acquis'
     ) {
-      return 'Debutant';
+      return 'Débutant';
     }
     return 'Intermediaire';
   }
@@ -608,10 +778,10 @@ export class CvSubmissionService {
   private skillLevelPriority(level: unknown): number {
     const normalized = this.normalizeSkillLevel(level);
     const order: Record<string, number> = {
-      Debutant: 1,
+      Débutant: 1,
       Notions: 2,
       Intermediaire: 3,
-      Avance: 4,
+      Avancé: 4,
       Expert: 5,
     };
     return order[normalized] ?? 0;
@@ -619,10 +789,17 @@ export class CvSubmissionService {
 
   private matchingNiveauWeight(level: unknown): number {
     const normalized = this.normalizeSkillLevel(level);
-    if (normalized === 'Avance' || normalized === 'Expert') return 1.0;
-    if (normalized === 'Debutant' || normalized === 'Notions') return 0.2;
+    if (normalized === 'Avancé' || normalized === 'Expert') return 1.0;
+    if (normalized === 'Débutant' || normalized === 'Notions') return 0.2;
     if (normalized === 'Intermediaire') return 0.5;
     return 0.5;
+  }
+
+  // Two-tier coverage: a covered competence is 'strong' at/above the strong
+  // cut-off, otherwise 'partial'; non-covered competences are 'gap'.
+  private resolveMatchTier(status: 'match' | 'gap', score: number): 'strong' | 'partial' | 'gap' {
+    if (status !== 'match') return 'gap';
+    return Number(score) >= CvSubmissionService.STRONG_MATCH_THRESHOLD ? 'strong' : 'partial';
   }
 
   private dedupeSkillList<T extends { nom: string; niveau: string; metierIds?: string[] }>(skills: T[]): T[] {
@@ -939,13 +1116,13 @@ export class CvSubmissionService {
   }
 
   private predictLevelFromMoyenne(moyenne: number, isHard: boolean): string {
-    if (moyenne < 10) return 'Debutant';
-    if (moyenne < 12) return 'Debutant';
+    if (moyenne < 10) return 'Débutant';
+    if (moyenne < 12) return 'Débutant';
     if (moyenne < 15) {
-      if (isHard && moyenne >= 13) return 'Avance';
+      if (isHard && moyenne >= 13) return 'Avancé';
       return 'Intermediaire';
     }
-    return 'Avance';
+    return 'Avancé';
   }
 
   private classifySkillCategory(compType: string, isHardSkill: unknown): 'hard' | 'soft' {
@@ -1602,6 +1779,147 @@ export class CvSubmissionService {
     return Number((overlap * 0.7 + jaccard * 0.3).toFixed(4));
   }
 
+  private computeCoveragePctFromMatchedSimilarity(
+    matchedScores: number[],
+    nCompetences: number,
+    fallbackPct: number,
+  ): number {
+    const totalCompetences = Number(nCompetences);
+
+    if (Number.isFinite(totalCompetences) && totalCompetences > 0) {
+      const similaritySum = matchedScores.reduce((sum, score) => {
+        const value = Number(score);
+        if (!Number.isFinite(value)) return sum;
+        return sum + Math.max(0, Math.min(1, value));
+      }, 0);
+
+      return Number(Math.max(0, Math.min(100, (similaritySum / totalCompetences) * 100)).toFixed(1));
+    }
+
+    const fallback = Number(fallbackPct);
+    if (!Number.isFinite(fallback)) return 0;
+    return Number(Math.max(0, Math.min(100, fallback)).toFixed(1));
+  }
+
+  private collectFallbackMatchedScores(topSkills: Array<{ score: number }> | null | undefined): number[] {
+    const scores: number[] = [];
+
+    for (const skill of topSkills ?? []) {
+      const score = Number(skill?.score);
+      if (!Number.isFinite(score) || score < CvSubmissionService.MATCH_STATUS_THRESHOLD) continue;
+      scores.push(score);
+    }
+
+    return scores;
+  }
+
+  private collectMatchedScoresByMetierFromEntries(
+    entries: Array<{ metier: string; competence: string; score: number }>,
+  ): Map<string, number[]> {
+    const grouped = new Map<string, Map<string, number>>();
+
+    for (const entry of entries) {
+      const metierKey = this.normalizeMatchingText(entry.metier);
+      const competenceKey = this.normalizeMatchingText(entry.competence);
+      const score = Number(entry.score);
+      if (!metierKey || !competenceKey || !Number.isFinite(score)) continue;
+
+      const bucket = grouped.get(metierKey) ?? new Map<string, number>();
+      const current = bucket.get(competenceKey) ?? -1;
+      if (score > current) {
+        bucket.set(competenceKey, score);
+      }
+      grouped.set(metierKey, bucket);
+    }
+
+    const result = new Map<string, number[]>();
+    for (const [metierKey, bucket] of grouped.entries()) {
+      result.set(metierKey, Array.from(bucket.values()));
+    }
+
+    return result;
+  }
+
+  private normalizeMetierRankingCoverage(result: MatchingAnalysisResult): MatchingAnalysisResult {
+    const matchedScoresByMetier = this.collectMatchedScoresByMetierFromEntries(
+      (result.matches ?? []).map((entry) => ({
+        metier: String(entry?.refMetier ?? ''),
+        competence: String(entry?.refCompetence ?? ''),
+        score: Number(entry?.similarityScore ?? 0),
+      })),
+    );
+
+    const normalizedRanking = (result.metierRanking ?? []).map((entry) => {
+      const metierKey = this.normalizeMatchingText(entry?.metier);
+      const fromMatches = metierKey ? (matchedScoresByMetier.get(metierKey) ?? []) : [];
+      const fallback = this.collectFallbackMatchedScores(entry?.topSkills ?? []);
+      const matchedScores = fromMatches.length > 0 ? fromMatches : fallback;
+
+      return {
+        ...entry,
+        matched: matchedScores.length,
+        coveragePct: this.computeCoveragePctFromMatchedSimilarity(
+          matchedScores,
+          Number(entry?.nCompetences ?? 0),
+          Number(entry?.coveragePct ?? 0),
+        ),
+      };
+    });
+
+    const topMetierNormalized = this.normalizeMatchingText(result.topMetier?.metier ?? '');
+    const topMetierFromRanking = normalizedRanking.find(
+      (entry) => this.normalizeMatchingText(entry?.metier) === topMetierNormalized,
+    );
+
+    const normalizedTopMetier = topMetierFromRanking
+      ? { ...topMetierFromRanking }
+      : (result.topMetier ? { ...result.topMetier } : null);
+
+    return {
+      ...result,
+      metierRanking: normalizedRanking,
+      topMetier: normalizedTopMetier,
+    };
+  }
+
+  private normalizeTraceMetierCoverageRows(metierRows: any[], competenceRows: any[]): any[] {
+    const matchedScoresByMetier = this.collectMatchedScoresByMetierFromEntries(
+      (competenceRows ?? [])
+        .filter((row: any) => String(row?.status ?? '').trim().toLowerCase() === 'match')
+        .map((row: any) => ({
+          metier: String(row?.metier_name ?? row?.metierName ?? ''),
+          competence: String(row?.competence_name ?? row?.competenceName ?? ''),
+          score: Number(row?.similarity_score ?? row?.similarityScore ?? 0),
+        })),
+    );
+
+    return (metierRows ?? []).map((row: any) => {
+      const metierKey = this.normalizeMatchingText(row?.metier_name ?? row?.metierName ?? '');
+      const fromMatches = metierKey ? (matchedScoresByMetier.get(metierKey) ?? []) : [];
+      const rawTopSkills = Array.isArray(row?.top_skills ?? row?.topSkills)
+        ? (row?.top_skills ?? row?.topSkills)
+        : [];
+      const fallbackTopSkills = rawTopSkills
+        .map((skill: any) => ({ score: Number(skill?.score ?? 0) }))
+        .filter((skill: { score: number }) => Number.isFinite(skill.score));
+
+      const fallback = this.collectFallbackMatchedScores(fallbackTopSkills);
+      const matchedScores = fromMatches.length > 0 ? fromMatches : fallback;
+      const nCompetences = Number(row?.n_competences ?? row?.nCompetences ?? 0);
+      const coveragePct = this.computeCoveragePctFromMatchedSimilarity(
+        matchedScores,
+        nCompetences,
+        Number(row?.coverage_pct ?? row?.coveragePct ?? 0),
+      );
+
+      return {
+        ...row,
+        matched_competences: matchedScores.length,
+        coverage_pct: coveragePct,
+      };
+    });
+  }
+
   private computeLocalMatchingFallback(
     cvSubmissionId: string,
     selectedMetierId: string,
@@ -1662,8 +1980,12 @@ export class CvSubmissionService {
         bestCvSkill: bestSkillName,
         bestCvNiveau: bestSkillNiveau,
         similarityScore: Number(bestScore.toFixed(4)),
-        // Match/gap decision uses a fixed 60% raw similarity cut-off.
-        status: bestRawScore >= statusThreshold ? 'match' : 'gap',
+        // Covered (match) when the level-weighted score clears the cut-off.
+        status: bestScore >= statusThreshold ? 'match' : 'gap',
+        matchTier: this.resolveMatchTier(
+          bestScore >= statusThreshold ? 'match' : 'gap',
+          Number(bestScore.toFixed(4)),
+        ),
       };
 
       if (entry.status === 'match') {
@@ -1688,7 +2010,7 @@ export class CvSubmissionService {
     const metierRanking: MatchingMetierRankingEntry[] = [];
     for (const [metier, bucket] of groupedByMetier.entries()) {
       const nCompetences = bucket.entries.length;
-      const matched = bucket.entries.filter((entry) => entry.rawScore >= statusThreshold).length;
+      const matched = bucket.entries.filter((entry) => entry.score >= statusThreshold).length;
       const coveragePct = nCompetences > 0
         ? Number((bucket.entries.reduce((sum, entry) => sum + entry.score, 0) / nCompetences * 100).toFixed(1))
         : 0;
@@ -1810,6 +2132,9 @@ export class CvSubmissionService {
 
     const mapGapEntry = (raw: unknown): MatchingGapEntry => {
       const row = (raw ?? {}) as Record<string, unknown>;
+      const similarityScore = Number(toNumber(row.similarity_score ?? row.similarityScore, 0).toFixed(4));
+      const status: 'match' | 'gap' =
+        String(row.status ?? '').trim().toLowerCase() === 'match' ? 'match' : 'gap';
       return {
         refCompetence: String(row.ref_competence ?? row.refCompetence ?? '').trim(),
         refMetier: String(row.ref_metier ?? row.refMetier ?? '').trim(),
@@ -1818,8 +2143,9 @@ export class CvSubmissionService {
         refMotsCles: String(row.ref_mots_cles ?? row.refMotsCles ?? '').trim(),
         bestCvSkill: String(row.best_cv_skill ?? row.bestCvSkill ?? '').trim(),
         bestCvNiveau: String(row.best_cv_niveau ?? row.bestCvNiveau ?? '').trim(),
-        similarityScore: Number(toNumber(row.similarity_score ?? row.similarityScore, 0).toFixed(4)),
-        status: String(row.status ?? '').trim().toLowerCase() === 'match' ? 'match' : 'gap',
+        similarityScore,
+        status,
+        matchTier: this.resolveMatchTier(status, similarityScore),
       };
     };
 
@@ -2316,22 +2642,19 @@ export class CvSubmissionService {
   async calculateAtsScore(payload: any, authId?: string): Promise<AtsScoreResult> {
     const payloadForMatching = await this.enrichPayloadForMatching(payload, authId);
     const resumeText = this.buildResumeText(payloadForMatching);
-    const referenceKeywords = await this.loadReferenceKeywordsSafely();
+    const selectedMetierId = this.normalizeMetierId(payloadForMatching?.metierId ?? payload?.metierId);
+    const referenceKeywords = await this.loadReferenceKeywordsSafely(selectedMetierId);
 
     try {
       const prompt = this.buildScorePrompt(resumeText, referenceKeywords);
       const gemini = await this.generateGeminiText(prompt);
-      const parsedMatch = this.parseScore(gemini.text, /Job Description Match[:\s]*([0-9]{1,3})\s*%/i);
-      const parsedSuccess = this.parseScore(gemini.text, /Application Success rates?[:\s]*([0-9]{1,3})\s*%/i);
       const parsedAts = this.parseScore(gemini.text, /ATS Score[:\s]*([0-9]{1,3})\s*%/i);
 
-      if (parsedMatch !== null && parsedSuccess !== null && parsedAts !== null) {
+      if (parsedAts !== null) {
         this.logger.log(
           `ATS score computed via Gemini provider=${gemini.providerName} model=${gemini.model}`,
         );
         return {
-          matchScore: this.clampScore(parsedMatch),
-          successScore: this.clampScore(parsedSuccess),
           atsScore: this.clampScore(parsedAts),
           rawResponse: gemini.text,
           scoringSource: 'gemini',
@@ -2401,33 +2724,25 @@ export class CvSubmissionService {
     this.logger.error(`Gemini ${provider.name} provider disabled: ${reason}`);
   }
 
-  private async loadReferenceKeywordsSafely(): Promise<string[]> {
+  private async loadReferenceKeywordsSafely(metierId?: string): Promise<string[]> {
     try {
-      const keywords = await this.loadReferenceKeywords();
+      const keywords = await this.loadReferenceKeywords(metierId);
       if (keywords.length > 0) {
         return keywords;
       }
-      this.logger.warn('Reference keywords from database are empty; using defaults only.');
+      this.logger.warn(`Reference keywords are empty for metierId=${metierId ?? 'n/a'}.`);
     } catch (err: any) {
-      this.logger.error(`Failed to load database keywords, using defaults only: ${err?.message ?? err}`);
+      this.logger.error(`Failed to load metier-specific keywords: ${err?.message ?? err}`);
     }
 
-    return this.defaultReferenceKeywords();
-  }
-
-  private defaultReferenceKeywords(): string[] {
-    return [
-      'logistique', 'transport', 'supply', 'douane', 'wms', 'tms', 'sap', 'incoterms', 'excel', 'powerbi',
-      'inventaire', 'entrepot', 'flux', 'optimisation', 'planification', 'approvisionnement', 'distribution',
-      'lean', 'kpi', 'analyse', 'operation', 'procurement', 'forecast', 'service', 'qualite', 'securite',
-    ];
+    return [];
   }
 
   private computeFallbackScore(
     resumeText: string,
     referenceKeywords: string[],
     qualityScore: number,
-  ): Pick<AtsScoreResult, 'matchScore' | 'successScore' | 'atsScore'> {
+  ): Pick<AtsScoreResult, 'atsScore'> {
     const resumeTokens = new Set(this.extractKeywords(resumeText));
     const matched = referenceKeywords.filter((k) => resumeTokens.has(k)).length;
     const rawMatch = this.clampScore(
@@ -2437,8 +2752,6 @@ export class CvSubmissionService {
     const successScore = this.clampScore(Math.round(qualityScore * 0.7 + matchScore * 0.3));
 
     return {
-      matchScore,
-      successScore,
       atsScore: this.clampScore(Math.round((matchScore + successScore) / 2)),
     };
   }
@@ -2616,46 +2929,55 @@ Your task is to evaluate the resume against the reference keyword base provided 
 
 Rules:
 1. Be strict and deterministic: for the same input, return the same scores.
-2. Use only the resume content and reference keywords.
+2. Use the resume content and reference keywords and your knowledge.
 3. Be conservative because the candidate is still a student.
 4. Do not inflate scores just because the CV is clean or well formatted.
 5. Even a very good student CV should usually stay in a moderate range.
 6. A word in the CV should count only if it is relevant to the professionalTitle or to the requested domain.
 7. If the CV contains meaningless or unrelated words such as "hhh", "tjb", or words with no clear relation to the professionalTitle, decrease the score.
-8. Penalize CVs that contain many unrelated, generic, or incomprehensible words, because this weakens the CV.
-9. Output only numeric percentages between 1 and 100.
+8. Strictly penalize CVs that include unrelated content, generic buzzwords, excessive keyword stuffing, spelling or grammar mistakes, incorrect French terminology, non-existent words, incoherent phrases, or information unrelated to the target job. Such elements should significantly reduce the ATS score because they negatively affect credibility, readability, recruiter perception, and ATS effectiveness.
+9. Output only the ATS score as a numeric percentage between 1 and 100.
 10. Do not add any explanation.
-
 Scoring guidance for student CVs:
 - A relevant and well-filled diploma/formation section should increase the score clearly.
 - If the student adds a solid diploma that matches the professionalTitle or the domain, the score should move up noticeably even without company experience.
 - More than one diploma should increase the score more than a single diploma, especially if the diplomas are relevant and progressive (example: Licence + Master).
 - Empty/minimal CV (almost no content) → 3-5%
-- Very weak CV (few fields filled, almost no keywords) → 5-10%
-- Below-average CV (some sections filled, limited detail) → 10-20%
-- Normal/average CV (basic sections, some keywords, standard quality) → 20-30%
-- Good student CV (complete enough, relevant keywords, decent detail, one strong diploma) → 25-35%
-- Very strong student CV (excellent for a student, but still student level, multiple diplomas or strong formation path) → 35-50%
+- Very weak CV (few fields filled, almost no keywords) → 5-7%
+- Below-average CV (some sections filled, limited detail) → 7-10%
+- Normal/average CV (basic sections, some keywords, standard quality) → 10-20%
+- Good student CV (complete enough, relevant keywords, decent detail, one strong diploma) → 20-30%
+- Very strong student CV (excellent for a student, but still student level, multiple diplomas or strong formation path) → 30-50%
 - A student CV can reach 50% only if it is excellent and contains several technical skills, professional projects compatible with the professionalTitle, an excellent PFE, excellent soft skills, excellent language level, excellent technical projects compatible with the target professionalTitle, and an excellent associative path.
 - A student CV can exceed 60% only if it has everything required for 50% and also more than 2 years of company experience.
 - Above 60% should almost never happen for a student CV without real professional experience.
-
 Resume: ${resumeText.slice(0, 14000)}
 Reference Keywords: ${referenceKeywords.join(', ')}
-
-Respond ONLY in this exact format with these exact section headers:
-• Job Description Match: [number 1-100]%
-• Application Success rates: [number 1-100]%
+Respond ONLY in this exact format with this exact section header:
 • ATS Score: [number 1-100]%
 `.trim();
   }
 
-  private async loadReferenceKeywords(): Promise<string[]> {
+  private async loadReferenceKeywords(metierId?: string): Promise<string[]> {
     const [competences, metiers, domaines] = await Promise.all([
       this.refCompetanceService.getReferentielCompetences(),
       this.refCompetanceService.getMetiers(),
       this.refCompetanceService.getDomaines(),
     ]);
+
+    const normalizedMetierId = this.normalizeMetierId(metierId);
+    if (!normalizedMetierId) {
+      return [];
+    }
+
+    const selectedMetier = metiers.find((metier: any) => (
+      this.normalizeMetierId(metier?._id ?? metier?.raw?._id ?? metier?.raw?.id) === normalizedMetierId
+    ));
+
+    if (!selectedMetier) {
+      this.logger.warn(`No metier found for metierId=${normalizedMetierId}; returning empty ATS keyword set.`);
+      return [];
+    }
 
     const keywordSet = new Set<string>();
     const addText = (value: unknown) => {
@@ -2665,24 +2987,44 @@ Respond ONLY in this exact format with these exact section headers:
       }
     };
 
-    for (const c of competences as any[]) {
-      addText(c?.competence);
-      addText(c?.categorie);
-      addText(c?.domaine);
+    addText(selectedMetier?.nom_metier ?? selectedMetier?.nom);
+    addText(selectedMetier?.domaine);
+
+    const selectedCompetenceIds = this.parseMetierIds(selectedMetier?.raw?.competences ?? selectedMetier?.competences);
+    const competenceLookup = new Map<string, any>(
+      (competences as any[]).map((competence) => [this.normalizeMetierId(competence?.code ?? competence?._id), competence]),
+    );
+
+    for (const competenceId of selectedCompetenceIds) {
+      const competence = competenceLookup.get(competenceId);
+      if (!competence) continue;
+      addText(competence?.competence);
+      addText(competence?.categorie);
+      addText(competence?.domaine);
     }
 
-    for (const m of metiers as any[]) {
-      addText(m?.nom_metier ?? m?.nom);
-      addText(m?.domaine);
-    }
-
+    const domainLookup = new Map<string, string>();
     for (const d of domaines as any[]) {
-      addText(d?.nom_domaine ?? d?.nom);
+      const domainName = d?.nom_domaine ?? d?.nom;
+      const keys = [d?._id, d?.id_domaine, d?.domaine_id, d?.code_domaine, d?.nom_domaine, d?.nom]
+        .filter((value) => value !== undefined && value !== null)
+        .map((value) => this.normalizeMetierId(value));
+
+      for (const key of keys) {
+        if (!key) continue;
+        domainLookup.set(key, domainName);
+      }
     }
 
-    const defaults = ['logistique', 'transport', 'supply', 'douane', 'wms', 'tms', 'sap', 'incoterms', 'excel', 'powerbi'];
-    for (const d of defaults) {
-      keywordSet.add(d);
+    const selectedDomainId = this.normalizeMetierId(
+      selectedMetier?.raw?.domaine_id
+      ?? selectedMetier?.raw?.id_domaine
+      ?? selectedMetier?.raw?.domaineId
+      ?? selectedMetier?.raw?.domain_id,
+    );
+
+    if (selectedDomainId && domainLookup.has(selectedDomainId)) {
+      addText(domainLookup.get(selectedDomainId));
     }
 
     return Array.from(keywordSet).slice(0, 350);

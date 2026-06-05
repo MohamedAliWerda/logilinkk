@@ -45,6 +45,19 @@ export interface RecommendationJob {
   stats?: Record<string, any> | null;
 }
 
+export interface RecommendationReasonHistoryItem {
+  recommendation_id: string;
+  status: 'approved' | 'rejected' | 'edited' | string;
+  metier?: string | null;
+  gap_title?: string | null;
+  cert_title?: string | null;
+  cert_provider?: string | null;
+  raison?: string | null;
+  decision_at?: string | null;
+  updated_at?: string | null;
+  confirmed_at?: string | null;
+}
+
 type ApiEnvelope<T> = { success: boolean; message: string; data: T };
 
 @Injectable({ providedIn: 'root' })
@@ -99,9 +112,22 @@ export class ValidationAdminService {
     ).then((r) => this.unwrap(r).items ?? []);
   }
 
-  update(id: string, patch: Partial<Recommendation>): Promise<Recommendation> {
+  listHistory(limit = 200): Promise<RecommendationReasonHistoryItem[]> {
     return firstValueFrom(
-      this.http.patch<ApiEnvelope<Recommendation>>(`${this.base}/${id}`, patch, {
+      this.http.get<ApiEnvelope<{ items: RecommendationReasonHistoryItem[] }>>(
+        `${this.base}/history?limit=${encodeURIComponent(String(limit))}`,
+        { headers: this.authHeaders() },
+      ),
+    ).then((r) => this.unwrap(r).items ?? []);
+  }
+
+  update(id: string, patch: Partial<Recommendation>, comment?: string): Promise<Recommendation> {
+    const payload = {
+      ...patch,
+      comment: comment ?? '',
+    };
+    return firstValueFrom(
+      this.http.patch<ApiEnvelope<Recommendation>>(`${this.base}/${id}`, payload, {
         headers: this.authHeaders(),
       }),
     ).then((r) => this.unwrap(r));

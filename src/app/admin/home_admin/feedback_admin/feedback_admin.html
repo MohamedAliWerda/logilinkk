@@ -1,41 +1,59 @@
 <section class="admin-page-container">
     <header class="topbar">
         <div>
-            <h1 class="topbar-title">Feedback Anciens Diplômés</h1>
-            <p class="topbar-sub">ISGIS Admin</p>
-        </div>
-        <div class="topbar-right">
-            <span class="live-dot"></span>
-            <span class="live-label">Temps réel</span>
-            <div class="avatar">A</div>
+            <h1 class="topbar-title">Gestion du progrès professionnels</h1>
+            <p class="topbar-sub">Suivi professionnel des recrutés</p>
         </div>
     </header>
 
     <div class="content">
+        @if (activeTab === 'anciens' || activeTab === 'retours') {
         <div class="stat-row">
             <div class="stat-card">
-                <div class="stat-label">Anciens recensés</div>
-                <div class="stat-val">{{ oldStudents.length }}</div>
-                <div class="stat-sub">dans la base</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Invitations envoyées</div>
-                <div class="stat-val">{{ invitedCount }}</div>
-                <div class="stat-sub">emails partis</div>
-            </div>
-            <div class="stat-card">
                 <div class="stat-label">Réponses reçues</div>
-                <div class="stat-val">{{ respondedCount }}</div>
-                <div class="stat-sub">taux : {{ responseRate }}%</div>
+                <div class="stat-val">{{ feedbackCount }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Taux de réponse des recrutés</div>
+                <div class="stat-val">{{ insertionRate }}%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Non contactés</div>
+                <div class="stat-val">{{ uncontactedCount }}</div>
             </div>
         </div>
+        } @else {
+        <div class="stat-row">
+            <div class="stat-card">
+                <div class="stat-label">Évaluations sociétés</div>
+                <div class="stat-val">{{ companyRespondentsCount }}</div>
+                <div class="stat-sub">réponses reçues</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Satisfaction globale</div>
+                <div class="stat-val">{{ companySatisfactionAverage }}<span class="stat-unit">/10</span></div>
+                <div class="stat-sub">moyenne pondérée</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Secteurs représentés</div>
+                <div class="stat-val">{{ uniqueSectorsCount }}</div>
+                <div class="stat-sub">secteurs distincts</div>
+            </div>
+        </div>
+        }
 
         <div class="tabs">
             <button class="tab-btn" [class.active]="activeTab === 'anciens'" (click)="setActiveTab('anciens')">
-                Anciens diplômés
+                Les recrutés
             </button>
             <button class="tab-btn" [class.active]="activeTab === 'retours'" (click)="setActiveTab('retours')">
-                Dashboard insertion
+                Tableau de bord des recrutés
+            </button>
+            <button class="tab-btn" [class.active]="activeTab === 'societes'" (click)="setActiveTab('societes')">
+                Sociétés
+            </button>
+            <button class="tab-btn" [class.active]="activeTab === 'retours-societes'" (click)="setActiveTab('retours-societes')">
+                Tableau de bord des sociétés
             </button>
         </div>
 
@@ -47,12 +65,12 @@
                         <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.4"></circle>
                         <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
                     </svg>
-                    <input type="text" [(ngModel)]="searchTerm" placeholder="Rechercher un ancien diplômé..." />
+                    <input type="text" [(ngModel)]="searchTerm" placeholder="Rechercher un recruté..." />
                 </div>
 
                 <div class="toolbar-right">
                     <button class="btn btn-ghost" type="button" (click)="openAddStudentModal()">Ajouter</button>
-                    <button class="btn btn-orange" type="button" (click)="openSendEmailModal()">Envoyer email à tous</button>
+                    <button class="btn btn-orange" type="button" (click)="openSendEmailModal()">Envoyer email</button>
                 </div>
             </div>
 
@@ -63,10 +81,8 @@
                             <th (click)="setSort('fullName')" class="sortable">Nom</th>
                             <th (click)="setSort('email')" class="sortable">Email</th>
                             <th (click)="setSort('promotion')" class="sortable">Promotion</th>
-                            <th (click)="setSort('status')" class="sortable">Statut invitation</th>
-                            <th>Réponse</th>
+                            <th>Statut</th>
                             <th>Actions</th>
-                        </tr>
                     </thead>
                     <tbody>
                         @for (student of filteredStudents; track trackById($index, student)) {
@@ -82,25 +98,16 @@
                                 </span>
                             </td>
                             <td>
-                                @if (student.status === 'À répondu') {
-                                <span class="badge badge-green">Répondu</span>
-                                } @else {
-                                <span class="badge badge-orange">En attente</span>
-                                }
-                            </td>
-                            <td>
                                 <div class="actions-cell">
-                                    <button class="btn btn-ghost btn-sm" type="button" (click)="viewProfile(student.id)">Profil</button>
                                     @if (student.status === 'Non contacté') {
-                                    <button class="btn btn-ghost btn-sm" type="button" (click)="sendInvitation(student.id)">Envoyer</button>
-                                    }
+                                    <button class="btn btn-ghost btn-sm" type="button" (click)="sendInvitation(student.id)">Envoyer</button> }
                                     <button class="btn btn-danger btn-sm" type="button" (click)="deleteStudent(student.id)">Suppr.</button>
                                 </div>
                             </td>
                         </tr>
                         } @empty {
                         <tr>
-                            <td colspan="6">
+                            <td colspan="5">
                                 <div class="empty">
                                     <div class="empty-icon">Aucun résultat</div>
                                     <h3>Aucun ancien diplômé</h3>
@@ -112,38 +119,32 @@
                 </table>
             </div>
         </div>
-        } @else {
+        } @else if (activeTab === 'retours') {
         <div class="tab-panel active">
             <div class="promo-filter">
-                <button class="promo-pill" [class.active]="selectedPromo === null" (click)="setPromoFilter(null)">Toutes promotions</button>
-                @for (promo of promotions; track promo) {
+                <button class="promo-pill" [class.active]="selectedPromo === null" (click)="setPromoFilter(null)">Toutes promotions</button> @for (promo of promotions; track promo) {
                 <button class="promo-pill" [class.active]="selectedPromo === promo" (click)="setPromoFilter(promo)">
                     {{ promo }}
-                </button>
-                }
+                </button> }
             </div>
 
             <div class="kpi-grid">
                 <div class="kpi-card" style="--accent:#1D9E75">
                     <div class="kpi-k">TI_promotion</div>
                     <div class="kpi-v">{{ insertionRate }}%</div>
-                    <div class="kpi-s">taux d'insertion</div>
+                    <div class="kpi-s">Taux de réponse des recrutés</div>
                 </div>
                 <div class="kpi-card" style="--accent:#7F77DD">
                     <div class="kpi-k">DI_moyen</div>
                     <div class="kpi-v">{{ averageDelayMonths }}</div>
-                    <div class="kpi-s">mois délai premier emploi</div>
+                    <div class="kpi-s">mois Délai premier emploi</div>
                 </div>
                 <div class="kpi-card" style="--accent:#2563EB">
                     <div class="kpi-k">IPE_promotion</div>
                     <div class="kpi-v">{{ averageRating }}%</div>
                     <div class="kpi-s">adéquation poste/formation</div>
                 </div>
-                <div class="kpi-card" style="--accent:#F5A623">
-                    <div class="kpi-k">NPS</div>
-                    <div class="kpi-v">{{ npsScore }}</div>
-                    <div class="kpi-s">score de satisfaction</div>
-                </div>
+
                 <div class="kpi-card" style="--accent:#EF4444">
                     <div class="kpi-k">Répondants</div>
                     <div class="kpi-v">{{ feedbackCount }}</div>
@@ -153,7 +154,7 @@
 
             <div class="charts-2">
                 <div class="chart-card">
-                    <div class="chart-head">Statut d'emploi</div>
+                    <div class="chart-head">Forme contractuelle</div>
                     <div class="chart-sub">Distribution par statut</div>
                     <div class="chart-body chart-wide">
                         <canvas id="employment-status-chart"></canvas>
@@ -170,23 +171,10 @@
 
             <div class="charts-3">
                 <div class="chart-card">
-                    <div class="chart-head">Délai premier emploi</div>
+                    <div class="chart-head">Date d'obtention du poste après le diplôme</div>
                     <div class="chart-sub">Distribution des délais</div>
                     <div class="chart-body">
                         <canvas id="delay-chart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-card">
-                    <div class="chart-head">NPS — Recommandation</div>
-                    <div class="chart-sub">Score de satisfaction</div>
-                    <div class="nps-center">
-                        <div class="nps-big" [class.nps-negative]="npsScore < 0">{{ npsScore }}</div>
-                        <div class="nps-lbl" [ngClass]="npsToneClass">{{ npsLabel }}</div>
-                        <div class="nps-row">
-                            <span><b>{{ npsBreakdown.promoters }}</b>Promoteurs</span>
-                            <span><b>{{ npsBreakdown.neutrals }}</b>Neutres</span>
-                            <span><b>{{ npsBreakdown.detractors }}</b>Détracteurs</span>
-                        </div>
                     </div>
                 </div>
                 <div class="chart-card">
@@ -207,27 +195,262 @@
                     </div>
                 </div>
                 <div class="chart-card">
-                    <div class="chart-head">Détail des statuts</div>
-                    <div class="chart-sub">Avec score d'employabilité pondéré</div>
-                    <ul class="statut-list">
-                        @for (item of employmentStatusRows; track item.label) {
-                        <li class="s-item">
-                            <span class="s-dot" [style.background]="item.color"></span>
-                            <span class="s-label">{{ item.label }}</span>
-                            <div class="s-bar-wrap">
-                                <div class="s-bar" [style.width.%]="item.percent" [style.background]="item.color"></div>
+                    <div class="chart-head">Satisfaction globale</div>
+                    <div class="chart-sub">Adéquation perçue poste / formation</div>
+
+                    <!-- Big star display -->
+                    <div class="sat-center">
+                        <div class="sat-stars">
+                            @for (i of starRange; track i) {
+                            <span class="sat-star" [class.sat-star-filled]="i <= satisfactionFilledStars">★</span>
+                            }
+                        </div>
+                        <div class="sat-avg">{{ satisfactionAverageText }} <span class="sat-avg-denom">/ 5</span></div>
+                        @if (satisfactionAverage > 0) {
+                        <div class="sat-lbl" [ngClass]="satisfactionToneClass">{{ satisfactionLabel }}</div>
+                        <div class="nps-count">{{ satisfactionRespondentsCount }} réponse{{ satisfactionRespondentsCount !== 1 ? 's' : '' }}</div>
+                        } @else {
+                        <div class="nps-count nps-count-empty">Aucune réponse enregistrée</div>
+                        }
+                    </div>
+
+                    <!-- Per-level distribution bars -->
+                    <div class="sat-distrib">
+                        @for (row of satisfactionDistribution; track row.stars) {
+                        <div class="sat-row">
+                            <div class="sat-row-stars">
+                                @for (i of starRange; track i) {
+                                <span class="sat-star-sm" [class.sat-star-sm-filled]="i <= row.stars">★</span>
+                                }
                             </div>
-                            <span class="s-pct">{{ item.percent }}%</span>
+                            <div class="sat-bar-wrap">
+                                <div class="sat-bar-fill"
+                                     [style.width.%]="row.percent"
+                                     [style.background]="satisfactionBarColor(row.stars)">
+                                </div>
+                            </div>
+                            <span class="sat-pct">{{ row.percent }}%</span>
+                        </div>
+                        }
+                    </div>
+
+                    <!-- Top sectors / companies that hired -->
+                    @if (topCompanies.length) {
+                    <div class="top-company-head">Top secteurs recruteurs</div>
+                    <ul class="top-company-list">
+                        @for (item of topCompanies; track item.name) {
+                        <li class="top-company-item">
+                            <span class="top-company-name">{{ item.name || '—' }}</span>
+                            <span class="top-company-badge">{{ item.count }}</span>
                         </li>
                         }
                     </ul>
+                    }
+
                     <div class="weighted-score-box">
-                        <span>Score pondéré global</span>
+                        <span>Score d'employabilité pondéré</span>
                         <strong>{{ weightedEmployabilityScore }}/100</strong>
                     </div>
                     <div class="last-update">Mis à jour : {{ dashboardLastUpdate }}</div>
                 </div>
             </div>
+        </div>
+        } @else if (activeTab === 'societes') {
+        <div class="tab-panel active">
+            <div class="toolbar">
+                <div class="search-box company-search-box">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.4"></circle>
+                        <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+                    </svg>
+                    <input type="text" [(ngModel)]="companySearchTerm" placeholder="Rechercher une société, secteur, promotion..." />
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Société</th>
+                            <th>Secteur</th>
+                            <th>Promotion</th>
+                            <th>Répondants</th>
+                            <th>Satisfaction</th>
+                            <th>Recrutement</th>
+                            <th>Adéquation</th>
+                            <th>Contribution</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (row of filteredCompanyRows; track row.name) {
+                        <tr>
+                            <td class="cell-name">{{ row.name }}</td>
+                            <td>{{ row.sector }}</td>
+                            <td><span class="cell-promo">{{ row.promotionLabel }}</span></td>
+                            <td>{{ row.respondents }}</td>
+                            <td>{{ row.satisfaction }}/10</td>
+                            <td><span class="badge badge-green">{{ row.recruitmentYesRate }}%</span></td>
+                            <td><span class="badge badge-blue">{{ row.profileFitRate }}%</span></td>
+                            <td>{{ row.performance }}/5</td>
+                        </tr>
+                        } @empty {
+                        <tr>
+                            <td colspan="8">
+                                <div class="empty">
+                                    <div class="empty-icon">Aucun résultat</div>
+                                    <h3>Aucune société trouvée</h3>
+                                </div>
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        } @else {
+        <div class="tab-panel active company-dashboard-panel">
+            <div class="company-dashboard-header">
+                <div class="company-dashboard-filters">
+                    <select [value]="selectedCompanyFilter" (change)="setCompanyFilter($any($event.target).value)">
+                        <option value="all">Toutes les sociétés</option>
+                        @for (company of companyFilterOptions; track company) {
+                        <option [value]="company">{{ company }}</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            @if (enterpriseFeedbacks.length === 0) {
+            <div class="empty" style="margin-top:3rem">
+                <div class="empty-icon" style="font-size:2.5rem">📋</div>
+                <h3>Aucun feedback société</h3>
+                <p style="color:#71717a;margin-top:.5rem">Les évaluations soumises par les entreprises apparaîtront ici.</p>
+            </div>
+            } @else {
+
+            <div class="company-score-grid">
+                <article class="kpi-card company-score-card" style="--accent:#6366f1">
+                    <div class="kpi-k">Répondants</div>
+                    <div class="kpi-v">{{ companyRespondentsCount }}</div>
+                    <div class="kpi-s">évaluations reçues</div>
+                </article>
+                <article class="kpi-card company-score-card" style="--accent:#1D9E75">
+                    <div class="kpi-k">Satisfaction globale</div>
+                    <div class="kpi-v">{{ companySatisfactionAverage }} /10</div>
+                    <div class="kpi-s">Moyenne pondérée</div>
+                </article>
+                <article class="kpi-card company-score-card" style="--accent:#2563EB">
+                    <div class="kpi-k">Recrutement envisagé</div>
+                    <div class="kpi-v">{{ companyRecruitmentYesRate }}%</div>
+                    <div class="kpi-s">des entreprises</div>
+                </article>
+                <article class="kpi-card company-score-card" style="--accent:#16a34a">
+                    <div class="kpi-k">Profil adéquat au poste</div>
+                    <div class="kpi-v">{{ companyProfileFitAverage }}%</div>
+                    <div class="kpi-s">Oui ou partiellement</div>
+                </article>
+                <article class="kpi-card company-score-card" style="--accent:#b45309">
+                    <div class="kpi-k">Contribution performance</div>
+                    <div class="kpi-v">{{ companyPerformanceAverage }} /5</div>
+                    <div class="kpi-s">Score moyen</div>
+                </article>
+            </div>
+
+            <div class="company-visual-grid">
+                <article class="chart-card company-card-wide">
+                    <div class="chart-head">Évaluation par compétence (moyenne /6)</div>
+                    <div class="company-competence-list">
+                        @for (skill of companySkillRows; track skill.label) {
+                        <div class="company-competence-row">
+                            <div class="company-competence-label">{{ skill.label }}</div>
+                            <div class="company-competence-track">
+                                <div class="company-competence-fill" [style.width.%]="(skill.value / 6) * 100" [style.background]="skill.color"></div>
+                            </div>
+                            <div class="company-competence-value">{{ skill.value }}</div>
+                        </div>
+                        }
+                    </div>
+                </article>
+
+                <article class="chart-card company-card-side">
+                    <div class="chart-head">Situation actuelle du diplômé</div>
+                    <div class="company-situation-wrap">
+                        <div class="chart-body company-donut">
+                            <canvas id="company-situation-chart"></canvas>
+                        </div>
+                        <div class="company-situation-legend">
+                            @for (item of companySituationRows; track item.label) {
+                            <div class="company-situation-item">
+                                <span class="s-dot" [style.background]="item.color"></span>
+                                <span>{{ item.label }}</span>
+                                <strong>{{ item.percent }}%</strong>
+                            </div>
+                            }
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="company-visual-grid">
+                <article class="chart-card company-card-side">
+                    <div class="chart-head">Lacunes observées à l'arrivée</div>
+                    <div class="company-gap-list">
+                        @for (gap of companyGapRows; track gap.label) {
+                        <div class="company-gap-row">
+                            <div class="company-gap-label">{{ gap.label }}</div>
+                            <div class="company-gap-track">
+                                <div class="company-gap-fill" [style.width.%]="gap.percent" [style.background]="gap.color"></div>
+                            </div>
+                            <div class="company-gap-value">{{ gap.percent }}%</div>
+                        </div>
+                        }
+                    </div>
+                </article>
+
+                <article class="chart-card company-card-wide">
+                    <div class="chart-head">Profil académique vs. exigences du poste</div>
+                    <div class="company-profile-grid">
+                        <div class="company-profile-pill is-good">
+                            <strong>{{ companyProfileBreakdown.toutAFait }}%</strong>
+                            <span>Tout à fait</span>
+                        </div>
+                        <div class="company-profile-pill is-mid">
+                            <strong>{{ companyProfileBreakdown.partiellement }}%</strong>
+                            <span>Partiellement</span>
+                        </div>
+                        <div class="company-profile-pill is-warn">
+                            <strong>{{ companyProfileBreakdown.peuAdapte }}%</strong>
+                            <span>Peu adapté</span>
+                        </div>
+                        <div class="company-profile-pill is-risk">
+                            <strong>{{ companyProfileBreakdown.nonAdapte }}%</strong>
+                            <span>Non adapté</span>
+                        </div>
+                    </div>
+
+                    <div class="chart-head company-subhead">Intention de recruter</div>
+                    <div class="company-recruit-grid">
+                        <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.oui }}%</strong><span>Oui</span></div>
+                        <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.probablement }}%</strong><span>Probablement oui</span></div>
+                        <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.incertain }}%</strong><span>Incertain(e)</span></div>
+                        <div class="company-recruit-pill"><strong>{{ companyRecruitmentBreakdown.non }}%</strong><span>Non</span></div>
+                    </div>
+
+                    <div class="company-insight">
+                        {{ companyInsight }}
+                    </div>
+                </article>
+            </div>
+
+            <article class="chart-card">
+                <div class="chart-head">Distribution de la satisfaction globale (0–10)</div>
+                <div class="chart-body company-satisfaction-chart">
+                    <canvas id="company-satisfaction-chart"></canvas>
+                </div>
+            </article>
+
+            }
+            <!-- end @else (has feedbacks) -->
         </div>
         }
     </div>
@@ -290,21 +513,18 @@
                     <h4>Compétences pertinentes acquises à l'ISGI</h4>
                     <div class="competence-list">
                         @for (competence of selectedStudent.competenceFeedback || []; track competence) {
-                        <span class="competence-tag">{{ competence }}</span>
-                        }
+                        <span class="competence-tag">{{ competence }}</span> }
                     </div>
                 </div>
                 }
             </div>
         </div>
     </div>
-    }
-
-    @if (showAddStudentModal) {
+    } @if (showAddStudentModal) {
     <div class="modal-overlay" (click)="closeAddStudentModal()">
         <div class="email-modal-card" (click)="$event.stopPropagation()">
             <header class="modal-header">
-                <h3 class="modal-title">Ajouter un ancien diplômé</h3>
+                <h3 class="modal-title">Ajouter un diplômé recruté</h3>
                 <button class="close-btn" (click)="closeAddStudentModal()">Fermer</button>
             </header>
 
@@ -331,9 +551,7 @@
             </div>
         </div>
     </div>
-    }
-
-    @if (showSendEmailModal) {
+    } @if (showSendEmailModal) {
     <div class="modal-overlay" (click)="closeSendEmailModal()">
         <div class="email-modal-card" (click)="$event.stopPropagation()">
             <header class="modal-header">
@@ -357,23 +575,38 @@
                     <p>{{ getUncontactedStudents().length }} ancien(s) diplômé(s) non contacté(s) seront notifiés</p>
                     <div class="recipient-list">
                         @for (student of getUncontactedStudents(); track student.id) {
-                        <span class="recipient-badge">{{ student.fullName }}</span>
-                        }
+                        <span class="recipient-badge">{{ student.fullName }}</span> }
                     </div>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button class="btn btn-ghost" (click)="closeSendEmailModal()">Annuler</button>
-                <button class="btn btn-orange" (click)="confirmSendEmail()">Envoyer {{ getUncontactedStudents().length }} email(s)</button>
+                <button class="btn btn-ghost" (click)="closeSendEmailModal()" [disabled]="isSendingEmails">Annuler</button>
+                <button class="btn btn-orange" (click)="confirmSendEmail()" [disabled]="isSendingEmails">
+                    {{ isSendingEmails ? 'Envoi en cours...' : 'Envoyer ' + getUncontactedStudents().length + ' email(s)' }}
+                </button>
             </div>
         </div>
     </div>
-    }
-
-    @if (showSuccessNotification) {
+    } @if (showSuccessNotification) {
     <div class="toast show success" [@fadeInOut]>
-        {{ successMessage }}
+        <span>✓ {{ successMessage }}</span>
+    </div>
+    } @if (showErrorNotification) {
+    <div class="toast show error" [@fadeInOut]>
+        <span>✕ {{ errorNotifMessage }}</span>
+        <button class="toast-close" (click)="closeErrorNotif()">×</button>
+    </div>
+    } @if (showConfirmModal) {
+    <div class="modal-overlay" (click)="onConfirmNo()">
+        <div class="confirm-modal-card" (click)="$event.stopPropagation()">
+            <div class="confirm-modal-icon">⚠</div>
+            <p class="confirm-modal-message">{{ confirmModalMessage }}</p>
+            <div class="confirm-modal-actions">
+                <button class="btn btn-ghost" (click)="onConfirmNo()">Annuler</button>
+                <button class="btn btn-danger" (click)="onConfirmYes()">Confirmer</button>
+            </div>
+        </div>
     </div>
     }
 </section>

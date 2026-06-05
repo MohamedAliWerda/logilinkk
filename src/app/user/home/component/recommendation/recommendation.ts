@@ -7,9 +7,9 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RecommendationService, StudentRecommendation } from './recommendation.service';
+import { RecommendationService, ScoreV2Item, StudentRecommendation } from './recommendation.service';
 
-type DisplayLevel = 'CRITIQUE' | 'HAUTE' | 'MOYENNE';
+type DisplayLevel = 'CRITIQUE' | 'MOYENNE' | 'FAIBLE';
 
 @Component({
   selector: 'app-recommendation',
@@ -24,20 +24,24 @@ export class Recommendation implements OnInit {
   readonly loading = signal(false);
   readonly loadError = signal('');
   readonly approvedRecommendations = signal<StudentRecommendation[]>([]);
+  readonly scoreV2Loading = signal(false);
+  readonly scoreV2Error = signal('');
+  readonly scoreV2Value = signal<ScoreV2Item | null>(null);
 
   readonly critiqueRecommendations = computed(() => this.byLevel('CRITIQUE'));
-  readonly hauteRecommendations = computed(() => this.byLevel('HAUTE'));
   readonly moyenneRecommendations = computed(() => this.byLevel('MOYENNE'));
+  readonly faibleRecommendations = computed(() => this.byLevel('FAIBLE'));
 
   readonly totalRecommendations = computed(
     () =>
       this.critiqueRecommendations().length
-      + this.hauteRecommendations().length
-      + this.moyenneRecommendations().length,
+      + this.moyenneRecommendations().length
+      + this.faibleRecommendations().length,
   );
 
   ngOnInit(): void {
     void this.refresh();
+    void this.refreshScoreV2();
   }
 
   async refresh(): Promise<void> {
@@ -69,6 +73,53 @@ export class Recommendation implements OnInit {
     }
   }
 
+  async refreshScoreV2(): Promise<void> {
+    this.scoreV2Loading.set(true);
+    this.scoreV2Error.set('');
+
+    try {
+      const item = await this.recommendationService.getScoreV2();
+      this.scoreV2Value.set(item);
+    } catch (error: unknown) {
+      const detail = (error as { error?: { detail?: string; message?: string }; message?: string })?.error?.detail
+        ?? (error as { error?: { detail?: string; message?: string }; message?: string })?.error?.message
+        ?? (error as { message?: string })?.message
+        ?? '';
+      this.scoreV2Error.set(typeof detail === 'string' && detail.trim().length
+        ? detail
+        : 'Impossible de charger le score employabilite v2.');
+      this.scoreV2Value.set(null);
+    } finally {
+      this.scoreV2Loading.set(false);
+    }
+  }
+
+  async computeScoreV2(): Promise<void> {
+    this.scoreV2Loading.set(true);
+    this.scoreV2Error.set('');
+
+    try {
+      const item = await this.recommendationService.computeScoreV2();
+      this.scoreV2Value.set(item);
+    } catch (error: unknown) {
+      const detail = (error as { error?: { detail?: string; message?: string }; message?: string })?.error?.detail
+        ?? (error as { error?: { detail?: string; message?: string }; message?: string })?.error?.message
+        ?? (error as { message?: string })?.message
+        ?? '';
+      this.scoreV2Error.set(typeof detail === 'string' && detail.trim().length
+        ? detail
+        : 'Impossible de calculer le score employabilite v2.');
+    } finally {
+      this.scoreV2Loading.set(false);
+    }
+  }
+
+  scoreV2PercentLabel(): string {
+    const value = this.scoreV2Value();
+    if (!value) return '--%';
+    return `${Number(value.scoreEmpV2).toFixed(2)}%`;
+  }
+
   recommendationTitle(item: StudentRecommendation): string {
     return item.cert_title?.trim()
       || item.gap_title?.trim()
@@ -78,8 +129,8 @@ export class Recommendation implements OnInit {
 
   levelLabel(level: DisplayLevel): string {
     if (level === 'CRITIQUE') return 'Critique';
-    if (level === 'HAUTE') return 'Haute';
-    return 'Moyenne';
+    if (level === 'MOYENNE') return 'Moyenne';
+    return 'Faible';
   }
 
   recommendationContext(item: StudentRecommendation): string {
@@ -89,18 +140,6 @@ export class Recommendation implements OnInit {
     return metier || domaine || 'Parcours etudiant';
   }
 
-  keywordsText(item: StudentRecommendation): string {
-    const keywords = Array.isArray(item.keywords)
-      ? item.keywords.map((keyword) => String(keyword).trim()).filter(Boolean)
-      : [];
-    return keywords.slice(0, 4).join(', ');
-  }
-
-  concernRate(item: StudentRecommendation): number {
-    const value = Number(item.concern_rate);
-    return Number.isFinite(value) ? value : 0;
-  }
-
   private byLevel(level: DisplayLevel): StudentRecommendation[] {
     return this.approvedRecommendations().filter((item) => this.normalizeLevel(item.level) === level);
   }
@@ -108,8 +147,8 @@ export class Recommendation implements OnInit {
   private normalizeLevel(level: string | null | undefined): DisplayLevel | null {
     const normalized = String(level ?? '').trim().toUpperCase();
     if (normalized === 'CRITIQUE') return 'CRITIQUE';
-    if (normalized === 'HAUTE') return 'HAUTE';
     if (normalized === 'MOYENNE') return 'MOYENNE';
+    if (normalized === 'FAIBLE') return 'FAIBLE';
     return null;
   }
 }

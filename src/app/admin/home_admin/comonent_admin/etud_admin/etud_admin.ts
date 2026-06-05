@@ -11,10 +11,7 @@ interface Student {
   filiere: string;
   scoreAts: number;
   scoreEmployability: number;
-  scoreSynergie: number;
-  matchings: string[];
-  gaps: string[];
-  recommendations: string[];
+  scoreEmployabilityRaw?: string;
 }
 
 interface DashboardStudentResponse {
@@ -24,11 +21,7 @@ interface DashboardStudentResponse {
   speciality: string;
   score: number;
   employabilityScore: number;
-  details: {
-    matchings: string[];
-    gaps: string[];
-    recommendations: string[];
-  };
+  employabilityScoreRaw?: string;
 }
 
 @Component({
@@ -43,9 +36,6 @@ export class EtudAdmin implements OnInit {
   searchTerm: string = '';
   sortColumn: string = '';
   sortDirection: 'asc' | 'desc' = 'asc';
-
-  showProfileModal: boolean = false;
-  selectedStudent: Student | null = null;
 
   loading = false;
   errorMessage: string | null = null;
@@ -83,17 +73,14 @@ export class EtudAdmin implements OnInit {
   private mapStudent(row: DashboardStudentResponse): Student {
     const scoreAts = Number(row?.score ?? 0);
     const scoreEmployability = Number(row?.employabilityScore ?? 0);
-    const scoreSynergie = Math.round((scoreAts + scoreEmployability) / 2);
+    const scoreEmployabilityRaw = row?.employabilityScoreRaw != null ? String(row.employabilityScoreRaw) : undefined;
     return {
       id: String(row?.id ?? '').trim() || row?.authId || '',
       fullName: String(row?.name ?? '').trim() || 'Étudiant',
       filiere: String(row?.speciality ?? '').trim() || 'Non renseignée',
       scoreAts,
       scoreEmployability,
-      scoreSynergie,
-      matchings: Array.isArray(row?.details?.matchings) ? row.details.matchings : [],
-      gaps: Array.isArray(row?.details?.gaps) ? row.details.gaps : [],
-      recommendations: Array.isArray(row?.details?.recommendations) ? row.details.recommendations : [],
+      scoreEmployabilityRaw,
     };
   }
 
@@ -133,19 +120,6 @@ export class EtudAdmin implements OnInit {
       this.sortColumn = column;
       this.sortDirection = 'asc';
     }
-  }
-
-  viewProfile(studentId: string): void {
-    const student = this.students.find(s => s.id === studentId);
-    if (student) {
-      this.selectedStudent = student;
-      this.showProfileModal = true;
-    }
-  }
-
-  closeProfileModal(): void {
-    this.showProfileModal = false;
-    this.selectedStudent = null;
   }
 
   trackById(index: number, item: Student): string {

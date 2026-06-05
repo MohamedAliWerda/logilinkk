@@ -1,15 +1,14 @@
 import { Component, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthApiService } from '../services/auth-api.service';
-import { CvSubmissionService } from '../../user/home/component/cv-ats/cv-submission.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, CommonModule],
+  imports: [ReactiveFormsModule, CommonModule],
   templateUrl: './login.html',
   styleUrls: ['./login.css']
 })
@@ -18,12 +17,13 @@ export class Login {
   hidePassword: boolean = true;
   isSubmitting = false;
   authError: string | null = null;
+  identifiantError: string = '';
+  passwordError: string = '';
 
   constructor(
     private readonly fb: FormBuilder,
     private readonly router: Router,
     private readonly authApiService: AuthApiService,
-    private readonly cvSubmissionService: CvSubmissionService,
     private readonly cdr: ChangeDetectorRef,
   ) {
     this.loginForm = this.fb.group({
@@ -33,9 +33,25 @@ export class Login {
   }
 
   async onSubmit(): Promise<void> {
-    if (this.loginForm.invalid) return;
-
+    this.identifiantError = '';
+    this.passwordError = '';
     this.authError = null;
+
+    const identifiantCtrl = this.loginForm.get('identifiant');
+    const passwordCtrl    = this.loginForm.get('password');
+
+    if (this.loginForm.invalid) {
+      if (!identifiantCtrl?.value?.toString().trim()) {
+        this.identifiantError = 'Veuillez saisir votre identifiant.';
+      }
+      if (!passwordCtrl?.value) {
+        this.passwordError = 'Veuillez saisir votre mot de passe.';
+      }
+      this.loginForm.markAllAsTouched();
+      this.cdr.detectChanges();
+      return;
+    }
+
     this.isSubmitting = true;
     this.cdr.detectChanges();
 
@@ -44,35 +60,26 @@ export class Login {
 
     // Client-side format check
     if (!cinPassportRaw || !/^\d{4,}$/.test(cinPassportRaw.trim())) {
-      this.authError = 'This account does not exist';
+      this.authError = 'Ce compte n\'existe pas.';
       this.isSubmitting = false;
-      this.cdr.detectChanges(); // ✅ force UI update
+      this.cdr.detectChanges();
       return;
     }
 
     try {
+      this.identifiantError = '';
+      this.passwordError = '';
       const response = await this.authApiService.signIn(cinPassportRaw.trim(), password);
+      const { challengeId, email, type } = response.data;
 
-      localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      localStorage.setItem('role', response.data.user.role);
-
-      if (response.data.user.role === 'admin') {
-        await this.router.navigate(['/admin/dashboard']);
-        return;
-      }
-
-      if (response.data.user.role === 'etudiant') {
-        await this.navigateStudentAfterLogin();
-        return;
-      }
-
-      // Unknown role — clean up and show error
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('role');
-      this.authError = 'Rôle utilisateur non autorisé.';
-
+      await this.router.navigate(['/verify'], {
+        state: {
+          challengeId,
+          email,
+          type,
+          redirectFlow: type === 'admin' ? 'admin' : 'etudiant',
+        },
+      });
     } catch (error) {
       const httpError = error as HttpErrorResponse;
       const serverMessage = this.extractErrorMessage(error);
@@ -84,12 +91,12 @@ export class Login {
       } else if (httpError.status === 0) {
         this.authError = 'Connexion impossible. Veuillez réessayer.';
       } else {
-        this.authError = 'Une erreur est survenue. Veuillez réessayer.';
+        this.authError = serverMessage || 'Une erreur est survenue. Veuillez réessayer.';
       }
 
     } finally {
       this.isSubmitting = false;
-      this.cdr.detectChanges(); // ✅ force UI update no matter what
+      this.cdr.detectChanges();
     }
   }
 
@@ -116,20 +123,6 @@ export class Login {
     }
 
     return '';
-  }
-
-  private async navigateStudentAfterLogin(): Promise<void> {
-    try {
-      const cv = await this.cvSubmissionService.fetchMyCv();
-      if (cv) {
-        await this.router.navigate(['/home/dashboard']);
-        return;
-      }
-    } catch {
-      // Fallback to onboarding path when CV status cannot be resolved.
-    }
-
-    await this.router.navigate(['/home/cv-landing']);
   }
 
   togglePasswordVisibility(): void {

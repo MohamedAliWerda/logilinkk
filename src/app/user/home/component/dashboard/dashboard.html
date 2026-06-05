@@ -6,7 +6,7 @@
         <div class="greeting-bar global-panel-banner">
             <div class="greeting-info">
                 <h1 class="greeting-title">Bonjour, {{ studentName }}</h1>
-                <p class="greeting-sub">Bienvenue sur votre espace personnel</p>
+                <p class="greeting-sub">Bienvenue dans votre espace personnel</p>
             </div>
             <div class="greeting-avatar" title="{{ studentName }}">{{ studentName.split(' ').map(x=>x[0]).slice(0,2).join('') }}</div>
         </div>
@@ -26,7 +26,7 @@
         <!-- Score d'Employabilité (full summary card) -->
         <div class="panel score-card employ-panel" style="grid-column: 1 / -1;">
             <div class="score-header panel-header">
-                <h2>Score Employabilité</h2>
+                <h2>Score d'employabilité</h2>
             </div>
 
             <div class="score-body employ-body-horizontal">
@@ -49,19 +49,19 @@
         <!-- Target metier summary -->
         <div class="panel graph-card">
             <div class="panel-header">
-                <h2>Metier vise</h2>
+                <h2>Métier visé</h2>
                 <button class="panel-link" type="button" (click)="goToMatching()">Voir tout →</button>
             </div>
             <div class="target-metier">
                 <div>
                     <div class="target-metier-label">{{ targetMetierLabel || 'Non renseigne' }}</div>
-                    <div class="target-metier-sub">Metier vise du profil</div>
+                    <div class="target-metier-sub">Métier visé du profil</div>
+                    <div class="target-metier-gaps">{{ targetMetierGapsCount }} gaps pour ce métier</div>
                 </div>
                 <div class="target-metier-score" *ngIf="targetMetierCoveragePct !== null">{{ targetMetierCoveragePct }}%</div>
             </div>
             <div class="target-metier-meta">
-                <span>{{ compatibleMetiersCount }} metiers compatibles</span>
-                <span>{{ targetMetierGapsCount }} gaps pour ce metier</span>
+                <span>{{ compatibleMetiersCount }} métier(s) compatible(s)</span>
             </div>
         </div>
 
@@ -71,7 +71,7 @@
             <!-- Matching Général (split into three panels) -->
             <div class="panel">
                 <div class="panel-header">
-                    <h2>Métiers compatibles</h2>
+                    <h2>Métier(s) compatible(s)</h2>
                     <button class="panel-link" type="button" (click)="goToMatching()">Voir tout →</button>
                 </div>
                 <ul class="mini-list">
@@ -111,21 +111,22 @@
 
             <div class="panel">
                 <div class="panel-header">
-                    <h2>Recommandations générales</h2>
-                    <a class="panel-link" href="#">Voir tout →</a>
+                    <h2>Certifications recommandées</h2>
+                    <button class="panel-link" type="button" (click)="goToRecommendations()">Voir tout →</button>
                 </div>
                 <ul class="mini-list">
-                    <li class="mini-item" *ngFor="let r of recommendations | slice:0:5">
+                    <li class="mini-item" *ngFor="let r of topRecommendations">
                         <div class="mini-icon">R</div>
                         <div class="mini-content">
-                            <div class="mini-title">{{ r }}</div>
-                            <div class="mini-meta">Formation recommandée • Durée variable</div>
+                            <div class="mini-title">{{ recommendationTitle(r) }}</div>
+                            <div class="mini-meta">{{ recommendationContext(r) }}</div>
                         </div>
                         <div class="mini-right">
-                            <button class="start-btn">Voir</button>
+                            <span class="rec-level-badge rec-level-{{ r.level?.toLowerCase() }}">{{ recommendationLevel(r) }}</span>
                         </div>
                     </li>
                 </ul>
+                <p class="empty-state" *ngIf="topRecommendations.length === 0">Aucune recommandation disponible.</p>
             </div>
 
 

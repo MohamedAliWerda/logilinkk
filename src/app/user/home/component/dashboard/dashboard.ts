@@ -9,6 +9,7 @@ import {
   MatchingAnalysisResponse,
   MatchingAnalysisTraceResponse,
 } from '../cv-ats/cv-submission.service';
+import { RecommendationService, StudentRecommendation } from '../recommendation/recommendation.service';
 // dashboard does not render the global navbar/sidebar (those are provided by Home)
 
 @Component({
@@ -27,7 +28,7 @@ export class Dashboard {
   // UI state
   stats: { label: string; value: number; icon: SafeHtml }[];
   employabilityScore = 0;
-  recommendations: string[] = [];
+  topRecommendations: StudentRecommendation[] = [];
   atsScoreFromApi: number | null = null;
   employabilityScoreFromApi: number | null = null;
   private matchingAnalysis: MatchingAnalysisResponse | null = null;
@@ -47,6 +48,7 @@ export class Dashboard {
     private sanitizer: DomSanitizer,
     private cvSubmissionService: CvSubmissionService,
     private cdr: ChangeDetectorRef,
+    private recommendationService: RecommendationService,
   ) {
     this.studentName = this.resolveStudentName();
 
@@ -72,18 +74,9 @@ export class Dashboard {
     ];
     this.stats = [
       { label: 'Score ATS',             value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[0]) },
-      { label: "Score employabilité", value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[1]) },
-      { label: 'Métiers compatibles',    value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[2]) },
-      { label: 'Nbre de gaps',          value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[3]) },
-    ];
-
-    // basic recommendations (placeholder data)
-    this.recommendations = [
-      'Formation SAP - Niveau débutant',
-      'Anglais professionnel - Conversation',
-      'Gestion des stocks avancée',
-      'Certification supply chain',
-      'Atelier optimisation processus',
+      { label: "Score d'employabilité", value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[1]) },
+      { label: 'Métier(s) compatible(s)',    value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[2]) },
+      { label: 'Nbre Gaps du métier visé',          value: 0, icon: this.sanitizer.bypassSecurityTrustHtml(icons[3]) },
     ];
 
     // compute initial score/stats
@@ -92,6 +85,7 @@ export class Dashboard {
     void this.loadAtsScore();
     void this.loadEmployabilityScore();
     void this.loadMatchingStats();
+    void this.loadTopRecommendations();
   }
 
   private async loadMatchingStats(): Promise<void> {
@@ -140,6 +134,19 @@ export class Dashboard {
   }
 
   private resolveTargetMetierCoveragePct(): number | null {
+    const selectedMetierId = this.normalizeMetierId(this.matchingAnalysis?.selectedMetierId);
+
+    if (!selectedMetierId) {
+      const topRow = (this.matchingTrace?.metierScores ?? [])
+        .slice()
+        .sort((a, b) => a.rankPosition - b.rankPosition)[0];
+      if (topRow) {
+        const pct = Number(topRow.coveragePct);
+        return Number.isFinite(pct) ? Number(Math.max(0, Math.min(100, pct)).toFixed(1)) : null;
+      }
+      return null;
+    }
+
     const targetNormalized = this.normalizeMetierLabel(this.targetMetierLabel);
     if (!targetNormalized) return null;
 
@@ -314,7 +321,11 @@ export class Dashboard {
     const selectedMetierId = this.normalizeMetierId(this.matchingAnalysis?.selectedMetierId);
 
     if (!selectedMetierId) {
-      this.targetMetierLabel = '';
+      // No explicit target — use the top-ranked métier from the trace
+      const topRow = (this.matchingTrace?.metierScores ?? [])
+        .slice()
+        .sort((a, b) => a.rankPosition - b.rankPosition)[0];
+      this.targetMetierLabel = topRow?.metierName?.trim() ?? '';
       return;
     }
 
@@ -505,32 +516,25 @@ export class Dashboard {
       .length;
   }
 
-  private scoreFromStorage(): number | null {
-    const raw = localStorage.getItem('latestAtsScore');
-    if (!raw) return null;
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return null;
-    return Math.max(0, Math.min(100, Math.round(n)));
-  }
-
   private async loadAtsScore(): Promise<void> {
-    const local = this.scoreFromStorage();
-    if (local !== null) {
-      this.atsScoreFromApi = local;
-      this.recomputeStats();
-    }
-
     try {
       const cv = await this.cvSubmissionService.fetchMyCv();
-      if (cv?.atsScore === undefined || cv?.atsScore === null) return;
+      if (cv?.atsScore === undefined || cv?.atsScore === null) {
+        this.atsScoreFromApi = null;
+        this.recomputeStats();
+        this.cdr.detectChanges();
+        return;
+      }
 
       const score = Math.max(0, Math.min(100, Math.round(Number(cv.atsScore) || 0)));
       this.atsScoreFromApi = score;
-      localStorage.setItem('latestAtsScore', String(score));
       this.recomputeStats();
       this.cdr.detectChanges();
     } catch (err) {
       console.error('Dashboard ATS score fetch failed', err);
+      this.atsScoreFromApi = null;
+      this.recomputeStats();
+      this.cdr.detectChanges();
     }
   }
 
@@ -701,13 +705,7 @@ export class Dashboard {
 
   /** Recompute KPI stat values to reflect current data. */
   recomputeStats() {
-    // ATS score: average coverage of required skill levels
-    const calculatedAts = this.skills && this.skills.length
-      ? Math.round(
-          (this.skills.reduce((acc, s) => acc + Math.min(1, s.current / (s.required || 1)), 0) / this.skills.length) * 100
-        )
-      : 0;
-    const ats = this.atsScoreFromApi ?? calculatedAts;
+    const ats = this.atsScoreFromApi ?? 0;
 
     // employability score: backend persisted score only (no local fallback)
     this.employabilityScore = this.employabilityScoreFromApi ?? 0;
@@ -725,6 +723,59 @@ export class Dashboard {
       this.stats[2].value = metiers;
       this.stats[3].value = nbreGaps;
     }
+  }
+
+  private async loadTopRecommendations(): Promise<void> {
+    try {
+      const rows = await this.recommendationService.listApprovedForStudent();
+      const valid = rows.filter(r => {
+        const lvl = (r.level ?? '').toUpperCase();
+        return lvl === 'CRITIQUE' || lvl === 'HAUTE' || lvl === 'MOYENNE' || lvl === 'FAIBLE';
+      });
+      valid.sort((a, b) => {
+        const priorityDelta = this.recommendationPriorityRank(a.level) - this.recommendationPriorityRank(b.level);
+        if (priorityDelta !== 0) return priorityDelta;
+        return (Number(b.concern_rate) || 0) - (Number(a.concern_rate) || 0);
+      });
+      this.topRecommendations = valid.slice(0, 3);
+      this.cdr.detectChanges();
+    } catch {
+      this.topRecommendations = [];
+    }
+  }
+
+  private recommendationPriorityRank(level: string | null | undefined): number {
+    const normalized = (level ?? '').toUpperCase();
+    if (normalized === 'CRITIQUE' || normalized === 'HAUTE') return 0;
+    if (normalized === 'MOYENNE') return 1;
+    if (normalized === 'FAIBLE') return 2;
+    return 3;
+  }
+
+  recommendationTitle(item: StudentRecommendation): string {
+    return item.cert_title?.trim()
+      || item.gap_title?.trim()
+      || item.competence_name?.trim()
+      || 'Recommandation';
+  }
+
+  recommendationLevel(item: StudentRecommendation): string {
+    const lvl = (item.level ?? '').toUpperCase();
+    if (lvl === 'CRITIQUE') return 'Critique';
+    if (lvl === 'HAUTE') return 'Haute';
+    if (lvl === 'MOYENNE') return 'Moyenne';
+    return '';
+  }
+
+  recommendationContext(item: StudentRecommendation): string {
+    const metier = item.metier?.trim() ?? '';
+    const domaine = item.domaine?.trim() ?? '';
+    if (metier && domaine) return `${metier} · ${domaine}`;
+    return metier || domaine || 'Formation recommandée';
+  }
+
+  goToRecommendations(): void {
+    this.router.navigate(['/home/recommendation']);
   }
 
   logout() {

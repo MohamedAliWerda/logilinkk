@@ -7,5 +7,6 @@ import { RefCompetanceModule } from '../ref_competance/ref_competance.module';
   imports: [RefCompetanceModule],
   controllers: [CvSubmissionController],
   providers: [CvSubmissionService],
+  exports: [CvSubmissionService],
 })
 export class CvSubmissionModule {}

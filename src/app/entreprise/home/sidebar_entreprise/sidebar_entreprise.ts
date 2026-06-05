@@ -44,6 +44,12 @@ export class SidebarEntreprise implements OnInit, OnDestroy {
 
   menuItems = [
   {
+    key: 'fiche-signaletique',
+    label: 'Fiche signalétique',
+    route: '/entreprise/fiche-signaletique',
+    exact: false,
+  },
+  {
     key: 'offres',
     label: 'Offres d\'emploi',
     route: '/entreprise/offres',
@@ -56,9 +62,9 @@ export class SidebarEntreprise implements OnInit, OnDestroy {
     exact: false,
   },
   {
-    key: 'fiche-signaletique',
-    label: 'Fiche signalétique',
-    route: '/entreprise/fiche-signaletique',
+    key: 'feedback',
+    label: 'Feedback',
+    route: '/entreprise/feedback',
     exact: false,
   },
   {
@@ -75,7 +81,11 @@ export class SidebarEntreprise implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.sidebarService.open();
+    if (typeof window !== 'undefined' && window.innerWidth <= 600) {
+      this.sidebarService.close();
+    } else {
+      this.sidebarService.open();
+    }
     this.sub = this.sidebarService.isOpen$.subscribe((open) => {
       this.isOpen = open;
     });
@@ -87,5 +97,8 @@ export class SidebarEntreprise implements OnInit, OnDestroy {
 
   navigateTo(route: string): void {
     this.router.navigate([route]);
+    if (typeof window !== 'undefined' && window.innerWidth <= 600) {
+      this.sidebarService.close();
+    }
   }
 }

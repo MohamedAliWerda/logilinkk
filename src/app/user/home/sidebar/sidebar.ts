@@ -71,7 +71,7 @@ export class Sidebar implements OnInit, OnDestroy {
     },
     {
       key: 'matching',
-      label: 'Matching / Gap',
+      label: 'Matching / Gaps',
       route: '/home/matching',
       exact: false,
       icon: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -120,7 +120,11 @@ export class Sidebar implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.sidebarService.open();
+    if (typeof window !== 'undefined' && window.innerWidth <= 600) {
+      this.sidebarService.close();
+    } else {
+      this.sidebarService.open();
+    }
     this.sub = this.sidebarService.isOpen$.subscribe((open) => {
       this.isOpen = open;
     });
@@ -132,5 +136,8 @@ export class Sidebar implements OnInit, OnDestroy {
 
   navigateTo(route: string): void {
     this.router.navigate([route]);
+    if (typeof window !== 'undefined' && window.innerWidth <= 600) {
+      this.sidebarService.close();
+    }
   }
 }

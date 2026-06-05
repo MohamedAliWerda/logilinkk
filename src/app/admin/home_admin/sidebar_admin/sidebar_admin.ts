@@ -57,13 +57,13 @@ export class SidebarAdmin implements OnInit, OnDestroy {
     },
     {
       key: 'score',
-      label: 'Score Employabilité',
+      label: "Score d'employabilité",
       route: '/admin/score',
       exact: false,
     },
     {
       key: 'gaps',
-      label: 'Gaps',
+      label: 'Analyse des gaps',
       route: '/admin/gaps',
       exact: false,
     },
@@ -75,32 +75,26 @@ export class SidebarAdmin implements OnInit, OnDestroy {
     },
     {
       key: 'etud',
-      label: 'Gestion des étudiants',
+      label: 'Suivi des étudiants',
       route: '/admin/etud',
       exact: false,
     },
     {
       key: 'validation',
-      label: 'Validation Recommandations',
+      label: 'Gestion des recommandations',
       route: '/admin/validation',
       exact: false,
     },
     {
       key: 'feedback',
-      label: 'Feedback anciens étudiants',
+      label: 'Progrès professionnels',
       route: '/admin/feedback',
       exact: false,
     },
         {
       key: 'gestion-entreprise',
-      label: 'Gestion des entreprises',
+      label: 'Espace des sociétés',
       route: '/admin/gestion-entreprise',
-      exact: false,
-    },
-    {
-      key: 'settings',
-      label: 'Paramètres',
-      route: '/admin/settings',
       exact: false,
     },
     {
@@ -117,7 +111,11 @@ export class SidebarAdmin implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
-    this.sidebarService.open();
+    if (typeof window !== 'undefined' && window.innerWidth <= 600) {
+      this.sidebarService.close();
+    } else {
+      this.sidebarService.open();
+    }
     this.sub = this.sidebarService.isOpen$.subscribe((open) => {
       this.isOpen = open;
     });
@@ -129,5 +127,8 @@ export class SidebarAdmin implements OnInit, OnDestroy {
 
   navigateTo(route: string): void {
     this.router.navigate([route]);
+    if (typeof window !== 'undefined' && window.innerWidth <= 600) {
+      this.sidebarService.close();
+    }
   }
 }

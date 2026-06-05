@@ -1,28 +1,27 @@
 <main class="gaps-page">
     <header class="page-header" aria-label="Analyse des gaps">
         <div class="header-copy">
-            <span class="eyebrow">Analyse des gaps</span>
             <h1>Analyse des Gaps</h1>
-            <p>{{ viewMode === 'cohort' ? 'Vue cohorte — adéquation profil, compétences et marché' : 'Vue individuelle — suivi détaillé d’un étudiant' }}</p>
+            <p>{{ headerSubtitle }}</p>
         </div>
+    </header>
 
+    <div class="header-toolbar" aria-label="Filtres et actions">
         <div class="header-controls">
             <div class="cohort-pill">
-                <span class="live-dot"></span>
-                {{ cohortLabel || 'Cohorte —' }}
+                <span class="live-dot"></span> {{ cohortLabel || 'Cohorte —' }}
             </div>
 
             <label class="select-wrap">
                 <span class="sr-only">Changer de vue</span>
                 <select [value]="viewMode" (change)="setViewMode($any($event.target).value)">
-                    <option value="cohort">Vue cohorte</option>
+                    <option value="cohort">Vue d'ensemble</option>
                     <option value="student">Vue individuelle</option>
                 </select>
             </label>
 
-            <button class="btn-export" type="button" (click)="loadDashboard()">Rafraîchir ↻</button>
         </div>
-    </header>
+    </div>
 
     <p *ngIf="loading" class="status-message">Chargement des données…</p>
     <p *ngIf="errorMessage && !loading" class="status-message error">{{ errorMessage }}</p>
@@ -50,18 +49,12 @@
                         <span class="legend-item"><span class="legend-dot is-aligned"></span>Aligné</span>
                         <span class="legend-item"><span class="legend-dot is-partial"></span>Partiel</span>
                         <span class="legend-item"><span class="legend-dot is-gap"></span>Gap fort</span>
-                        <span class="legend-item"><span class="legend-dot is-absent"></span>Absente</span>
+                        <span class="legend-item"><span class="legend-dot is-absent"></span>Insuffisante</span>
                     </div>
                 </div>
 
                 <div class="tab-row" role="tablist" aria-label="Catégories de compétences">
-                    <button
-                        *ngFor="let tab of tabs"
-                        type="button"
-                        class="tab"
-                        [class.is-active]="selectedCategory === tab.key"
-                        (click)="setCategory(tab.key)"
-                    >
+                    <button *ngFor="let tab of tabs" type="button" class="tab" [class.is-active]="selectedCategory === tab.key" (click)="setCategory(tab.key)">
                         {{ tab.label }}
                     </button>
                 </div>
@@ -78,7 +71,6 @@
                             {{ item.gap > 0 ? '+' + item.gap : item.gap }}
                         </div>
                         <div class="skill-badge" [ngClass]="statusClassFor(item.status)">{{ item.status }}</div>
-                        <div class="skill-count">{{ item.count }} étudiant{{ item.count > 1 ? 's' : '' }}</div>
                     </div>
                 </div>
                 <ng-template #noSkills>
@@ -96,14 +88,21 @@
                     </div>
 
                     <div class="student-list" *ngIf="students.length > 0; else noStudents">
-                        <div class="student-row" *ngFor="let student of students">
+                        <div class="student-row" *ngFor="let student of (showAllStudents ? students : students.slice(0, 10))">
                             <div class="student-avatar" [style.background]="student.bg" [style.color]="student.fg">{{ student.initials }}</div>
                             <div class="student-main">
                                 <div class="student-name">{{ student.name }}</div>
-                                <div class="student-track"><div class="student-fill" [style.width.%]="student.pct" [style.background]="student.color"></div></div>
+                                <div class="student-track">
+                                    <div class="student-fill" [style.width.%]="student.pct" [style.background]="student.color"></div>
+                                </div>
                             </div>
                             <div class="student-pct" [style.color]="student.color">{{ student.pct }}%</div>
                             <div class="student-gaps">{{ student.gaps }} gap{{ student.gaps > 1 ? 's' : '' }}</div>
+                        </div>
+                        <div class="student-list-footer" *ngIf="students.length > 10">
+                            <button type="button" class="btn-toggle-list" (click)="showAllStudents = !showAllStudents">
+                                {{ showAllStudents ? 'Top 10' : 'Voir tout (' + students.length + ')' }}
+                            </button>
                         </div>
                     </div>
                     <ng-template #noStudents>
@@ -115,7 +114,6 @@
                     <div class="panel-head compact">
                         <div>
                             <h2>Top gaps à traiter en priorité</h2>
-                            <p>Les écarts les plus coûteux pour la cohorte</p>
                         </div>
                     </div>
 
@@ -138,7 +136,9 @@
                         <h3>Adéquation moyenne ↔ métiers cibles</h3>
                         <div class="job-row" *ngFor="let job of jobFit">
                             <span class="job-label">{{ job.label }}</span>
-                            <div class="job-track"><div class="job-fill" [ngClass]="'tone-' + job.tone" [style.width.%]="job.pct"></div></div>
+                            <div class="job-track">
+                                <div class="job-fill" [ngClass]="'tone-' + job.tone" [style.width.%]="job.pct"></div>
+                            </div>
                             <span class="job-val" [ngClass]="'tone-' + job.tone">{{ job.pct }}%</span>
                         </div>
                     </div>
@@ -147,48 +147,95 @@
         </section>
 
         <section *ngIf="viewMode === 'student' && selectedStudent as detail" class="student-view">
-            <section class="panel student-hero">
-                <div class="student-hero-copy">
-                    <span class="eyebrow">Vue individuelle</span>
-                    <h2>{{ detail.name }}</h2>
-                    <p>{{ detail.marketTarget }} · {{ detail.pct }}% d’adéquation marché</p>
+            <div class="student-top-grid">
+                <div class="student-main-column">
+                    <section class="panel student-hero">
+                        <div class="student-hero-copy">
+                            <span class="eyebrow">Vue individuelle</span>
+                            <h2>{{ detail.name }}</h2>
+                            <p>{{ showTargetJobView && targetJobStats ? targetJobStats.metierName : detail.marketTarget }} · {{ showTargetJobView && targetJobStats ? targetJobStats.coveragePct : detail.pct }}% d'adéquation {{ showTargetJobView && targetJobStats ? 'métier visé' : 'marché' }}</p>
+                            <div class="student-hero-actions">
+                                <button type="button" class="hero-action primary-action" (click)="openCvModal(detail.cvSubmissionId, detail.authId, detail.name)">
+                                    Ouvrir CV
+                                </button>
+                                <button type="button" class="hero-action secondary-action" [class.is-active]="showTargetJobView" [disabled]="targetJobLoading" (click)="toggleTargetJobView(detail.cvSubmissionId, detail.authId)">
+                                    {{ targetJobLoading ? 'Chargement…' : (showTargetJobView ? 'Métier plus adéquat' : 'Métier visé') }}
+                                </button>
+                            </div>
+                            <p *ngIf="targetJobError" class="target-job-error">{{ targetJobError }}</p>
+                        </div>
+
+                        <div class="student-hero-stats">
+                            <div class="hero-stat">
+                                <span class="hero-stat-label">Classement cohorte</span>
+                                <strong>#{{ detail.cohortRank }}</strong>
+                            </div>
+                            <div class="hero-stat">
+                                <span class="hero-stat-label">Gaps</span>
+                                <strong>{{ detail.gaps }}</strong>
+                            </div>
+                            <div class="hero-stat">
+                                <span class="hero-stat-label">{{ showTargetJobView && targetJobStats ? 'Métier ciblé' : 'Métier plus adéquat' }}</span>
+                                <strong>{{ showTargetJobView && targetJobStats ? targetJobStats.metierName : detail.marketTarget }}</strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="panel student-profile-panel">
+                        <div class="panel-head compact">
+                            <div>
+                                <h2>Profil de l'étudiant</h2>
+                                <p>Indicateurs clés du profil</p>
+                            </div>
+                        </div>
+
+                        <div class="student-profile-grid">
+                            <div class="profile-field profile-field-main">
+                                <span class="profile-label">Filière</span>
+                                <strong>{{ detail.filiere || 'Non renseignée' }}</strong>
+                                <span class="profile-meta">{{ detail.diplome }}</span>
+                            </div>
+
+                            <div class="profile-field profile-score-field">
+                                <span class="profile-label">{{ showTargetJobView && targetJobStats ? 'Adéquation métier visé' : 'Taux de matching' }}</span>
+                                <strong>{{ showTargetJobView && targetJobStats ? targetJobStats.coveragePct : detail.pct }}%</strong>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
-                <div class="student-hero-stats">
-                    <div class="hero-stat">
-                        <span class="hero-stat-label">Classement cohorte</span>
-                        <strong>#{{ detail.cohortRank }}</strong>
+                <section class="panel picker-panel" *ngIf="studentDetails.length > 1">
+                    <div class="panel-head compact">
+                        <div>
+                            <h2>Classification des étudiants par taux de matching</h2>
+                            <p>Choisir un étudiant à inspecter</p>
+                        </div>
                     </div>
-                    <div class="hero-stat">
-                        <span class="hero-stat-label">Gaps</span>
-                        <strong>{{ detail.gaps }}</strong>
-                    </div>
-                    <div class="hero-stat">
-                        <span class="hero-stat-label">Cible métier</span>
-                        <strong>{{ detail.marketTarget }}</strong>
-                    </div>
-                </div>
-            </section>
 
-            <section class="panel" *ngIf="studentDetails.length > 1">
-                <div class="panel-head compact">
-                    <div>
-                        <h2>Sélection</h2>
-                        <p>Choisir un étudiant à inspecter</p>
+                    <div class="picker-filters">
+                        <div class="picker-filter-group">
+                            <label class="picker-filter-label">Filière</label>
+                            <select class="picker-select" [(ngModel)]="filterFiliere">
+                                <option value="">Toutes les filières</option>
+                                <option *ngFor="let f of uniqueFilieres" [value]="f">{{ f }}</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-                <div class="tab-row">
-                    <button
-                        *ngFor="let s of studentDetails; let i = index"
-                        type="button"
-                        class="tab"
-                        [class.is-active]="selectedStudentIndex === i"
-                        (click)="setStudent(i)"
-                    >
-                        {{ s.name }}
-                    </button>
-                </div>
-            </section>
+
+                    <div class="student-picker-list">
+                        <button *ngFor="let s of filteredStudentDetails; let i = index" type="button" class="student-picker-row" [class.is-active]="studentDetails.indexOf(s) === selectedStudentIndex" (click)="setStudent(studentDetails.indexOf(s))">
+                            <div class="picker-avatar" [style.background]="s.bg" [style.color]="s.fg">{{ s.initials }}</div>
+                            <div class="picker-info">
+                                <span class="picker-name">{{ s.name }}</span>
+                                <span class="picker-meta">{{ s.filiere || '—' }} · {{ s.diplome }}</span>
+                            </div>
+                            <div class="picker-pct" [style.color]="s.color">{{ s.pct }}%</div>
+                            <div class="picker-rank">#{{ s.cohortRank }}</div>
+                        </button>
+                        <p *ngIf="filteredStudentDetails.length === 0" class="empty-hint">Aucun étudiant pour ces filtres.</p>
+                    </div>
+                </section>
+            </div>
 
             <section class="student-layout">
                 <article class="panel student-detail-panel">
@@ -201,15 +248,15 @@
 
                     <div class="detail-columns">
                         <div>
-                            <h3>Atouts</h3>
+                            <h3>Points forts</h3>
                             <ul class="detail-list success-list">
-                                <li *ngFor="let item of detail.strengths">{{ item }}</li>
+                                <li *ngFor="let item of (showTargetJobView && targetJobStats ? targetJobStats.strengths : detail.strengths)">{{ item }}</li>
                             </ul>
                         </div>
                         <div>
-                            <h3>Watchouts</h3>
+                            <h3>Axe d'amélioration</h3>
                             <ul class="detail-list alert-list">
-                                <li *ngFor="let item of detail.watchouts">{{ item }}</li>
+                                <li *ngFor="let item of (showTargetJobView && targetJobStats ? targetJobStats.watchouts : detail.watchouts)">{{ item }}</li>
                             </ul>
                         </div>
                     </div>
@@ -226,13 +273,13 @@
                 <article class="panel student-focus-panel">
                     <div class="panel-head compact">
                         <div>
-                            <h2>Focus compétences</h2>
+                            <h2>Analyse des compétences</h2>
                             <p>Niveau acquis par rapport au niveau requis</p>
                         </div>
                     </div>
 
-                    <div class="skill-list focus-skill-list" *ngIf="detail.skillFocus.length > 0; else noFocus">
-                        <div class="skill-row focus-row" *ngFor="let item of detail.skillFocus">
+                    <div class="skill-list focus-skill-list" *ngIf="(showTargetJobView && targetJobStats ? targetJobStats.skillFocus : detail.skillFocus).length > 0; else noFocus">
+                        <div class="skill-row focus-row" *ngFor="let item of (showTargetJobView && targetJobStats ? targetJobStats.skillFocus : detail.skillFocus)">
                             <div class="skill-name">{{ item.label }}</div>
                             <div class="skill-track" aria-hidden="true">
                                 <div class="skill-fill" [style.width.%]="item.acquis"></div>
@@ -248,32 +295,21 @@
                 </article>
             </section>
 
-            <section class="panel student-grid-bottom">
-                <div class="panel-head compact">
-                    <div>
-                        <h2>Repères cohorte</h2>
-                        <p>Positionnement relatif dans la promotion</p>
-                    </div>
-                </div>
-
-                <div class="student-grid-mini">
-                    <article class="mini-card">
-                        <span class="mini-label">Adéquation</span>
-                        <strong>{{ detail.pct }}%</strong>
-                        <p>score global du profil</p>
-                    </article>
-                    <article class="mini-card">
-                        <span class="mini-label">Alerte principale</span>
-                        <strong>{{ detail.watchouts[0] }}</strong>
-                        <p>écart prioritaire à traiter</p>
-                    </article>
-                    <article class="mini-card">
-                        <span class="mini-label">Orientation</span>
-                        <strong>{{ detail.marketTarget }}</strong>
-                        <p>métier cible actuel</p>
-                    </article>
-                </div>
-            </section>
         </section>
     </ng-container>
 </main>
+
+<!-- CV Modal -->
+<div class="cv-modal-overlay" *ngIf="cvModalOpen" (click)="closeCvModal()">
+    <div class="cv-modal-panel" (click)="$event.stopPropagation()">
+        <div class="cv-modal-header">
+            <h2>CV — {{ cvModalStudentName }}</h2>
+            <button type="button" class="cv-modal-close" (click)="closeCvModal()">✕</button>
+        </div>
+        <div class="cv-modal-body">
+            <p *ngIf="cvModalLoading" class="status-message">Chargement du CV…</p>
+            <p *ngIf="cvModalError && !cvModalLoading" class="status-message error">{{ cvModalError }}</p>
+            <app-cv-preview *ngIf="cvModalCv && !cvModalLoading" [cv]="cvModalCv" [profile]="{ displayName: cvModalStudentName }"></app-cv-preview>
+        </div>
+    </div>
+</div>

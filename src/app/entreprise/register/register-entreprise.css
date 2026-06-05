@@ -199,6 +199,14 @@ label {
   pointer-events: none;
 }
 
+/* removed explicit prefix element styles — the input now contains the full +216 value */
+
+.input-icon-wrap.filled input,
+.input-icon-wrap.filled textarea {
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249,115,22,0.08);
+}
+
 .input-icon-wrap input,
 .input-icon-wrap textarea {
   width: 100%;
@@ -269,6 +277,17 @@ label {
   color: #b42318;
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+/* ── Success ───────── */
+.auth-success {
+  margin-top: 0.6rem;
+  color: #116530;
+  background: #e6f7ee;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 /* ── Submit button ──────────────── */

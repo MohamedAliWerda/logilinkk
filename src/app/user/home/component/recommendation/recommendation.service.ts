@@ -29,6 +29,11 @@ export interface StudentRecommendation {
   updated_at?: string | null;
 }
 
+export interface ScoreV2Item {
+  id: string;
+  scoreEmpV2: number;
+}
+
 type ApiEnvelope<T> = { success: boolean; message: string; data: T };
 
 @Injectable({ providedIn: 'root' })
@@ -63,5 +68,34 @@ export class RecommendationService {
     }
 
     return payload.items;
+  }
+
+  async getScoreV2(): Promise<ScoreV2Item | null> {
+    const response = await firstValueFrom(
+      this.http.get<ApiEnvelope<{ item?: ScoreV2Item | null }> | { item?: ScoreV2Item | null }>(
+        `${this.baseUrl}/score-v2`,
+        {
+          headers: this.authHeaders(),
+        },
+      ),
+    );
+
+    const payload = this.unwrap(response);
+    return payload?.item ?? null;
+  }
+
+  async computeScoreV2(): Promise<ScoreV2Item | null> {
+    const response = await firstValueFrom(
+      this.http.post<ApiEnvelope<{ item?: ScoreV2Item | null }> | { item?: ScoreV2Item | null }>(
+        `${this.baseUrl}/score-v2/compute`,
+        {},
+        {
+          headers: this.authHeaders(),
+        },
+      ),
+    );
+
+    const payload = this.unwrap(response);
+    return payload?.item ?? null;
   }
 }

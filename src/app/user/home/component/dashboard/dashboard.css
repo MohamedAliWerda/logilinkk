@@ -170,6 +170,13 @@
     margin-top: 0.2rem;
 }
 
+.target-metier-gaps {
+    font-size: 0.8rem;
+    color: #f08f24;
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
 .target-metier-score {
     min-width: 64px;
     text-align: center;
@@ -805,6 +812,31 @@
     background: rgba(24, 36, 56, 0.03)
 }
 
+.rec-level-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.rec-level-critique {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.rec-level-haute {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.rec-level-moyenne {
+    background: #fef9c3;
+    color: #a16207;
+}
+
 .mini-item:hover {
     transform: translateY(-3px);
     transition: transform .12s ease;
@@ -1348,4 +1380,48 @@
 .doc-btn:hover {
     border-color: #fca63a;
     background: #fff8f0;
+}
+
+
+/* ── Responsive: phones ─────────────────────────────── */
+
+@media (max-width: 600px) {
+    .dashboard-content {
+        padding: 0.9rem;
+    }
+    .stats-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.7rem;
+    }
+    .stat-card {
+        padding: 0.9rem 1rem;
+        gap: 0.5rem;
+    }
+    .stat-value {
+        font-size: 1.8rem;
+    }
+    .stat-label {
+        font-size: 0.8rem;
+        margin-bottom: 0.3rem;
+    }
+    .stat-icon {
+        font-size: 1.4rem;
+        padding: 0.5rem;
+    }
+    .matching-head {
+        grid-template-columns: 1fr;
+    }
+    .profil-content {
+        flex-direction: column;
+    }
+    .profil-left {
+        width: 100%;
+    }
+}
+
+/* Very small phones: one KPI per row so nothing overflows */
+@media (max-width: 400px) {
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
 }

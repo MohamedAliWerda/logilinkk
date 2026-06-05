@@ -247,6 +247,49 @@ export class CvSubmissionService {
     }
   }
 
+  private getStoredStudentCinPassport(): string | null {
+    try {
+      const rawUser = localStorage.getItem('user');
+      if (!rawUser) return null;
+
+      const user = JSON.parse(rawUser) as Record<string, any>;
+      const candidate = user?.['cin_passport'] ?? user?.['cinPassport'];
+      if (candidate === undefined || candidate === null) return null;
+
+      const cin = String(candidate).trim();
+      return cin.length > 0 ? cin : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async fetchStudentCinPassport(): Promise<string | null> {
+    const fallbackCin = this.getStoredStudentCinPassport();
+    if (!fallbackCin) return null;
+
+    try {
+      const { data, error } = await this.supabase
+        .from('profils_etudiant')
+        .select('cin_passport')
+        .eq('cin_passport', fallbackCin)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[CvSubmissionService] fetchStudentCinPassport error', error);
+        return fallbackCin;
+      }
+
+      const cinPassport = data?.['cin_passport'];
+      if (cinPassport === undefined || cinPassport === null) return fallbackCin;
+
+      const resolved = String(cinPassport).trim();
+      return resolved.length > 0 ? resolved : fallbackCin;
+    } catch (err) {
+      console.warn('[CvSubmissionService] fetchStudentCinPassport failed', err);
+      return fallbackCin;
+    }
+  }
+
   async upsertCv(payload: CvPayload): Promise<void> {
     try {
       // try server-side endpoint first
@@ -491,6 +534,27 @@ export class CvSubmissionService {
     } catch (err) {
       console.error('fetchCvTablesForCurrentUser error', err);
       return { formations: [], experiences: [], certifications: [], engagements: [], langues: [] };
+    }
+  }
+
+  async fetchStudentFiliere(): Promise<string | null> {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+
+      const resp = await fetch(`${environment.apiUrl}/profile`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!resp.ok) return null;
+      const json = (await resp.json()) as { data?: Record<string, any> };
+      const filiere = json?.data?.['filiere'];
+      return typeof filiere === 'string' && filiere.trim().length > 0 ? filiere.trim() : null;
+    } catch {
+      return null;
     }
   }
 

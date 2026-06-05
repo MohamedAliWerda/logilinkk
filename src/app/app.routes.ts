@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { Login } from './auth/login/login';
+import { LoginAccess } from './auth/login-access/login-access';
 import { Verify } from './auth/verify/verify';
 import { ForgetPasswordComponent } from './auth/forgot-pass/forget-password.component';
 import { VerifyCodeComponent } from './auth/forgot-pass/verify-code.component';
@@ -14,8 +15,8 @@ import { Recommendation } from './user/home/component/recommendation/recommendat
 import { HomeAdmin } from './admin/home_admin/home_admin/home_admin';
 import { DashboardAdmin } from './admin/home_admin/comonent_admin/dashboard_admin/dashboard_admin';
 import { FormationsAdmin } from './admin/home_admin/comonent_admin/formations_admin/formations_admin';
-import { SettingsAdmin } from './admin/home_admin/comonent_admin/settings_admin/settings_admin';
 import { cvCreatedGuard } from './user/home/guards/cv-created.guard';
+import { authGuard, roleGuard } from './auth/guards/auth.guard';
 import { RegisterEntreprise } from './entreprise/register/register-entreprise';
 import { HomeEntreprise } from './entreprise/home/layout/home-entreprise';
 import { Offres } from './entreprise/home/offres/offres';
@@ -29,7 +30,8 @@ import { OffresEmpComponent } from './user/home/component/offres-emp/offres-emp'
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
-  { path: 'login', component: Login },
+  { path: 'login', component: LoginAccess },
+  { path: 'login-etudiant', component: Login },
   { path: 'register-entreprise', component: RegisterEntreprise },
   { path: 'verify', component: Verify },
   { path: 'forgot-password', component: ForgetPasswordComponent },
@@ -39,6 +41,7 @@ export const routes: Routes = [
   {
     path: 'home',
     component: HomeComponent,
+    canActivate: [authGuard, roleGuard('etudiant')],
     children: [
       { path: '', redirectTo: 'cv-landing', pathMatch: 'full' },
       { path: 'cv-landing', component: CvLanding },
@@ -55,11 +58,11 @@ export const routes: Routes = [
   {
     path: 'admin',
     component: HomeAdmin,
+    canActivate: [authGuard, roleGuard('admin')],
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: DashboardAdmin },
       { path: 'formations', component: FormationsAdmin },
-      { path: 'settings', component: SettingsAdmin },
       {
         path: 'matrice',
         loadComponent: () =>
@@ -106,11 +109,18 @@ export const routes: Routes = [
   {
     path: 'entreprise',
     component: HomeEntreprise,
+    canActivate: [authGuard, roleGuard('entreprise')],
     children: [
       { path: '', redirectTo: 'offres', pathMatch: 'full' },
       { path: 'offres', component: Offres },
       { path: 'candidatures', component: CandidaturesComponent },
+      { path: 'candidatures/:id', component: CandidaturesComponent },
       { path: 'fiche-signaletique', component: FicheSignaletique },
+      {
+        path: 'feedback',
+        loadComponent: () =>
+          import('./entreprise/home/feedback/feedback-entreprise').then(m => m.FeedbackEntreprise),
+      },
     ],
   },
 ];

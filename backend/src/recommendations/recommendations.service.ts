@@ -4,6 +4,12 @@ import { randomUUID } from 'node:crypto';
 import { getSupabase } from '../config/supabase.client';
 
 export type RecommendationStatus = 'pending' | 'approved' | 'rejected' | 'edited';
+type StudentRecommendationLevel = 'CRITIQUE' | 'MOYENNE' | 'FAIBLE';
+type StudentGapEntry = {
+  metier: string;
+  competence: string;
+  similarityScore: number;
+};
 
 export type RecommendationRow = Record<string, any>;
 
@@ -23,6 +29,58 @@ export class RecommendationsService {
 
     const timeout = Number(this.configService.get<string>('RECOMMENDATION_PYTHON_TIMEOUT_MS') ?? '900000');
     this.pythonTimeoutMs = Number.isFinite(timeout) ? Math.max(60_000, timeout) : 900_000;
+  }
+
+  private normalizeCategory(value: string | null | undefined): string {
+    return String(value ?? '').trim().toUpperCase();
+  }
+
+  private filterByCategory(rows: RecommendationRow[], category?: string): RecommendationRow[] {
+    const normalizedCategory = this.normalizeCategory(category);
+    if (!normalizedCategory) return rows;
+    return rows.filter((row) => this.normalizeCategory(String(row?.category ?? '')) === normalizedCategory);
+  }
+
+  private normalizeConcernRate(
+    row: RecommendationRow,
+    forcedTotalStudents?: number | null,
+  ): RecommendationRow {
+    const studentsImpacted = Number(row?.students_impacted ?? 0);
+    const forcedTotal = Number(forcedTotalStudents ?? 0);
+    const totalFromRow = Number(row?.total_students ?? row?.cohort_size ?? 0);
+    const totalStudents =
+      Number.isFinite(forcedTotal) && forcedTotal > 0
+        ? Math.trunc(forcedTotal)
+        : totalFromRow;
+
+    if (!Number.isFinite(studentsImpacted) || !Number.isFinite(totalStudents) || totalStudents <= 0) {
+      return row;
+    }
+
+    const concernRate = Number(((studentsImpacted / totalStudents) * 100).toFixed(1));
+    return {
+      ...row,
+      total_students: totalStudents,
+      concern_rate: concernRate,
+    };
+  }
+
+  private async getGlobalCvStudentsCount(): Promise<number | null> {
+    const { count, error } = await this.supabase
+      .from('cv_submissions')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      this.logger.warn(`Unable to count cv_submissions: ${error.message}`);
+      return null;
+    }
+
+    const total = Number(count ?? 0);
+    if (!Number.isFinite(total) || total <= 0) {
+      return null;
+    }
+
+    return Math.trunc(total);
   }
 
   private async pythonPost(path: string, body: any): Promise<any> {
@@ -94,11 +152,60 @@ export class RecommendationsService {
     return data ?? [];
   }
 
-  async listRecommendations(status?: string): Promise<RecommendationRow[]> {
+  async listReasonHistory(limit = 200): Promise<any[]> {
+    const safeLimit = Number.isFinite(Number(limit))
+      ? Math.max(1, Math.min(500, Math.trunc(Number(limit))))
+      : 200;
+
+    const { data, error } = await this.supabase
+      .from('ai_confirmed_recommendations')
+      .select(
+        'recommendation_id,metier,gap_title,cert_title,cert_provider,raison,confirmed_at,updated_at',
+      )
+      .order('updated_at', { ascending: false, nullsFirst: false })
+      .order('confirmed_at', { ascending: false, nullsFirst: false })
+      .limit(safeLimit);
+    if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    const rows = data ?? [];
+    if (!rows.length) return [];
+
+    const recommendationIds = rows
+      .map((row: any) => String(row?.recommendation_id ?? '').trim())
+      .filter((id: string) => !!id);
+
+    const { data: statusRows, error: statusError } = await this.supabase
+      .from('ai_recommendations')
+      .select('id,status,updated_at')
+      .in('id', recommendationIds);
+    if (statusError) throw new HttpException(statusError.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    const byId = new Map(
+      (statusRows ?? []).map((row: any) => [String(row?.id ?? '').trim(), row]),
+    );
+
+    return rows.map((row: any) => {
+      const recommendationId = String(row?.recommendation_id ?? '').trim();
+      const source = byId.get(recommendationId);
+      const status = String(source?.status ?? 'approved').toLowerCase();
+      const normalizedStatus =
+        status === 'rejected' || status === 'edited' || status === 'approved' ? status : 'approved';
+      return {
+        ...row,
+        recommendation_id: recommendationId,
+        status: normalizedStatus,
+        decision_at: source?.updated_at ?? row?.updated_at ?? row?.confirmed_at ?? null,
+      };
+    });
+  }
+
+  async listRecommendations(status?: string, category?: string): Promise<RecommendationRow[]> {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
+    const normalizedCategory = this.normalizeCategory(category);
+    const globalTotalStudents = await this.getGlobalCvStudentsCount();
 
     if (normalizedStatus === 'approved') {
-      return this.listApprovedRecommendationsForAdmin();
+      return this.listApprovedRecommendationsForAdmin(globalTotalStudents, normalizedCategory);
     }
 
     let query = this.supabase
@@ -110,25 +217,36 @@ export class RecommendationsService {
     if (normalizedStatus) {
       query = query.eq('status', normalizedStatus);
     }
+    if (normalizedCategory) {
+      query = query.eq('category', normalizedCategory);
+    }
     const { data, error } = await query;
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
 
-    const rows = (data ?? []) as RecommendationRow[];
+    const rows = ((data ?? []) as RecommendationRow[]).map((row) =>
+      this.normalizeConcernRate(row, globalTotalStudents),
+    );
     if (normalizedStatus) {
-      return rows;
+      return this.filterByCategory(rows, normalizedCategory);
     }
 
     // For "all", include approved rows from the confirmed table (source of truth)
     // so previously validated recommendations remain visible even after regeneration.
-    const approvedRows = await this.listApprovedRecommendationsForAdmin();
+    const approvedRows = await this.listApprovedRecommendationsForAdmin(
+      globalTotalStudents,
+      normalizedCategory,
+    );
     const approvedIds = new Set(approvedRows.map((r) => String(r.id).trim()));
     const nonApproved = rows.filter((r) => !approvedIds.has(String(r?.id ?? '').trim()));
-    return [...approvedRows, ...nonApproved];
+    return this.filterByCategory([...approvedRows, ...nonApproved], normalizedCategory);
   }
 
-  private async listApprovedRecommendationsForAdmin(): Promise<RecommendationRow[]> {
+  private async listApprovedRecommendationsForAdmin(
+    globalTotalStudents?: number | null,
+    category?: string,
+  ): Promise<RecommendationRow[]> {
     const confirmedRows = await this.listAllConfirmedRecommendations();
-    return confirmedRows
+    const rows = confirmedRows
       .map((row: any) => ({
         ...row,
         id: String(row?.recommendation_id ?? row?.id ?? '').trim(),
@@ -136,7 +254,10 @@ export class RecommendationsService {
         created_at: row?.created_at ?? row?.confirmed_at ?? null,
         updated_at: row?.updated_at ?? row?.confirmed_at ?? null,
       }))
+        .map((row: RecommendationRow) => this.normalizeConcernRate(row, globalTotalStudents))
       .filter((row: RecommendationRow) => !!row.id);
+
+    return this.filterByCategory(rows, category);
   }
 
   async listApprovedRecommendationsForStudent(authOrUserId: string): Promise<RecommendationRow[]> {
@@ -146,12 +267,37 @@ export class RecommendationsService {
     const targetJob = await this.getStudentTargetJob(resolvedAuthId);
     if (!targetJob) return [];
 
+    const globalTotalStudents = await this.getGlobalCvStudentsCount();
+    const studentGapEntries = await this.getStudentGapEntries(resolvedAuthId);
+
     // Requirement: student recommendations come from confirmed rows only, mapped by
     // ai_confirmed_recommendations.metier <-> cv_submissions.professional_title.
     const allConfirmed = await this.listAllConfirmedRecommendations();
     const byTargetJob = allConfirmed.filter((row) => this.isMetierMatch(row?.metier, targetJob));
 
-    return byTargetJob.map((row) => this.toStudentRecommendation(row));
+    return byTargetJob.map((row) =>
+      this.toStudentRecommendation(row, globalTotalStudents, studentGapEntries),
+    );
+  }
+
+  private async getStudentGapEntries(authId: string): Promise<StudentGapEntry[]> {
+    const { data, error } = await this.supabase
+      .from('cv_matching_competence_results')
+      .select('metier_name,competence_name,similarity_score,status')
+      .eq('auth_id', authId)
+      .eq('status', 'gap');
+    if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    return (data ?? [])
+      .map((row: any) => ({
+        metier: this.normalizeText(row?.metier_name),
+        competence: this.normalizeText(row?.competence_name),
+        similarityScore: Number(row?.similarity_score),
+      }))
+      .filter(
+        (row: StudentGapEntry) =>
+          !!row.metier && !!row.competence && Number.isFinite(row.similarityScore),
+      );
   }
 
   private async listAllConfirmedRecommendations(): Promise<any[]> {
@@ -160,7 +306,33 @@ export class RecommendationsService {
       .select('*')
       .order('concern_rate', { ascending: false });
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    return data ?? [];
+    const rows = data ?? [];
+    if (!rows.length) return [];
+
+    // Confirmed table is kept as a history source. Only rows whose source recommendation
+    // is currently approved should be exposed to admin approved lists and students.
+    const recommendationIds = rows
+      .map((row: any) => String(row?.recommendation_id ?? row?.id ?? '').trim())
+      .filter((id: string) => !!id);
+
+    if (!recommendationIds.length) return [];
+
+    const { data: statusRows, error: statusError } = await this.supabase
+      .from('ai_recommendations')
+      .select('id,status')
+      .in('id', recommendationIds);
+    if (statusError) throw new HttpException(statusError.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    const approvedIds = new Set(
+      (statusRows ?? [])
+        .filter((row: any) => String(row?.status ?? '').toLowerCase() === 'approved')
+        .map((row: any) => String(row?.id ?? '').trim())
+        .filter((id: string) => !!id),
+    );
+
+    return rows.filter((row: any) =>
+      approvedIds.has(String(row?.recommendation_id ?? row?.id ?? '').trim()),
+    );
   }
 
   private async resolveStudentAuthId(authOrUserId: string): Promise<string | null> {
@@ -227,11 +399,106 @@ export class RecommendationsService {
     return commonTokenCount >= 2;
   }
 
-  private toStudentRecommendation(row: any): RecommendationRow {
+  private isCompetenceMatch(left: unknown, right: unknown): boolean {
+    const leftNormalized = this.normalizeText(left);
+    const rightNormalized = this.normalizeText(right);
+    if (!leftNormalized || !rightNormalized) return false;
+
+    if (leftNormalized === rightNormalized) return true;
+    if (leftNormalized.includes(rightNormalized) || rightNormalized.includes(leftNormalized)) return true;
+
+    const leftTokens = leftNormalized.split(' ').filter(Boolean);
+    const rightTokens = new Set(rightNormalized.split(' ').filter(Boolean));
+    const commonTokenCount = leftTokens.filter((token) => rightTokens.has(token)).length;
+    if (commonTokenCount >= 2) return true;
+
+    return commonTokenCount >= 1 && (leftTokens.length <= 1 || rightTokens.size <= 1);
+  }
+
+  private levelFromGapSimilarityScore(similarityScore: unknown): StudentRecommendationLevel | null {
+    const score = Number(similarityScore);
+    if (!Number.isFinite(score)) return null;
+    if (score >= 0.5) return 'FAIBLE';
+    if (score >= 0.3) return 'MOYENNE';
+    if (score >= 0) return 'CRITIQUE';
+    return null;
+  }
+
+  private levelFromStudentMatchingGaps(
+    row: RecommendationRow,
+    studentGapEntries: StudentGapEntry[],
+  ): StudentRecommendationLevel | null {
+    if (!studentGapEntries.length) return null;
+
+    const recommendationMetier = this.normalizeText(row?.metier);
+    const competenceCandidates = [
+      row?.competence_name,
+      row?.detected_gap,
+      row?.gap_title,
+      row?.gap_label,
+    ]
+      .map((value) => this.normalizeText(value))
+      .filter(Boolean);
+    if (!competenceCandidates.length) return null;
+
+    const pickBestLevel = (enforceMetier: boolean): StudentRecommendationLevel | null => {
+      let bestGapScore: number | null = null;
+
+      for (const gapEntry of studentGapEntries) {
+        if (
+          enforceMetier
+          && recommendationMetier
+          && !this.isMetierMatch(gapEntry.metier, recommendationMetier)
+        ) {
+          continue;
+        }
+
+        const hasCompetenceMatch = competenceCandidates.some((candidate) =>
+          this.isCompetenceMatch(candidate, gapEntry.competence),
+        );
+        if (!hasCompetenceMatch) continue;
+
+        bestGapScore = bestGapScore === null
+          ? gapEntry.similarityScore
+          : Math.min(bestGapScore, gapEntry.similarityScore);
+      }
+
+      return this.levelFromGapSimilarityScore(bestGapScore);
+    };
+
+    return pickBestLevel(true) ?? pickBestLevel(false);
+  }
+
+  private levelFromConcernRate(concernRate: unknown): StudentRecommendationLevel | null {
+    const rate = Number(concernRate);
+    if (!Number.isFinite(rate)) return null;
+    if (rate >= 70) return 'CRITIQUE';
+    if (rate >= 40) return 'MOYENNE';
+    if (rate >= 20) return 'FAIBLE';
+    return null;
+  }
+
+  private toStudentRecommendation(
+    row: any,
+    globalTotalStudents?: number | null,
+    studentGapEntries: StudentGapEntry[] = [],
+  ): RecommendationRow {
     const recommendationId = String(row?.recommendation_id ?? row?.id ?? '').trim();
+    const normalized = this.normalizeConcernRate(
+      {
+        ...row,
+        id: recommendationId,
+      },
+      globalTotalStudents,
+    );
+
+    const level = this.levelFromStudentMatchingGaps(normalized, studentGapEntries)
+      ?? this.levelFromConcernRate(normalized?.concern_rate)
+      ?? 'FAIBLE';
+
     return {
-      ...row,
-      id: recommendationId,
+      ...normalized,
+      level,
     };
   }
 
@@ -243,12 +510,15 @@ export class RecommendationsService {
       .maybeSingle();
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     if (!data) throw new HttpException('Recommendation not found', HttpStatus.NOT_FOUND);
-    return data;
+    const globalTotalStudents = await this.getGlobalCvStudentsCount();
+    return this.normalizeConcernRate(data as RecommendationRow, globalTotalStudents);
   }
 
   async updateRecommendation(
     id: string,
     patch: Partial<RecommendationRow>,
+    adminId?: string | null,
+    comment?: string,
   ): Promise<RecommendationRow> {
     const allowed: (keyof RecommendationRow)[] = [
       'category',
@@ -295,38 +565,78 @@ export class RecommendationsService {
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     if (!data) throw new HttpException('Recommendation not found', HttpStatus.NOT_FOUND);
 
-    // If an approved recommendation is edited, it must leave the confirmed pool
-    // until an explicit re-approval happens.
-    await this.removeConfirmedMirror(id);
+    // Persist the decision reason in confirmed table history and remove current targets
+    // so edited rows are no longer considered active approved recommendations.
+    await this.upsertConfirmedHistoryRow(data as RecommendationRow, comment);
+    await this.removeConfirmedTargets(id);
 
-    return data;
+    await this.logAdminFeedback(id, adminId ?? null, 'edited', data.cert_title ?? '', comment);
+
+    const globalTotalStudents = await this.getGlobalCvStudentsCount();
+    return this.normalizeConcernRate(data as RecommendationRow, globalTotalStudents);
   }
 
   async rejectRecommendation(id: string, adminId: string | null, comment?: string): Promise<void> {
+    const recommendation = await this.getRecommendation(id);
+
     const { error } = await this.supabase
       .from('ai_recommendations')
       .update({ status: 'rejected', updated_at: new Date().toISOString() })
       .eq('id', id);
     if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
 
-    // A rejected recommendation must not remain in confirmed tables.
-    await this.removeConfirmedMirror(id);
+    // Persist rejection reason in confirmed table history and remove current targets
+    // so rejected rows are no longer considered active approved recommendations.
+    await this.upsertConfirmedHistoryRow(recommendation, comment);
+    await this.removeConfirmedTargets(id);
 
     await this.logAdminFeedback(id, adminId, 'rejected', '', comment);
   }
 
-  private async removeConfirmedMirror(recommendationId: string): Promise<void> {
+  private async upsertConfirmedHistoryRow(row: RecommendationRow, reason?: string): Promise<void> {
+    const nowIso = new Date().toISOString();
+    const recommendationId = String(row?.id ?? row?.recommendation_id ?? '').trim();
+    if (!recommendationId) {
+      throw new HttpException('Recommendation id missing for history sync', HttpStatus.BAD_REQUEST);
+    }
+
+    const historyRow = {
+      recommendation_id: recommendationId,
+      category: row?.category ?? 'TARGET_METIER',
+      gap_label: row?.gap_label ?? row?.competence_name ?? 'N/A',
+      gap_title: row?.gap_title ?? row?.competence_name ?? 'N/A',
+      level: row?.level ?? 'MOYENNE',
+      metier: row?.metier ?? 'N/A',
+      keywords: row?.keywords ?? [],
+      concern_rate: Number(row?.concern_rate ?? 0),
+      students_impacted: Number(row?.students_impacted ?? 0),
+      total_students: Number(row?.total_students ?? 0),
+      llm_recommendation: row?.llm_recommendation ?? '',
+      cert_title: row?.cert_title ?? 'N/A',
+      cert_description: row?.cert_description ?? null,
+      cert_provider: row?.cert_provider ?? 'N/A',
+      cert_duration: row?.cert_duration ?? 'N/A',
+      cert_pricing: row?.cert_pricing ?? 'N/A',
+      cert_url: row?.cert_url ?? null,
+      cert_id: row?.cert_id ?? null,
+      match_confidence: row?.match_confidence ?? null,
+      raison: reason ?? '',
+      confirmed_at: row?.confirmed_at ?? nowIso,
+      updated_at: nowIso,
+    };
+
+    const { error } = await this.supabase
+      .from('ai_confirmed_recommendations')
+      .upsert(historyRow, { onConflict: 'recommendation_id' });
+    if (error) throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  private async removeConfirmedTargets(recommendationId: string): Promise<void> {
     const { error: targetError } = await this.supabase
       .from('ai_confirmed_recommendation_targets')
       .delete()
       .eq('recommendation_id', recommendationId);
     if (targetError) throw new HttpException(targetError.message, HttpStatus.INTERNAL_SERVER_ERROR);
-
-    const { error: confirmedError } = await this.supabase
-      .from('ai_confirmed_recommendations')
-      .delete()
-      .eq('recommendation_id', recommendationId);
-    if (confirmedError) throw new HttpException(confirmedError.message, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
   async approveRecommendation(id: string, adminId: string | null, comment?: string): Promise<RecommendationRow> {
@@ -352,6 +662,7 @@ export class RecommendationsService {
       cert_url: row.cert_url ?? null,
       cert_id: row.cert_id ?? null,
       match_confidence: row.match_confidence ?? null,
+      raison: comment ?? '',
       confirmed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -378,6 +689,65 @@ export class RecommendationsService {
         .from('ai_confirmed_recommendation_targets')
         .upsert(confirmedTargets, { onConflict: 'recommendation_id,auth_id' });
       if (tErr) this.logger.warn(`confirmed targets upsert failed: ${tErr.message}`);
+    }
+
+    // Remove redundant confirmed targets for the same student when this recommendation
+    // is approved for the student's target métier. This prevents duplicate active
+    // recommendations coming from "other métier" for the same gap/cert while keeping
+    // historical confirmed recommendation rows intact so they can be re-applied later
+    // if the student removes the target métier.
+    try {
+      if (confirmedTargets.length) {
+        const gapLabel = confirmed.gap_label ?? null;
+        const certTitle = confirmed.cert_title ?? null;
+        const currentMetier = confirmed.metier ?? null;
+
+        // For each confirmed target (student), find other confirmed recommendations
+        // that match by gap_label OR cert_title, belong to a different metier, and
+        // remove the confirmed target link for that student.
+        for (const t of confirmedTargets) {
+          const authId = t.auth_id;
+          const { data: allConfirmed, error: fetchErr } = await this.supabase
+            .from('ai_confirmed_recommendations')
+            .select('recommendation_id,metier,gap_label,cert_title')
+            .neq('recommendation_id', row.id)
+            .limit(2000);
+
+          if (fetchErr) {
+            this.logger.warn(`finding matching confirmed recommendations failed: ${fetchErr.message}`);
+            continue;
+          }
+
+          const toRemoveIds: string[] = [];
+          for (const m of (allConfirmed ?? [])) {
+            const mid = String(m?.recommendation_id ?? '').trim();
+            const mMetier = String(m?.metier ?? '').trim();
+            const mgap = String(m?.gap_label ?? '').trim();
+            const mcert = String(m?.cert_title ?? '').trim();
+            if (!mid) continue;
+            // Only remove if metier differs from current approved metier
+            if (currentMetier && mMetier && this.normalizeText(currentMetier) === this.normalizeText(mMetier)) {
+              continue;
+            }
+            // Remove if gap_label or cert_title matches the current confirmed recommendation
+            if ((gapLabel && mgap && this.normalizeText(gapLabel) === this.normalizeText(mgap))
+              || (certTitle && mcert && this.normalizeText(certTitle) === this.normalizeText(mcert))) {
+              toRemoveIds.push(mid);
+            }
+          }
+
+          if (toRemoveIds.length) {
+            const { error: delErr } = await this.supabase
+              .from('ai_confirmed_recommendation_targets')
+              .delete()
+              .in('recommendation_id', toRemoveIds)
+              .eq('auth_id', authId);
+            if (delErr) this.logger.warn(`failed removing redundant confirmed targets: ${delErr.message}`);
+          }
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`cleanup of redundant confirmed targets failed: ${err?.message ?? err}`);
     }
 
     const { error: statusErr } = await this.supabase

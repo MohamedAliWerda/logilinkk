@@ -8,7 +8,7 @@ import {
   STUDENT_PROFILE_DATA,
 } from '../../student-profile.data';
 
-type Level = 'Debutant' | 'Notions' | 'Intermediaire' | 'Avance' | 'Expert';
+type Level = 'Débutant' | 'Notions' | 'Intermediaire' | 'Avancé' | 'Expert';
 
 interface AtsResult {
   matchScore: number;
@@ -30,6 +30,29 @@ export class CvAts {
   private asString(v: any): string {
     if (v === undefined || v === null) return '';
     return String(v);
+  }
+
+  private formatToMonth(value: any): string {
+    const raw = this.asString(value).trim();
+    if (!raw) return '';
+
+    // Already YYYY-MM
+    const ym = raw.match(/^(\d{4})-(\d{2})$/);
+    if (ym) return `${ym[1]}-${ym[2]}`;
+
+    // If YYYY-MM-DD or ISO date, extract year-month
+    const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (ymd) return `${ymd[1]}-${ymd[2]}`;
+
+    // Try Date parse for other formats
+    const parsed = new Date(raw);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+    }
+
+    return '';
   }
 
   private normalizeMetierId(value: unknown): string {
@@ -68,6 +91,7 @@ export class CvAts {
   formRestored = signal(false);
   restoredFromDate = signal<string | null>(null);
   readonly sharedProfileInfo = buildCvAtsPrefill(STUDENT_PROFILE_DATA);
+  private studentFiliere = '';
 
   constructor(
     private cvSubmissionService: CvSubmissionService,
@@ -159,13 +183,13 @@ export class CvAts {
       this.formations = cv.formations.map((f: any) => ({
         diplome: this.asString(f.diplome ?? this.formations[0]?.diplome),
         institution: this.asString(f.institution ?? ''),
-        dateDebut: this.asString(f.dateDebut ?? ''),
-        dateFin: this.asString(f.dateFin ?? ''),
+        dateDebut: this.formatToMonth(f.dateDebut ?? f.date_debut ?? ''),
+        dateFin: this.formatToMonth(f.dateFin ?? f.date_fin ?? ''),
         moyenne: this.asString(f.moyenne ?? ''),
         modules: this.asString(f.modules ?? ''),
-        pfeTitre: this.asString(f.pfeTitre ?? ''),
-        pfeEntreprise: this.asString(f.pfeEntreprise ?? ''),
-        pfeTechnologies: this.asString(f.pfeTechnologies ?? ''),
+        pfeTitre: this.asString(f.pfeTitre ?? f.pfe_titre ?? ''),
+        pfeEntreprise: this.asString(f.pfeEntreprise ?? f.pfe_entreprise ?? ''),
+        pfeTechnologies: this.asString(f.pfeTechnologies ?? f.pfe_technologies ?? ''),
       }));
     }
 
@@ -175,11 +199,11 @@ export class CvAts {
         poste: this.asString(e.poste ?? ''),
         entreprise: this.asString(e.entreprise ?? ''),
         secteur: this.asString(e.secteur ?? ''),
-        dateDebut: this.asString(e.dateDebut ?? ''),
-        dateFin: this.asString(e.dateFin ?? ''),
+        dateDebut: this.formatToMonth(e.dateDebut ?? e.date_debut ?? ''),
+        dateFin: this.formatToMonth(e.dateFin ?? e.date_fin ?? ''),
         lieu: this.asString(e.lieu ?? ''),
         description: this.asString(e.description ?? ''),
-        motsCles: this.asString(e.motsCles ?? ''),
+        motsCles: this.asString(e.motsCles ?? e.mots_cles ?? ''),
       }));
     }
 
@@ -207,7 +231,7 @@ export class CvAts {
     if (Array.isArray(cv.langues) && cv.langues.length > 0) {
       this.langues = cv.langues.map((l: any) => ({
         langue: this.asString(l.langue ?? ''),
-        niveau: this.asString(l.niveau ?? 'B1'),
+        niveau: this.asString(l.niveau ?? l.niveau_cecrl ?? 'B1'),
         certification: this.asString(l.certification ?? ''),
         score: this.asString(l.score ?? ''),
       }));
@@ -228,7 +252,7 @@ export class CvAts {
       this.certifications = cv.certifications.map((c: any) => ({
         titre: this.asString(c.titre ?? ''),
         organisme: this.asString(c.organisme ?? ''),
-        date: this.asString(c.date ?? ''),
+        date: this.formatToMonth(c.date ?? c.date_obtenue ?? ''),
         verification: this.asString(c.verification ?? ''),
       }));
     }
@@ -238,8 +262,8 @@ export class CvAts {
       this.engagements = cv.engagements.map((e: any) => ({
         type: this.asString(e.type ?? 'Associatif'),
         role: this.asString(e.role ?? ''),
-        dateDebut: this.asString(e.dateDebut ?? ''),
-        dateFin: this.asString(e.dateFin ?? ''),
+        dateDebut: this.formatToMonth(e.dateDebut ?? e.date_debut ?? ''),
+        dateFin: this.formatToMonth(e.dateFin ?? e.date_fin ?? ''),
       }));
     }
 
@@ -280,8 +304,8 @@ export class CvAts {
 
     this.formations = [
       {
-        diplome: this.sharedProfileInfo.filiere,
-        institution: 'ISGIS - Universite de Sfax',
+        diplome: this.studentFiliere || this.sharedProfileInfo.filiere,
+        institution: 'Institut Supérieur De Gestion Industrielle De Sfax',
         dateDebut: '',
         dateFin: '',
         moyenne: '',
@@ -331,6 +355,11 @@ export class CvAts {
 
   async ngOnInit(): Promise<void> {
     try {
+      const cinPassport = await this.cvSubmissionService.fetchStudentCinPassport();
+      if (cinPassport) {
+        this.studentId = cinPassport;
+      }
+
       const rawMetiers = await this.cvSubmissionService.fetchMetiers();
       this.metiers = (Array.isArray(rawMetiers) ? rawMetiers : [])
         .map((m: any) => ({
@@ -343,6 +372,14 @@ export class CvAts {
       this.checkSavedCv();
       // Try to auto-restore form data for returning users
       await this.autoRestoreFormState();
+
+      // Fetch real filiere from profils_etudiant and apply to formations[0].diplome
+      const filiere = await this.cvSubmissionService.fetchStudentFiliere();
+      if (filiere) {
+        this.studentFiliere = filiere;
+        this.formations[0].diplome = filiere;
+        this.cd.markForCheck();
+      }
     } catch (err) {
       console.error('Failed to load metiers', err);
     }
@@ -534,8 +571,8 @@ export class CvAts {
 
   formations = [
     {
-      diplome: this.sharedProfileInfo.filiere,
-      institution: 'ISGIS - Universite de Sfax',
+      diplome: this.studentFiliere || this.sharedProfileInfo.filiere,
+      institution: 'Institut Supérieur De Gestion Industrielle De Sfax',
       dateDebut: '',
       dateFin: '',
       moyenne: '',
@@ -593,16 +630,16 @@ export class CvAts {
   ];
 
   consentGiven = false;
-  studentId = 'AUTO-ISGIS';
+  studentId = '';
   createdAt = new Date().toISOString();
   updatedAt = new Date().toISOString();
   atsScore = 0;
   cohortRank = 0;
 
-  niveaux: Level[] = ['Debutant', 'Notions', 'Intermediaire', 'Avance', 'Expert'];
+  niveaux: Level[] = ['Débutant', 'Notions', 'Intermediaire', 'Avancé', 'Expert'];
   niveauxLangue = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   secteurOptions = ['Transport routier', 'Transport maritime', 'Transport aerien', 'Logistique 3PL/4PL', 'Supply Chain', 'Douane'];
-  engagementTypes = ['Associatif', 'Sport', 'Benevolat', 'Club'];
+  engagementTypes = ['Associatif', 'Sport', 'Bénévolat', 'Club'];
   permisOptions = ['Aucun', 'B', 'C', 'CE', 'D'];
 
   atsJobDescription = '';
@@ -622,7 +659,7 @@ export class CvAts {
 
   lockedFieldMessage(fieldName: keyof CvAts['info']): string {
     return this.isInfoFieldLocked(fieldName)
-      ? 'Renseigne automatiquement depuis votre profil.'
+      ? 'Renseigné automatiquement à partir de votre profil.'
       : '';
   }
 
@@ -632,7 +669,7 @@ export class CvAts {
 
   formationDiplomaHelper(index: number): string {
     return this.isFormationDiplomaLocked(index)
-      ? 'Renseigne automatiquement depuis votre profil (Filiere).'
+      ? 'Renseigné automatiquement à partir de votre profil'
       : '';
   }
 
@@ -660,10 +697,11 @@ export class CvAts {
   }
 
   async next(): Promise<void> {
-    if (this.navigationLock) return;
-    this.navigationLock = true;
+    const allowClosedHardSkillsContinue = this.step === 5 && this.hardSkillsClosed;
+    if (this.navigationLock && !allowClosedHardSkillsContinue) return;
+    if (!allowClosedHardSkillsContinue) this.navigationLock = true;
     try {
-      if (!this.canGoNext()) {
+      if (!this.canGoNext() && !allowClosedHardSkillsContinue) {
         this.formError = 'Veuillez remplir les champs obligatoires de cette etape.';
         return;
       }
@@ -681,7 +719,9 @@ export class CvAts {
         try { this.cd.detectChanges(); } catch {}
       }
     } finally {
-      this.navigationLock = false;
+      if (!allowClosedHardSkillsContinue) {
+        this.navigationLock = false;
+      }
     }
   }
 
@@ -754,7 +794,8 @@ export class CvAts {
       }
 
       // CV persistence layer call (after preview)
-      const payload = this.buildSubmissionPayload(this.atsScore);
+      const payload = this.buildSubmissionPayload(this.atsScore) as any;
+      delete payload.atsScore;
 
       this.cvSubmissionService.upsertCv(payload).catch((err) => console.error('CV save failed:', err));
     } catch (err) {
@@ -807,7 +848,6 @@ export class CvAts {
         suggestions: '',
       };
 
-      localStorage.setItem('latestAtsScore', String(scoreResult.atsScore));
       localStorage.setItem('latestAtsMatchScore', String(scoreResult.matchScore));
       localStorage.setItem('latestAtsSuccessScore', String(scoreResult.successScore));
 
@@ -1047,7 +1087,7 @@ export class CvAts {
   addFormation() {
     this.formations.push({
       diplome: '',
-      institution: 'ISGIS - Universite de Sfax',
+      institution: 'Institut Supérieur De Gestion Industrielle De Sfax',
       dateDebut: '',
       dateFin: '',
       moyenne: '',
@@ -1163,10 +1203,10 @@ export class CvAts {
 
   skillWidth(level: Level): string {
     const widths: Record<Level, string> = {
-      Debutant: '20%',
+      Débutant: '20%',
       Notions: '40%',
       Intermediaire: '60%',
-      Avance: '80%',
+      Avancé: '80%',
       Expert: '100%'
     };
     return widths[level];
@@ -1174,10 +1214,10 @@ export class CvAts {
 
   skillColor(level: Level): string {
     const colors: Record<Level, string> = {
-      Debutant: '#94a3b8',
+      Débutant: '#94a3b8',
       Notions: '#60a5fa',
       Intermediaire: '#22c55e',
-      Avance: '#f59e0b',
+      Avancé: '#f59e0b',
       Expert: '#ef4444'
     };
     return colors[level];
